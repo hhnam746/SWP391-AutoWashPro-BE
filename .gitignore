@@ -282,3 +282,6 @@ obj/
 # End of https://www.toptal.com/developers/gitignore/api/aspnetcore,dotnetcore
 SWP391-AutoWashPro-BE.Api/appsettings.Development.json
 SWP391-AutoWashPro-BE.Api/appsettings.json
+# .NET build folders
+bin/
+obj/
