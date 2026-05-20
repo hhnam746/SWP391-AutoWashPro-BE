@@ -1,0 +1,6 @@
+@SWP391_AutoWashPro_BE.Api_HostAddress = http://localhost:5207
+
+GET {{SWP391_AutoWashPro_BE.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
