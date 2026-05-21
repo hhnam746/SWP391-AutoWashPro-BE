@@ -1,25 +1,27 @@
 {
   "format": 1,
   "restore": {
-    "/Users/hohoangnam/Documents/Local Disk/FPTU/FPT_SU26/SWP391/SWP391-AutoWashPro-BE/SWP391-AutoWashPro-BE.Service/SWP391-AutoWashPro-BE.Service.csproj": {}
+    "E:\\SU26.SWP\\main\\SWP391-AutoWashPro-BE\\SWP391-AutoWashPro-BE.Service\\SWP391-AutoWashPro-BE.Service.csproj": {}
   },
   "projects": {
-    "/Users/hohoangnam/Documents/Local Disk/FPTU/FPT_SU26/SWP391/SWP391-AutoWashPro-BE/SWP391-AutoWashPro-BE.Repository/SWP391-AutoWashPro-BE.Repository.csproj": {
+    "E:\\SU26.SWP\\main\\SWP391-AutoWashPro-BE\\SWP391-AutoWashPro-BE.Repository\\SWP391-AutoWashPro-BE.Repository.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/hohoangnam/Documents/Local Disk/FPTU/FPT_SU26/SWP391/SWP391-AutoWashPro-BE/SWP391-AutoWashPro-BE.Repository/SWP391-AutoWashPro-BE.Repository.csproj",
+        "projectUniqueName": "E:\\SU26.SWP\\main\\SWP391-AutoWashPro-BE\\SWP391-AutoWashPro-BE.Repository\\SWP391-AutoWashPro-BE.Repository.csproj",
         "projectName": "SWP391-AutoWashPro-BE.Repository",
-        "projectPath": "/Users/hohoangnam/Documents/Local Disk/FPTU/FPT_SU26/SWP391/SWP391-AutoWashPro-BE/SWP391-AutoWashPro-BE.Repository/SWP391-AutoWashPro-BE.Repository.csproj",
-        "packagesPath": "/Users/hohoangnam/.nuget/packages/",
-        "outputPath": "/Users/hohoangnam/Documents/Local Disk/FPTU/FPT_SU26/SWP391/SWP391-AutoWashPro-BE/SWP391-AutoWashPro-BE.Repository/obj/",
+        "projectPath": "E:\\SU26.SWP\\main\\SWP391-AutoWashPro-BE\\SWP391-AutoWashPro-BE.Repository\\SWP391-AutoWashPro-BE.Repository.csproj",
+        "packagesPath": "C:\\Users\\PC\\.nuget\\packages\\",
+        "outputPath": "E:\\SU26.SWP\\main\\SWP391-AutoWashPro-BE\\SWP391-AutoWashPro-BE.Repository\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/Users/hohoangnam/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\PC\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -37,7 +39,8 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "10.0.300"
       },
       "frameworks": {
         "net8.0": {
@@ -78,34 +81,36 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/8.0.416/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json"
         }
       }
     },
-    "/Users/hohoangnam/Documents/Local Disk/FPTU/FPT_SU26/SWP391/SWP391-AutoWashPro-BE/SWP391-AutoWashPro-BE.Service/SWP391-AutoWashPro-BE.Service.csproj": {
+    "E:\\SU26.SWP\\main\\SWP391-AutoWashPro-BE\\SWP391-AutoWashPro-BE.Service\\SWP391-AutoWashPro-BE.Service.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/hohoangnam/Documents/Local Disk/FPTU/FPT_SU26/SWP391/SWP391-AutoWashPro-BE/SWP391-AutoWashPro-BE.Service/SWP391-AutoWashPro-BE.Service.csproj",
+        "projectUniqueName": "E:\\SU26.SWP\\main\\SWP391-AutoWashPro-BE\\SWP391-AutoWashPro-BE.Service\\SWP391-AutoWashPro-BE.Service.csproj",
         "projectName": "SWP391-AutoWashPro-BE.Service",
-        "projectPath": "/Users/hohoangnam/Documents/Local Disk/FPTU/FPT_SU26/SWP391/SWP391-AutoWashPro-BE/SWP391-AutoWashPro-BE.Service/SWP391-AutoWashPro-BE.Service.csproj",
-        "packagesPath": "/Users/hohoangnam/.nuget/packages/",
-        "outputPath": "/Users/hohoangnam/Documents/Local Disk/FPTU/FPT_SU26/SWP391/SWP391-AutoWashPro-BE/SWP391-AutoWashPro-BE.Service/obj/",
+        "projectPath": "E:\\SU26.SWP\\main\\SWP391-AutoWashPro-BE\\SWP391-AutoWashPro-BE.Service\\SWP391-AutoWashPro-BE.Service.csproj",
+        "packagesPath": "C:\\Users\\PC\\.nuget\\packages\\",
+        "outputPath": "E:\\SU26.SWP\\main\\SWP391-AutoWashPro-BE\\SWP391-AutoWashPro-BE.Service\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/Users/hohoangnam/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\PC\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "/Users/hohoangnam/Documents/Local Disk/FPTU/FPT_SU26/SWP391/SWP391-AutoWashPro-BE/SWP391-AutoWashPro-BE.Repository/SWP391-AutoWashPro-BE.Repository.csproj": {
-                "projectPath": "/Users/hohoangnam/Documents/Local Disk/FPTU/FPT_SU26/SWP391/SWP391-AutoWashPro-BE/SWP391-AutoWashPro-BE.Repository/SWP391-AutoWashPro-BE.Repository.csproj"
+              "E:\\SU26.SWP\\main\\SWP391-AutoWashPro-BE\\SWP391-AutoWashPro-BE.Repository\\SWP391-AutoWashPro-BE.Repository.csproj": {
+                "projectPath": "E:\\SU26.SWP\\main\\SWP391-AutoWashPro-BE\\SWP391-AutoWashPro-BE.Repository\\SWP391-AutoWashPro-BE.Repository.csproj"
               }
             }
           }
@@ -119,7 +124,8 @@
           "enableAudit": "true",
           "auditLevel": "low",
           "auditMode": "direct"
-        }
+        },
+        "SdkAnalysisLevel": "10.0.300"
       },
       "frameworks": {
         "net8.0": {
@@ -206,7 +212,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/8.0.416/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

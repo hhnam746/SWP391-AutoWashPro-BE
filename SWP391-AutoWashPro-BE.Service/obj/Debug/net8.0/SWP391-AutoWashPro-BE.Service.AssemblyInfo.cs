@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SWP391-AutoWashPro-BE.Service")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+123faff6128762628c82885482b6431eddfbbbb9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6bd18d9927c6d1713619900a4dbc878e83a9da4b")]
 [assembly: System.Reflection.AssemblyProductAttribute("SWP391-AutoWashPro-BE.Service")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SWP391-AutoWashPro-BE.Service")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
