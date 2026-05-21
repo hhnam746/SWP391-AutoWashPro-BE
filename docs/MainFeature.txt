@@ -1,0 +1,313 @@
+﻿Main Feature
+_____________________________________________________________________
+Business Requirement: 
+BR-1 — Chương trình khách hàng thân thiết đa cấp (Promotion + Reward)
+1.1 (Must)
+Hệ thống phải hỗ trợ ít nhất 3 cấp thành viên (Silver / Gold / Platinum) với ngưỡng và quyền lợi riêng biệt.
+1.2 (Must)
+Khách hàng tích lũy điểm tự động sau mỗi lần rửa xe; điểm hiển thị realtime trên app/web.
+1.3 (Must)
+Hỗ trợ đổi điểm lấy dịch vụ miễn phí, voucher giảm giá hoặc quà tặng theo từng tier.
+1.4 (Should)
+Khách hàng hạng Platinum được ưu tiên slot đặt lịch trong giờ cao điểm.
+
+
+Bussiness 01: thì bao gồm quản lý promoiton, CRUD
+quản lý các phần thưởng, quản lý các thứ hạng của khách hàng, quản lý quyền lợi của khách hàng theo hạng
+________________
+
+
+BR-2 — Đặt lịch trước & quản lý hàng chờ
+2.1 (Must)
+Khách hàng đặt lịch trước qua app hoặc web, nhận xác nhận và nhắc nhở tự động.
+2.2 (Must)
+Hệ thống phân slot theo tier: Platinum → Gold → Silver .
+________________
+
+
+BR-4 — Hạ tầng & Tích hợp
+4.1 (Must)
+Hệ thống hỗ trợ đa chi nhánh; dữ liệu khách hàng đồng bộ xuyên suốt toàn chuỗi.
+Dưới đây là bản hoàn thiện các Main Features cùng với Main Flow chi tiết cho dự án AutoWash Pro, được tổ chức theo từng Actor:---
+Hoàn thiện Main Features & Main Flow chi tiết
+Hạn chế về công nghệ và thiết bị quét đồng hồ máy tính để checkin
+________________
+
+
+CUSTOMER
+1. Authentication & Profile
+Main Flow:
+* Register: Nhập thông tin cá nhân (họ tên, SĐT, email, CCCD) → Upload tối thiểu 3 ảnh khuôn mặt → Upload tối thiểu 2 biển số xe → Hệ thống verify → Tạo tài khoản
+* Login: Nhập email/SĐT + mật khẩu → Xác thực → Vào app
+* Forgot password: Nhập email → Nhận OTP → Đặt lại mật khẩu
+* Update profile: Chỉnh sửa thông tin cá nhân (không bao gồm ảnh mặt) → Lưu
+* Change password: Nhập mật khẩu cũ → Nhập mới → Xác nhận
+BR: 1 email/SĐT chỉ đăng ký 1 tài khoản; tối thiểu 3 ảnh mặt, tối thiểu 2 biển số khi đăng ký.
+________________
+
+
+2. Manage Cars
+Main Flow:
+* Add car: Nhập thông tin xe → Upload ảnh biển số → Xác nhận thêm xe
+* View cars: Xem danh sách biển số đã đăng ký, trạng thái từng xe
+* Remove car: Xóa xe khỏi danh sách (chỉ khi không có booking đang active)
+BR: Mỗi xe chỉ được tồn tại 1 booking active trong hệ thống tại một thời điểm. Sau khi checkout xong mới được tạo booking mới cho xe đó.
+________________
+
+
+3. Manage Booking Service
+Main Flow — Create Booking:
+1. Chọn chi nhánh
+2. Chọn xe (từ danh sách xe đã đăng ký)
+3. Chọn gói dịch vụ
+4. Chọn ngày và slot 15 phút (08:00–17:00, mỗi slot 1 xe)
+5. Áp dụng voucher (nếu có)
+6. Xác nhận booking → Nhận thông báo xác nhận
+Main Flow — Manage Booking:
+* View bookings: Xem danh sách booking hiện tại và lịch sử
+* Cancel booking: Hủy booking (trong giới hạn thời gian theo BR)
+* View booking history: Lịch sử đã rửa xe, trạng thái từng lần
+Booking State Diagram: Pending → Confirmed → In Progress → Completed → Checkout Pending / Confirmed → Cancelled (do khách hoặc hệ thống tự hủy khi quá giờ)
+BR: Mỗi xe tối đa 1 booking active. Slot cố định 15 phút/slot, 1 slot/1 xe. Hệ thống tự động chuyển trạng thái dựa theo đồng hồ máy tính (không có thiết bị IoT thực tế). Sau 15 phút kể từ giờ hẹn → tự chuyển sang Completed. Quá thời gian quy định mà chưa check-in → Cancelled.
+Mỗi chi nhánh có 1 làn
+________________
+
+
+4. Loyalty & Rewards
+Main Flow:
+* Viewpoints: Xem điểm tích lũy hiện tại (realtime)
+* View tier status: Xem hạng hiện tại, ngưỡng lên hạng, quyền lợi theo hạng
+* View available rewards: Danh sách phần thưởng có thể đổi
+* Redeem reward: Chọn phần thưởng → Xác nhận đổi điểm → Nhận voucher/quà
+* View vouchers: Danh sách voucher đang có, đã dùng, hết hạn
+* Apply voucher: Áp dụng khi tạo booking/thanh toán
+BR: Điểm được cộng tự động sau mỗi lần rửa hoàn thành. Tier tự động nâng khi đạt ngưỡng. Platinum được ưu tiên chọn slot trong giờ cao điểm.
+
+
+Điểm đó mà ko tăng thì reset lại trong vòng 1 năm
+________________
+
+
+6. Manage Pricing
+Main Flow:
+* Xem danh sách giá hiện tại
+* Tạo/Cập nhật bảng giá: nhập giá mới
+* Lưu và kích hoạt giá mới
+Giá chung cho tất cả các chi nhánh
+________________
+
+
+7. Manage Points Config
+Main Flow:
+* Thiết lập số điểm cộng cố định cho mỗi lần rửa xe hoàn thành
+* Thiết lập ngưỡng điểm để nâng cấp từng tier (Silver → Gold → Platinum)
+* Lưu cấu hình → Hệ thống áp dụng tự động
+________________
+
+
+8. Manage Promotions
+Main Flow:
+* Create promotion: Nhập tên, mô tả, loại giảm giá (%), khoảng thời gian, tier áp dụng → Lưu
+* Update promotion: Chỉnh sửa thông tin chiến dịch
+* Activate / Deactivate: Bật/tắt promotion
+* Delete promotion: Xóa (chỉ promotion chưa active)
+* View promotion list: Danh sách tất cả chiến dịch kèm trạng thái
+________________
+
+
+9. Manage Rewards
+Main Flow:
+* Create reward: Chọn loại (free wash / voucher giảm giá / quà tặng) → Nhập điểm yêu cầu, tier được đổi, số lượng, thời hạn → Lưu
+* Update / Delete reward: Chỉnh sửa hoặc xóa phần thưởng
+* View reward catalog: Danh sách phần thưởng đang active
+Promotion chỉ áp dụng cho nhóm khách hàng theo hạng OR chung trong hệ thống
+________________
+
+
+10. View Booking Status
+Main Flow:
+* Xem tất cả booking theo chi nhánh, theo ngày, theo trạng thái
+* Theo dõi slot nào đang trống / đã đặt
+* Lọc và tìm kiếm booking theo biển số, khách hàng
+________________
+
+
+ADMIN
+11. Manage Users
+Main Flow:
+* Xem danh sách tài khoản khách hàng (tên, tier, điểm, trạng thái)
+* Khóa / Mở khóa tài khoản
+________________
+
+
+12. Manage Branches
+Main Flow:
+* Create branch: Nhập tên, địa chỉ → Lưu
+* Update branch: Chỉnh sửa thông tin chi nhánh
+* Delete branch: Đánh dấu inactive (không xóa vật lý nếu còn dữ liệu)
+* View branch performance: Doanh thu, số lượt rửa
+________________
+
+
+13. Manage Membership Tiers
+Main Flow:
+* Create / Update / Delete tier: Cấu hình Silver / Gold / Platinum
+* Define upgrade threshold: Số lần rửa xe để lên hạng
+* Define tier benefits: Ưu tiên booking, % giảm giá, quà tặng riêng
+* Manage priority booking rules: Platinum được đặt lịch trước N ngày so với Silver/Gold
+
+
+________________
+
+
+15. Reports & Statistics
+Main Flow:
+* Xem tổng quan: tổng lượt rửa, doanh thu
+* Lọc báo cáo theo chi nhánh, theo khoảng thời gian
+________________
+
+
+SYSTEM AUTOMATION
+16. Loyalty Engine
+Main Flow:
+1. Phát hiện booking chuyển sang Completed
+2. Tính điểm theo cấu hình cố định
+3. Cộng điểm vào tài khoản khách hàng (realtime)
+4. Kiểm tra ngưỡng tier → Nếu đạt: tự động nâng hạng
+5. Gửi thông báo "Chúc mừng nâng hạng"
+________________
+
+
+17. Booking Automation
+Main Flow:
+* Hệ thống theo dõi đồng hồ máy tính
+* Đến giờ hẹn: chuyển booking từ Confirmed → In Progress
+* Sau 15 phút: chuyển In Progress → Completed → trigger Loyalty Engine
+* Nếu quá thời hạn hủy mà khách chưa đến: chuyển → Cancelled
+* Gửi thông báo tương ứng cho khách
+Ghi chú cho giảng viên: Hệ thống không tích hợp thiết bị IoT/LPR thực tế do giới hạn thiết bị. Toàn bộ check-in/check-out được giả định và quản lý tự động theo đồng hồ hệ thống.
+________________
+
+
+18. Notification System
+Trigger events & nội dung:
+* Booking created → "Đặt lịch thành công, slot [giờ] tại [chi nhánh]"
+* Booking reminder → Nhắc trước N phút, vài ngày (BR cấu hình)
+* Booking cancelled → "Booking của bạn đã bị hủy"
+* Booking completed → "Rửa xe hoàn thành, bạn nhận được X điểm"
+* Tier upgraded → "Chúc mừng! Bạn đã lên hạng [tier mới]"
+* Reward redeemed → "Đổi thưởng thành công, voucher đã được gửi"
+
+
+Format chỉ trình bày meeting, ko nhìn thấy được actor nào làm ? Cần phải vẽ Swimlane
+* Cần bổ sung: Đó là vẽ state diagram
+* diễn đạt các trạng thái khác nhau của 1 flow
+Tránh vẽ cái này 
+Booking State Diagram: Pending → Confirmed → In Progress → Completed → Checkout Pending / Confirmed → Cancelled (do khách hoặc hệ thống tự hủy khi quá giờ)
+
+
+________________
+
+
+Business Rules tổng hợp (cần ghi vào tài liệu trước khi code)
+Mã BR
+	Nội dung
+	BR-01
+	1 email/SĐT = 1 tài khoản
+	BR-02
+	Đăng ký cần tối thiểu 3 ảnh mặt + 2 biển số
+	BR-03
+	Mỗi xe chỉ có 1 booking active tại 1 thời điểm
+	BR-04
+	Mỗi slot = 15 phút, 1 xe/slot, từ 08:00–17:00
+	BR-05
+	Điểm tích lũy cố định mỗi lần rửa (admin cấu hình)
+	BR-06
+	Hạng tự động nâng khi đủ ngưỡng số lần rửa
+	BR-07
+	Platinum ưu tiên đặt slot trước N ngày (Admin cấu hình)
+	BR-08
+	Hệ thống tự cancel booking nếu quá giờ
+	BR-09
+	Checkout tự động sau 15 phút kể từ giờ hẹn (clock-based)
+	BR-10
+	Khách được hủy booking trước 30 phút (BR cấu hình)
+	BR-11
+	Sau 1 năm không cộng điểm thì reset điểm
+	
+
+1. Flow Khách hàng: Đăng ký → Quản lý xe → Đặt lịch rửa xe
+Đây là flow quan trọng nhất của phía Customer.
+Luồng chính:
+Khách hàng đăng ký tài khoản
+→ upload tối thiểu 3 ảnh khuôn mặt và <=2 biển số xe
+→ đăng nhập hệ thống
+→ quản lý thông tin cá nhân
+→ thêm xe
+→ chọn chi nhánh
+→ chọn xe
+→ chọn gói dịch vụ
+→ chọn slot 15 phút từ 08:00–17:00
+→ áp dụng voucher nếu có
+→ cọc tiền, xác nhận booking
+→ nhận thông báo đặt lịch thành công.
+Business rules chính:
+* 1 email/SĐT chỉ được đăng ký 1 tài khoản.
+* Mỗi xe chỉ có 1 booking active tại một thời điểm.
+* Mỗi slot là 15 phút, 1 slot chỉ nhận 1 xe.
+* Khách được hủy booking trước thời gian cấu hình, ví dụ trước 30 phút.
+________________
+
+
+2. Flow Vận hành Booking: Booking lifecycle + Admin theo dõi trạng thái
+Đây là flow xử lý quá trình rửa xe sau khi khách đã đặt lịch.
+Luồng chính:
+Booking được tạo
+→ trạng thái Pending
+→ Bấm nút cọc tiền(cho 2p chuẩn bị) → Check tài khoản đủ tiền để cọc không
+→ Nếu đủ → Status == Confirm
+→ Nếu không đủ → Hết thời gian chờ(Cron job) → Status == Cancelled 
+→ Tới thời điểm rửa → Bấm nút check-in → Check tài khoản đủ tiền không
+→ Nếu đủ → Status == In-Progress
+→ Nếu không đủ →  Status == Cancelled 
+→ Sau 15 phút tự chuyển sang Completed
+→ checkout hoàn tất
+→ trigger cộng điểm loyalty
+Admin sẽ dùng flow này để:
+* Xem booking theo chi nhánh.
+* Xem booking theo ngày.
+* Lọc booking theo trạng thái.
+* Theo dõi slot trống / đã đặt.
+* Tìm booking theo biển số hoặc khách hàng.
+Business rules chính:
+* Hệ thống không dùng IoT/LPR thật.
+* Check-in/check-out được giả lập bằng đồng hồ hệ thống.
+* Nếu quá giờ mà khách chưa đến, booking có thể bị auto cancel.
+* Sau 15 phút từ giờ hẹn, booking tự chuyển sang completed.
+________________
+
+
+3. Flow Loyalty / Promotion / Reward: Tích điểm → Lên hạng → Đổi thưởng
+Đây là flow business chính tạo giá trị khác biệt cho dự án.
+Luồng chính:
+Booking hoàn thành
+→ Loyalty Engine phát hiện trạng thái Completed
+→ hệ thống cộng điểm tự động cho khách
+→ kiểm tra điểm / số lần rửa
+→ nếu đủ điều kiện thì tự nâng tier
+→ khách xem điểm, hạng thành viên, quyền lợi
+→ khách đổi điểm lấy voucher / free wash / quà tặng
+→ voucher có thể được dùng khi booking hoặc thanh toán.
+Admin sẽ quản lý:
+* Cấu hình điểm cộng sau mỗi lần rửa.
+* Cấu hình tier Silver / Gold / Platinum.
+* Cấu hình ngưỡng lên hạng.
+* Quản lý promotion.
+* Quản lý reward.
+* Cấu hình quyền lợi theo tier.
+* Cấu hình ưu tiên slot cho Platinum.
+Business rules chính:
+* Có ít nhất 3 hạng: Silver / Gold / Platinum.
+* Điểm được cộng tự động sau mỗi lần rửa hoàn thành.
+* Tier tự động nâng khi đủ ngưỡng.
+* Platinum được ưu tiên slot trong giờ cao điểm hoặc được đặt trước N ngày tùy cấu hình.
