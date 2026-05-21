@@ -1,0 +1,508 @@
+﻿enum user_role {
+admin
+customer
+}
+
+
+
+
+enum account_status {
+active
+locked
+inactive
+}
+
+
+
+
+enum booking_status {
+pending
+confirmed
+check_in
+in_progress
+completed
+cancelled
+}
+
+
+
+
+enum payment_status {
+pending
+success
+failed
+refunded
+}
+
+
+
+
+enum discount_type {
+percentage
+fixed_amount
+}
+
+
+
+
+enum reward_type {
+free_wash
+voucher
+}
+
+
+
+
+enum voucher_status {
+active
+used
+expired
+}
+
+
+
+
+enum notification_type {
+booking_created
+booking_reminder
+booking_cancelled
+booking_completed
+tier_upgraded
+reward_redeemed
+system_alert
+}
+
+
+
+
+enum point_transaction_type {
+earn
+redeem
+reset
+}
+
+
+
+
+table user {
+id uuid [pk, default: `gen_random_uuid()`]
+email varchar [unique]
+phone varchar [unique, not null]
+password_hash varchar [not null]
+role user_role [not null, default: 'customer']
+status account_status [not null, default: 'active']
+last_login_at timestamptz
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+email
+phone
+status
+role
+}
+}
+table wallet {
+id uuid [pk, default: `gen_random_uuid()`]
+customer_id uuid [not null, unique]
+balance numeric(12,2) [not null, default: 0]
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+customer_id
+}
+}
+table customer_profile {
+id uuid [pk, default: `gen_random_uuid()`]
+user_id uuid [not null, unique]
+tier_id uuid [not null]
+first_name varchar [not null]
+last_name varchar [not null]
+cccd varchar [unique]
+total_points integer [not null, default: 0]
+total_washes integer [not null, default: 0]
+last_point_activity_at timestamptz
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+user_id
+tier_id
+cccd
+}
+}
+
+
+
+
+table user_face_image {
+id uuid [pk, default: `gen_random_uuid()`]
+user_id uuid [not null]
+image_url varchar [not null]
+is_active boolean [not null, default: false]
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+user_id
+}
+}
+
+
+
+
+table vehicle {
+id uuid [pk, default: `gen_random_uuid()`]
+customer_id uuid [not null]
+license_plate varchar [not null, unique]
+brand varchar
+model varchar
+color varchar
+is_active boolean [not null, default: true]
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+deleted_at timestamptz
+
+
+
+
+indexes {
+customer_id
+license_plate
+is_active
+}
+}
+
+
+
+
+table tier {
+id uuid [pk, default: `gen_random_uuid()`]
+name varchar [not null, unique]
+level integer [not null, unique]
+required_washes integer [not null, default: 0]
+priority_booking_days integer [not null, default: 0]
+description text
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+}
+
+
+
+
+table branch {
+id uuid [pk, default: `gen_random_uuid()`]
+name varchar [not null]
+address text [not null]
+is_active boolean [not null, default: true]
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+is_active
+}
+}
+
+
+
+
+// table service {
+// id uuid [pk, default: `gen_random_uuid()`]
+// name varchar [not null]
+// description text
+// price numeric(12,2) [not null]
+// is_active boolean [not null, default: true]
+// created_at timestamptz [not null, default: `now()`]
+// updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+// indexes {
+// is_active
+// }
+// }
+
+
+
+
+table system_config {
+id uuid [pk, default: `gen_random_uuid()`]
+config_key varchar [not null, unique]
+config_value jsonb [not null]
+description text
+updated_by uuid
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+config_key
+}
+}
+
+
+
+
+table promotion {
+id uuid [pk, default: `gen_random_uuid()`]
+name varchar [not null]
+description text
+discount_type discount_type [not null]
+discount_value numeric(12,2) [not null]
+start_date timestamptz [not null]
+end_date timestamptz [not null]
+is_global boolean [default: false]
+is_active boolean [not null, default: true]
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+is_active
+start_date
+end_date
+}
+}
+
+
+
+
+table promotion_tier {
+id uuid [pk, default: `gen_random_uuid()`]
+promotion_id uuid [not null]
+tier_id uuid [not null]
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+(promotion_id, tier_id) [unique]
+}
+}
+
+
+
+
+table reward {
+id uuid [pk, default: `gen_random_uuid()`]
+name varchar [not null]
+reward_type reward_type [not null]
+points_required integer [not null]
+quantity_available integer [not null, default: -1]
+valid_days integer [not null, default: 30]
+description text
+is_active boolean [not null, default: true]
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+reward_type
+is_active
+}
+}
+
+
+
+
+table reward_tier {
+id uuid [pk, default: `gen_random_uuid()`]
+reward_id uuid [not null]
+tier_id uuid [not null]
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+(reward_id, tier_id) [unique]
+}
+}
+
+
+
+
+table voucher {
+id uuid [pk, default: `gen_random_uuid()`]
+customer_id uuid [not null]
+reward_id uuid
+promotion_id uuid
+code varchar [not null, unique]
+status voucher_status [not null, default: 'active']
+discount_type discount_type [not null]
+discount_value numeric(12,2) [not null]
+expires_at timestamptz [not null]
+used_at timestamptz
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+customer_id
+code
+status
+expires_at
+}
+}
+
+
+
+
+table booking {
+id uuid [pk, default: `gen_random_uuid()`]
+customer_id uuid [not null]
+vehicle_id uuid [not null]
+branch_id uuid [not null]
+// service_id uuid [not null]
+voucher_id uuid
+booking_date date [not null]
+start_time timestamptz [not null]
+end_time timestamptz [not null]
+// is_confirm boolean [not null, default: 'false']
+status booking_status [not null, default: 'pending']
+base_price numeric(12,2) [not null]
+discount_amount numeric(12,2) [not null, default: 0]
+final_price numeric(12,2) [not null]
+cancelled_at timestamptz
+completed_at timestamptz
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+customer_id
+vehicle_id
+branch_id
+status
+booking_date
+start_time
+}
+}
+
+
+
+
+// table payment {
+// id uuid [pk, default: `gen_random_uuid()`]
+// booking_id uuid [not null, unique]
+// amount numeric(12,2) [not null]
+// status payment_status [not null, default: 'pending']
+// sepay_transaction_id varchar
+// payment_metadata jsonb
+// paid_at timestamptz
+// created_at timestamptz [not null, default: `now()`]
+// updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+// indexes {
+// booking_id
+// status
+// sepay_transaction_id
+// }
+// }
+
+
+
+
+table point_transaction {
+id uuid [pk, default: `gen_random_uuid()`]
+customer_id uuid [not null]
+booking_id uuid
+reward_id uuid
+points integer [not null]
+transaction_type point_transaction_type [not null]
+description text
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+customer_id
+transaction_type
+}
+}
+
+
+
+
+table notification {
+id uuid [pk, default: `gen_random_uuid()`]
+user_id uuid [not null]
+type notification_type [not null]
+title varchar [not null]
+content text [not null]
+is_read boolean [not null, default: false]
+metadata jsonb
+created_at timestamptz [not null, default: `now()`]
+updated_at timestamptz [not null, default: `now()`]
+
+
+
+
+indexes {
+user_id
+is_read
+created_at
+}
+}
+
+
+
+
+Ref: customer_profile.user_id - user.id
+Ref: customer_profile.tier_id > tier.id
+Ref: user_face_image.user_id > user.id
+Ref: vehicle.customer_id > customer_profile.id
+Ref: promotion_tier.promotion_id > promotion.id
+Ref: promotion_tier.tier_id > tier.id
+Ref: reward_tier.reward_id > reward.id
+Ref: reward_tier.tier_id > tier.id
+Ref: voucher.customer_id > customer_profile.id
+Ref: voucher.reward_id > reward.id
+Ref: voucher.promotion_id > promotion.id
+Ref: booking.customer_id > customer_profile.id
+Ref: booking.vehicle_id > vehicle.id
+Ref: booking.branch_id > branch.id
+// Ref: booking.service_id > service.id
+Ref: booking.voucher_id > voucher.id
+// Ref: payment.booking_id - booking.id
+Ref: point_transaction.customer_id > customer_profile.id
+Ref: point_transaction.booking_id > booking.id
+Ref: point_transaction.reward_id > reward.id
+Ref: notification.user_id > user.id
+Ref: system_config.updated_by > user.id
+Ref: wallet.customer_id - customer_profile.id
