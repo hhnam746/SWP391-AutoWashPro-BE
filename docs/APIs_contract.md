@@ -136,146 +136,146 @@ earn | redeem | reset
 
 ## 4. Business Rules áp dụng trong API
 
-| Mã BR | Nội dung | API ảnh hưởng |
-| --- | --- | --- |
-| BR-01 | 1 email/SĐT = 1 tài khoản | Auth register |
-| BR-02 | Đăng ký cần tối thiểu 3 ảnh mặt + 2 biển số | Auth register |
-| BR-03 | Mỗi xe chỉ có 1 booking active tại 1 thời điểm | Booking create |
-| BR-04 | Mỗi slot = 15 phút, 1 xe/slot, từ 08:00–17:00 | Booking slots/create |
-| BR-05 | Điểm tích lũy cố định mỗi lần rửa, Admin cấu hình | Admin points config, loyalty engine |
-| BR-06 | Hạng tự động nâng khi đủ ngưỡng số lần rửa | Loyalty engine, tiers |
-| BR-07 | Platinum ưu tiên đặt slot trước N ngày, Admin cấu hình | Booking slots, tiers |
-| BR-08 | Hệ thống tự cancel booking nếu quá giờ | Booking automation |
-| BR-09 | Checkout tự động sau 15 phút kể từ giờ hẹn | Booking automation |
-| BR-10 | Khách được hủy booking trước 30 phút hoặc theo cấu hình | Booking cancel |
-| BR-11 | Sau 1 năm không cộng điểm thì reset điểm | Loyalty reset job |
+| Mã BR | Nội dung                                                | API ảnh hưởng                       |
+| ----- | ------------------------------------------------------- | ----------------------------------- |
+| BR-01 | 1 email/SĐT = 1 tài khoản                               | Auth register                       |
+| BR-02 | Đăng ký cần tối thiểu 3 ảnh mặt + 2 biển số             | Auth register                       |
+| BR-03 | Mỗi xe chỉ có 1 booking active tại 1 thời điểm          | Booking create                      |
+| BR-04 | Mỗi slot = 15 phút, 1 xe/slot, từ 08:00–17:00           | Booking slots/create                |
+| BR-05 | Điểm tích lũy cố định mỗi lần rửa, Admin cấu hình       | Admin points config, loyalty engine |
+| BR-06 | Hạng tự động nâng khi đủ ngưỡng số lần rửa              | Loyalty engine, tiers               |
+| BR-07 | Platinum ưu tiên đặt slot trước N ngày, Admin cấu hình  | Booking slots, tiers                |
+| BR-08 | Hệ thống tự cancel booking nếu quá giờ                  | Booking automation                  |
+| BR-09 | Checkout tự động sau 15 phút kể từ giờ hẹn              | Booking automation                  |
+| BR-10 | Khách được hủy booking trước 30 phút hoặc theo cấu hình | Booking cancel                      |
+| BR-11 | Sau 1 năm không cộng điểm thì reset điểm                | Loyalty reset job                   |
 
 ## 5. REST API tổng hợp
 
 ### Authentication & Profile
 
-| Method | Endpoint | Mục đích |
-| --- | --- | --- |
-| POST | `/api/v1/auth/register` | Đăng ký customer |
-| POST | `/api/v1/auth/login` | Đăng nhập customer/admin |
-| POST | `/api/v1/auth/forgot-password` | Gửi OTP quên mật khẩu |
-| POST | `/api/v1/auth/reset-password` | Đặt lại mật khẩu bằng OTP |
-| POST | `/api/v1/auth/logout` | Logout phía FE |
-| GET | `/api/v1/me` | Lấy profile hiện tại |
-| PATCH | `/api/v1/me` | Cập nhật profile |
-| PATCH | `/api/v1/me/password` | Đổi mật khẩu |
+| Method | Endpoint                       | Mục đích                  |
+| ------ | ------------------------------ | ------------------------- |
+| POST   | `/api/v1/auth/register`        | Đăng ký customer          |
+| POST   | `/api/v1/auth/login`           | Đăng nhập customer/admin  |
+| POST   | `/api/v1/auth/forgot-password` | Gửi OTP quên mật khẩu     |
+| POST   | `/api/v1/auth/reset-password`  | Đặt lại mật khẩu bằng OTP |
+| POST   | `/api/v1/auth/logout`          | Logout phía FE            |
+| GET    | `/api/v1/me`                   | Lấy profile hiện tại      |
+| PATCH  | `/api/v1/me`                   | Cập nhật profile          |
+| PATCH  | `/api/v1/me/password`          | Đổi mật khẩu              |
 
 ### Customer Vehicles
 
-| Method | Endpoint | Mục đích |
-| --- | --- | --- |
-| GET | `/api/v1/vehicles` | Danh sách xe của customer |
-| POST | `/api/v1/vehicles` | Thêm xe |
-| GET | `/api/v1/vehicles/{id}` | Chi tiết xe |
-| PATCH | `/api/v1/vehicles/{id}` | Cập nhật xe |
-| DELETE | `/api/v1/vehicles/{id}` | Xóa mềm xe |
+| Method | Endpoint                | Mục đích                  |
+| ------ | ----------------------- | ------------------------- |
+| GET    | `/api/v1/vehicles`      | Danh sách xe của customer |
+| POST   | `/api/v1/vehicles`      | Thêm xe                   |
+| GET    | `/api/v1/vehicles/{id}` | Chi tiết xe               |
+| PATCH  | `/api/v1/vehicles/{id}` | Cập nhật xe               |
+| DELETE | `/api/v1/vehicles/{id}` | Xóa mềm xe                |
 
 ### Branches & Public Read
 
-| Method | Endpoint | Mục đích |
-| --- | --- | --- |
-| GET | `/api/v1/branches` | Danh sách chi nhánh active |
-| GET | `/api/v1/tiers` | Xem các hạng thành viên |
-| GET | `/api/v1/promotions/available` | Promotion khả dụng với customer |
-| GET | `/api/v1/rewards` | Catalog phần thưởng active |
+| Method | Endpoint                       | Mục đích                        |
+| ------ | ------------------------------ | ------------------------------- |
+| GET    | `/api/v1/branches`             | Danh sách chi nhánh active      |
+| GET    | `/api/v1/tiers`                | Xem các hạng thành viên         |
+| GET    | `/api/v1/promotions/available` | Promotion khả dụng với customer |
+| GET    | `/api/v1/rewards`              | Catalog phần thưởng active      |
 
 ### Booking
 
-| Method | Endpoint | Mục đích |
-| --- | --- | --- |
-| GET | `/api/v1/bookings` | Customer xem booking hiện tại/lịch sử |
-| POST | `/api/v1/bookings` | Tạo booking pending |
-| GET | `/api/v1/bookings/{id}` | Chi tiết booking |
-| POST | `/api/v1/bookings/{id}/check-in` | Check-in khi đến rửa |
-| POST | `/api/v1/bookings/{id}/cancel` | Customer hủy booking |
-| GET | `/api/v1/booking-slots` | Xem slot trống/đã đặt |
+| Method | Endpoint                         | Mục đích                              |
+| ------ | -------------------------------- | ------------------------------------- |
+| GET    | `/api/v1/bookings`               | Customer xem booking hiện tại/lịch sử |
+| POST   | `/api/v1/bookings`               | Tạo booking pending                   |
+| GET    | `/api/v1/bookings/{id}`          | Chi tiết booking                      |
+| POST   | `/api/v1/bookings/{id}/check-in` | Check-in khi đến rửa                  |
+| POST   | `/api/v1/bookings/{id}/cancel`   | Customer hủy booking                  |
+| GET    | `/api/v1/booking-slots`          | Xem slot trống/đã đặt                 |
 
 ### Loyalty, Rewards, Vouchers
 
-| Method | Endpoint | Mục đích |
-| --- | --- | --- |
-| GET | `/api/v1/loyalty/me` | Xem điểm, tier, quyền lợi |
-| GET | `/api/v1/loyalty/point-transactions` | Lịch sử điểm |
-| POST | `/api/v1/rewards/{id}/redeem` | Đổi điểm lấy reward |
-| GET | `/api/v1/vouchers` | Danh sách voucher của customer |
-| POST | `/api/v1/vouchers/validate` | Validate voucher khi booking |
+| Method | Endpoint                             | Mục đích                       |
+| ------ | ------------------------------------ | ------------------------------ |
+| GET    | `/api/v1/loyalty/me`                 | Xem điểm, tier, quyền lợi      |
+| GET    | `/api/v1/loyalty/point-transactions` | Lịch sử điểm                   |
+| POST   | `/api/v1/rewards/{id}/redeem`        | Đổi điểm lấy reward            |
+| GET    | `/api/v1/vouchers`                   | Danh sách voucher của customer |
+| POST   | `/api/v1/vouchers/validate`          | Validate voucher khi booking   |
 
 ### Wallet
 
-| Method | Endpoint | Mục đích |
-| --- | --- | --- |
-| GET | `/api/v1/wallet` | Xem số dư wallet |
-| POST | `/api/v1/wallet/top-up` | Nạp ví giả lập MVP |
+| Method | Endpoint                | Mục đích           |
+| ------ | ----------------------- | ------------------ |
+| GET    | `/api/v1/wallet`        | Xem số dư wallet   |
+| POST   | `/api/v1/wallet/top-up` | Nạp ví giả lập MVP |
 
 ### Notifications
 
-| Method | Endpoint | Mục đích |
-| --- | --- | --- |
-| GET | `/api/v1/notifications` | Danh sách thông báo |
-| PATCH | `/api/v1/notifications/status` | Đánh dấu đã đọc |
+| Method | Endpoint                       | Mục đích            |
+| ------ | ------------------------------ | ------------------- |
+| GET    | `/api/v1/notifications`        | Danh sách thông báo |
+| PATCH  | `/api/v1/notifications/status` | Đánh dấu đã đọc     |
 
 ### Admin - Users & Operations
 
-| Method | Endpoint | Mục đích |
-| --- | --- | --- |
-| GET | `/api/v1/admin/users` | Danh sách customer |
-| GET | `/api/v1/admin/users/{id}` | Chi tiết customer |
-| PATCH | `/api/v1/admin/users/{id}/status` | Khóa/mở khóa account |
-| GET | `/api/v1/admin/bookings` | Xem booking toàn hệ thống |
-| GET | `/api/v1/admin/booking-slots` | Xem slot theo chi nhánh/ngày |
-| POST | `/api/v1/admin/bookings/{id}/complete` | Hoàn tất booking thủ công khi cần |
-| POST | `/api/v1/admin/bookings/{id}/cancel` | Admin hủy booking |
+| Method | Endpoint                               | Mục đích                          |
+| ------ | -------------------------------------- | --------------------------------- |
+| GET    | `/api/v1/admin/users`                  | Danh sách customer                |
+| GET    | `/api/v1/admin/users/{id}`             | Chi tiết customer                 |
+| PATCH  | `/api/v1/admin/users/{id}/status`      | Khóa/mở khóa account              |
+| GET    | `/api/v1/admin/bookings`               | Xem booking toàn hệ thống         |
+| GET    | `/api/v1/admin/booking-slots`          | Xem slot theo chi nhánh/ngày      |
+| POST   | `/api/v1/admin/bookings/{id}/complete` | Hoàn tất booking thủ công khi cần |
+| POST   | `/api/v1/admin/bookings/{id}/cancel`   | Admin hủy booking                 |
 
 ### Admin - Branches & Tiers
 
-| Method | Endpoint | Mục đích |
-| --- | --- | --- |
-| GET | `/api/v1/admin/branches` | Danh sách chi nhánh |
-| POST | `/api/v1/admin/branches` | Tạo chi nhánh |
-| PATCH | `/api/v1/admin/branches/{id}` | Cập nhật chi nhánh |
+| Method | Endpoint                      | Mục đích              |
+| ------ | ----------------------------- | --------------------- |
+| GET    | `/api/v1/admin/branches`      | Danh sách chi nhánh   |
+| POST   | `/api/v1/admin/branches`      | Tạo chi nhánh         |
+| PATCH  | `/api/v1/admin/branches/{id}` | Cập nhật chi nhánh    |
 | DELETE | `/api/v1/admin/branches/{id}` | Vô hiệu hóa chi nhánh |
-| GET | `/api/v1/admin/tiers` | Danh sách tier |
-| POST | `/api/v1/admin/tiers` | Tạo tier |
-| PATCH | `/api/v1/admin/tiers/{id}` | Cập nhật tier |
-| DELETE | `/api/v1/admin/tiers/{id}` | Xóa/vô hiệu hóa tier |
+| GET    | `/api/v1/admin/tiers`         | Danh sách tier        |
+| POST   | `/api/v1/admin/tiers`         | Tạo tier              |
+| PATCH  | `/api/v1/admin/tiers/{id}`    | Cập nhật tier         |
+| DELETE | `/api/v1/admin/tiers/{id}`    | Xóa/vô hiệu hóa tier  |
 
 ### Admin - Loyalty Config, Promotions, Rewards
 
-| Method | Endpoint | Mục đích |
-| --- | --- | --- |
-| GET | `/api/v1/admin/points-config` | Xem cấu hình điểm |
-| PUT | `/api/v1/admin/points-config` | Cập nhật cấu hình điểm |
-| GET | `/api/v1/admin/promotions` | Danh sách promotion |
-| POST | `/api/v1/admin/promotions` | Tạo promotion |
-| PATCH | `/api/v1/admin/promotions/{id}` | Cập nhật promotion |
-| POST | `/api/v1/admin/promotions/{id}/status` | Bật/tắt promotion |
-| DELETE | `/api/v1/admin/promotions/{id}` | Xóa promotion chưa active |
-| GET | `/api/v1/admin/rewards` | Danh sách reward |
-| POST | `/api/v1/admin/rewards` | Tạo reward |
-| PATCH | `/api/v1/admin/rewards/{id}` | Cập nhật reward |
-| DELETE | `/api/v1/admin/rewards/{id}` | Xóa/vô hiệu hóa reward |
+| Method | Endpoint                               | Mục đích                  |
+| ------ | -------------------------------------- | ------------------------- |
+| GET    | `/api/v1/admin/points-config`          | Xem cấu hình điểm         |
+| PUT    | `/api/v1/admin/points-config`          | Cập nhật cấu hình điểm    |
+| GET    | `/api/v1/admin/promotions`             | Danh sách promotion       |
+| POST   | `/api/v1/admin/promotions`             | Tạo promotion             |
+| PATCH  | `/api/v1/admin/promotions/{id}`        | Cập nhật promotion        |
+| POST   | `/api/v1/admin/promotions/{id}/status` | Bật/tắt promotion         |
+| DELETE | `/api/v1/admin/promotions/{id}`        | Xóa promotion chưa active |
+| GET    | `/api/v1/admin/rewards`                | Danh sách reward          |
+| POST   | `/api/v1/admin/rewards`                | Tạo reward                |
+| PATCH  | `/api/v1/admin/rewards/{id}`           | Cập nhật reward           |
+| DELETE | `/api/v1/admin/rewards/{id}`           | Xóa/vô hiệu hóa reward    |
 
 ### Admin - Reports
 
-| Method | Endpoint | Mục đích |
-| --- | --- | --- |
-| GET | `/api/v1/admin/dashboard` | Tổng quan vận hành |
-| GET | `/api/v1/admin/reports/revenue` | Báo cáo doanh thu |
-| GET | `/api/v1/admin/reports/branches` | Hiệu suất chi nhánh |
-| GET | `/api/v1/admin/reports/loyalty` | Báo cáo loyalty |
+| Method | Endpoint                         | Mục đích            |
+| ------ | -------------------------------- | ------------------- |
+| GET    | `/api/v1/admin/dashboard`        | Tổng quan vận hành  |
+| GET    | `/api/v1/admin/reports/revenue`  | Báo cáo doanh thu   |
+| GET    | `/api/v1/admin/reports/branches` | Hiệu suất chi nhánh |
+| GET    | `/api/v1/admin/reports/loyalty`  | Báo cáo loyalty     |
 
 ### AI Personalization
 
-| Method | Endpoint | Mục đích |
-| --- | --- | --- |
-| POST | `/api/v1/ai/offers/suggest` | Gợi ý ưu đãi cá nhân hóa MVP |
-| GET | `/api/v1/admin/ai-settings` | Xem cấu hình AI |
-| PATCH | `/api/v1/admin/ai-settings` | Cập nhật cấu hình AI |
+| Method | Endpoint                    | Mục đích                     |
+| ------ | --------------------------- | ---------------------------- |
+| POST   | `/api/v1/ai/offers/suggest` | Gợi ý ưu đãi cá nhân hóa MVP |
+| GET    | `/api/v1/admin/ai-settings` | Xem cấu hình AI              |
+| PATCH  | `/api/v1/admin/ai-settings` | Cập nhật cấu hình AI         |
 
 ---
 
@@ -307,22 +307,6 @@ Request
     },
     {
       "imageUrl": "https://storage/app/face-3.jpg"
-    }
-  ],
-  "vehicles": [
-    {
-      "licensePlate": "51A-12345",
-      "brand": "Toyota",
-      "model": "Vios",
-      "color": "White",
-      "licensePlateImageUrl": "https://storage/app/plate-1.jpg"
-    },
-    {
-      "licensePlate": "51B-67890",
-      "brand": "Honda",
-      "model": "City",
-      "color": "Black",
-      "licensePlateImageUrl": "https://storage/app/plate-2.jpg"
     }
   ]
 }
@@ -1031,10 +1015,7 @@ Response `200 OK`
     "requiredWashes": 10,
     "remainingWashes": 3
   },
-  "benefits": [
-    "Ưu đãi cơ bản",
-    "Nhận voucher từ reward catalog"
-  ]
+  "benefits": ["Ưu đãi cơ bản", "Nhận voucher từ reward catalog"]
 }
 ```
 
