@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SWP391_AutoWashPro_BE.Repository;
@@ -11,9 +12,11 @@ using SWP391_AutoWashPro_BE.Repository;
 namespace SWP391_AutoWashPro_BE.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260522173838_fixDbUpdatedAt")]
+    partial class fixDbUpdatedAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -86,8 +89,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("status");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<Guid>("VehicleId")
                         .HasColumnType("uuid")
@@ -147,8 +153,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("name");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.HasKey("Id");
 
@@ -206,8 +215,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("total_washes");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
@@ -269,8 +281,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("type");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
@@ -327,8 +342,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("transaction_type");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.HasKey("Id");
 
@@ -396,8 +414,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("start_date");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.HasKey("Id");
 
@@ -433,8 +454,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("tier_id");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.HasKey("Id");
 
@@ -491,8 +515,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("reward_type");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<int>("ValidDays")
                         .ValueGeneratedOnAdd()
@@ -532,8 +559,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("tier_id");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.HasKey("Id");
 
@@ -574,8 +604,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("description");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<Guid?>("UpdatedById")
                         .HasColumnType("uuid")
@@ -631,8 +664,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("required_washes");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.HasKey("Id");
 
@@ -692,8 +728,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("status");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<bool>("isVerify")
                         .ValueGeneratedOnAdd()
@@ -742,8 +781,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("is_active");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
@@ -802,8 +844,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("model");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.HasKey("Id");
 
@@ -869,8 +914,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("status");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.Property<DateTimeOffset?>("UsedAt")
                         .HasColumnType("timestamp with time zone")
@@ -919,8 +967,11 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("customer_id");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
 
                     b.HasKey("Id");
 

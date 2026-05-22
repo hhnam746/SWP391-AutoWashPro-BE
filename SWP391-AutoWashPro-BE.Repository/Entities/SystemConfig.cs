@@ -12,5 +12,5 @@ public class SystemConfig : BaseEntity, IAuditableEntity
     public User? UpdatedBy { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
 }

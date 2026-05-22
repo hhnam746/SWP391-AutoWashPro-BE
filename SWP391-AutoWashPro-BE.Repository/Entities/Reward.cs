@@ -13,7 +13,7 @@ public class Reward : BaseEntity, IAuditableEntity
     public string? Description { get; set; }
     public bool IsActive { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
 
     public ICollection<RewardTier> RewardTiers { get; set; } = new List<RewardTier>();
     public ICollection<Voucher> Vouchers { get; set; } = new List<Voucher>();

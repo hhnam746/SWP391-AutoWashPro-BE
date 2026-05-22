@@ -7,6 +7,10 @@ using JwtService = SWP391_AutoWashPro_BE.Service.JwtService;
 using CloudinaryService = SWP391_AutoWashPro_BE.Service.CloudinaryService;
 using MediaService = SWP391_AutoWashPro_BE.Service.MediaService;
 using MailService = SWP391_AutoWashPro_BE.Service.MailService;
+using UserService = SWP391_AutoWashPro_BE.Service.User;
+using AdminService = SWP391_AutoWashPro_BE.Service.Admin;
+using SecurityService = SWP391_AutoWashPro_BE.Service.Security;
+
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +33,9 @@ builder.Services.AddSwaggerServices();
 builder.Services.AddScoped<JwtService.IService, JwtService.Service>();
 builder.Services.AddScoped<MediaService.IService, CloudinaryService.Service>();
 builder.Services.AddScoped<MailService.IService, MailService.Service>();
+builder.Services.AddScoped<SecurityService.IService, SecurityService.Service>();
+builder.Services.AddScoped<UserService.IService, UserService.Service>();
+builder.Services.AddScoped<AdminService.IService, AdminService.Service>();
 
 builder.Services.AddTransient<GlobalExceptionHandlerMiddleware>();
 

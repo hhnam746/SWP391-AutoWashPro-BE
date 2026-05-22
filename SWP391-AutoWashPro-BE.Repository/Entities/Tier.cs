@@ -10,7 +10,7 @@ public class Tier : BaseEntity, IAuditableEntity
     public int PriorityBookingDays { get; set; }
     public string? Description { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
 
     public ICollection<CustomerProfile> CustomerProfiles { get; set; } = new List<CustomerProfile>();
     public ICollection<PromotionTier> PromotionTiers { get; set; } = new List<PromotionTier>();

@@ -18,5 +18,5 @@ public class PointTransaction : BaseEntity, IAuditableEntity
     public PointTransactionType TransactionType { get; set; }
     public string? Description { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
 }

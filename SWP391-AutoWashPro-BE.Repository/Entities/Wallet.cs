@@ -9,5 +9,5 @@ public class Wallet : BaseEntity, IAuditableEntity
 
     public decimal Balance { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
 }
