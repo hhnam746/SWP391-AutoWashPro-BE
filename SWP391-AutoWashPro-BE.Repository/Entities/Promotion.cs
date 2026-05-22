@@ -14,7 +14,7 @@ public class Promotion : BaseEntity, IAuditableEntity
     public bool? IsGlobal { get; set; }
     public bool IsActive { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
 
     public ICollection<PromotionTier> PromotionTiers { get; set; } = new List<PromotionTier>();
     public ICollection<Voucher> Vouchers { get; set; } = new List<Voucher>();

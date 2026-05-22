@@ -14,5 +14,5 @@ public class Notification : BaseEntity, IAuditableEntity
     public bool IsRead { get; set; }
     public string? Metadata { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
 }

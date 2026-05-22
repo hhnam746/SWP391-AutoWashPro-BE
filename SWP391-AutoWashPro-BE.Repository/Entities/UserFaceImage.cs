@@ -10,5 +10,5 @@ public class UserFaceImage : BaseEntity, IAuditableEntity
     public string ImageUrl { get; set; } = null!;
     public bool IsActive { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
 }

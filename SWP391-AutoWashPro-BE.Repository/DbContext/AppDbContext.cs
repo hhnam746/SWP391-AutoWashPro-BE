@@ -192,7 +192,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.isVerify).HasColumnName("is_verify").HasDefaultValue(false).IsRequired();
             builder.Property(x => x.LastLoginAt).HasColumnName("last_login_at");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.Email).IsUnique();
             builder.HasIndex(x => x.Phone).IsUnique();
@@ -209,7 +209,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.CustomerId).HasColumnName("customer_id").IsRequired();
             builder.Property(x => x.Balance).HasColumnName("balance").HasColumnType("numeric(12,2)").HasDefaultValue(0m).IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.CustomerId).IsUnique();
 
@@ -234,7 +234,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.TotalWashes).HasColumnName("total_washes").HasDefaultValue(0).IsRequired();
             builder.Property(x => x.LastPointActivityAt).HasColumnName("last_point_activity_at");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.UserId).IsUnique();
             builder.HasIndex(x => x.TierId);
@@ -261,7 +261,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.ImageUrl).HasColumnName("image_url").IsRequired();
             builder.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(false).IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.UserId);
 
@@ -284,7 +284,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Color).HasColumnName("color");
             builder.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true).IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
             builder.Property(x => x.DeletedAt).HasColumnName("deleted_at");
 
             builder.HasIndex(x => x.CustomerId);
@@ -309,7 +309,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.PriorityBookingDays).HasColumnName("priority_booking_days").HasDefaultValue(0).IsRequired();
             builder.Property(x => x.Description).HasColumnName("description").HasColumnType("text");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.Name).IsUnique();
             builder.HasIndex(x => x.Level).IsUnique();
@@ -325,7 +325,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Address).HasColumnName("address").HasColumnType("text").IsRequired();
             builder.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true).IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.IsActive);
         });
@@ -341,7 +341,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Description).HasColumnName("description").HasColumnType("text");
             builder.Property(x => x.UpdatedById).HasColumnName("updated_by");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.ConfigKey).IsUnique();
 
@@ -366,7 +366,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.IsGlobal).HasColumnName("is_global").HasDefaultValue(false);
             builder.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true).IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.IsActive);
             builder.HasIndex(x => x.StartDate);
@@ -382,7 +382,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.PromotionId).HasColumnName("promotion_id").IsRequired();
             builder.Property(x => x.TierId).HasColumnName("tier_id").IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => new { x.PromotionId, x.TierId }).IsUnique();
 
@@ -411,7 +411,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Description).HasColumnName("description").HasColumnType("text");
             builder.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true).IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.RewardType);
             builder.HasIndex(x => x.IsActive);
@@ -426,7 +426,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.RewardId).HasColumnName("reward_id").IsRequired();
             builder.Property(x => x.TierId).HasColumnName("tier_id").IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => new { x.RewardId, x.TierId }).IsUnique();
 
@@ -457,7 +457,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.ExpiresAt).HasColumnName("expires_at").IsRequired();
             builder.Property(x => x.UsedAt).HasColumnName("used_at");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.CustomerId);
             builder.HasIndex(x => x.Code).IsUnique();
@@ -500,7 +500,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.CancelledAt).HasColumnName("cancelled_at");
             builder.Property(x => x.CompletedAt).HasColumnName("completed_at");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.CustomerId);
             builder.HasIndex(x => x.VehicleId);
@@ -543,7 +543,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.TransactionType).HasColumnName("transaction_type").HasConversion(PointTransactionTypeConverter).IsRequired();
             builder.Property(x => x.Description).HasColumnName("description").HasColumnType("text");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.CustomerId);
             builder.HasIndex(x => x.TransactionType);
@@ -577,7 +577,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.IsRead).HasColumnName("is_read").HasDefaultValue(false).IsRequired();
             builder.Property(x => x.Metadata).HasColumnName("metadata").HasColumnType("jsonb");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
-            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.UserId);
             builder.HasIndex(x => x.IsRead);

@@ -17,7 +17,7 @@ public class CustomerProfile : BaseEntity, IAuditableEntity
     public int TotalWashes { get; set; }
     public DateTimeOffset? LastPointActivityAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
 
     public Guid? WalletId { get; set; }
     public Wallet? Wallet { get; set; }

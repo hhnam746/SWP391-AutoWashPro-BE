@@ -21,7 +21,7 @@ public class Voucher : BaseEntity, IAuditableEntity
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset? UsedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
 
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
 }

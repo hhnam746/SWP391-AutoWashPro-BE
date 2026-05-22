@@ -13,7 +13,7 @@ public class Vehicle : BaseEntity, IAuditableEntity
     public string? Color { get; set; }
     public bool IsActive { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
 
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
