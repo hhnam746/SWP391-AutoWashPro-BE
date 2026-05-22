@@ -189,6 +189,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.PasswordHash).HasColumnName("password_hash").IsRequired();
             builder.Property(x => x.Role).HasColumnName("role").HasConversion(UserRoleConverter).HasDefaultValue(UserRole.Customer).IsRequired();
             builder.Property(x => x.Status).HasColumnName("status").HasConversion(AccountStatusConverter).HasDefaultValue(AccountStatus.Active).IsRequired();
+            builder.Property(x => x.isVerify).HasColumnName("is_verify").HasDefaultValue(false).IsRequired();
             builder.Property(x => x.LastLoginAt).HasColumnName("last_login_at");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("now()").IsRequired();

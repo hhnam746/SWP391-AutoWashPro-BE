@@ -719,6 +719,12 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<bool>("isVerify")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_verify");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")

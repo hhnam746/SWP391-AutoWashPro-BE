@@ -12,7 +12,7 @@ using SWP391_AutoWashPro_BE.Repository;
 namespace SWP391_AutoWashPro_BE.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260522040641_Initial")]
+    [Migration("20260522083206_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -721,6 +721,12 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
+
+                    b.Property<bool>("isVerify")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_verify");
 
                     b.HasKey("Id");
 

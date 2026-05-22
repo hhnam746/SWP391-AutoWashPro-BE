@@ -96,6 +96,7 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     password_hash = table.Column<string>(type: "text", nullable: false),
                     role = table.Column<string>(type: "text", nullable: false, defaultValue: "customer"),
                     status = table.Column<string>(type: "text", nullable: false, defaultValue: "active"),
+                    is_verify = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
                     last_login_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
                     updated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()")

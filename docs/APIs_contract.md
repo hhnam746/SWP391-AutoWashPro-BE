@@ -334,6 +334,7 @@ Response `201 Created`
         "name": "Silver",
         "level": 1
       },
+      "isVerify": true,
       "totalPoints": 0,
       "totalWashes": 0
     },
