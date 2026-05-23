@@ -24,4 +24,19 @@ public class AdminController : ControllerBase
         var result = await _adminService.UpdateUserVerificationStatus(userId);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Admin verification status updated", HttpContext.TraceIdentifier));
     }
+
+    [HttpGet("users")]
+    public async Task<IActionResult> GetUsers(string? searchTerm, int pageIndex = 1, int pageSize = 10)
+    {
+        var result = await _adminService.GetAllUserProfile(searchTerm, pageSize, pageIndex);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get all users", HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("users/pending-verification")]
+    public async Task<IActionResult> GetUsersNeedVerification(string? searchTerm, int pageIndex = 1, int pageSize = 10)
+    {
+        var result = await _adminService.GetUsersNeedVerification(searchTerm, pageSize, pageIndex);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get users pending verification", HttpContext.TraceIdentifier));
+    }
+    
 }
