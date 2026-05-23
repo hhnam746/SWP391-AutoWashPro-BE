@@ -14,4 +14,5 @@ public interface IService
         int pageSize,
         int pageIndex);
     public Task<Response.GetUserByIdResponse> GetUserById(Guid userId);
+    public Task<string> UpdateUserStatusById(Guid userId, Guid currentAdminId, Request.UpdateUserByStatusRequest request);
 }

@@ -33,6 +33,7 @@ public class Service : IService
             .ThenInclude(x => x!.Tier)
             .FirstOrDefaultAsync(x => x.Id == userIdGuid &&
                                       x.isVerify &&
+                                      x.Status == AccountStatus.Active &&
                                       x.Role == UserRole.Customer);
 
         if (existingUser == null)
@@ -94,6 +95,7 @@ public class Service : IService
             .Include(x => x.CustomerProfile)
             .FirstOrDefaultAsync(x => x.Id == userIdGuid &&
                                       x.isVerify &&
+                                      x.Status == AccountStatus.Active &&
                                       x.Role == UserRole.Customer);
 
         if (existingUser == null)
@@ -202,6 +204,7 @@ public class Service : IService
         var existingUser = await _dbContext.Users
             .FirstOrDefaultAsync(x => x.Id == userIdGuid &&
                                       x.isVerify &&
+                                      x.Status == AccountStatus.Active &&
                                       x.Role == UserRole.Customer);
 
         if (existingUser == null)

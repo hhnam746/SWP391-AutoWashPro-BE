@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using SWP391_AutoWashPro_BE.Api.Extensions;
@@ -46,7 +47,22 @@ public class AdminController : ControllerBase
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get user by id", HttpContext.TraceIdentifier));
     }
     
-    // ### `PATCH /api/v1/admin/users/{id}/status`
+    [HttpPatch("users/{userId:guid}/status")]
+    public async Task<IActionResult> UpdateUserStatusById(
+        [FromRoute] Guid userId,
+        [FromBody] Request.UpdateUserByStatusRequest request)
+    {
+        var currentAdminIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(currentAdminIdRaw) || !Guid.TryParse(currentAdminIdRaw, out var currentAdminId))
+        {
+            throw new UnauthorizedAccessException("You are not logged in or your session has expired.");
+        }
+
+        var result = await _adminService.UpdateUserStatusById(userId, currentAdminId, request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Update user status", HttpContext.TraceIdentifier));
+    }
+    
+    //làm thêm 1 cái API để get lấy ra status của user
     
     
 }
