@@ -24,16 +24,17 @@ public class UserController : ControllerBase
     }
     
     [HttpPatch]
-    public Task<IActionResult> UpdateProfile()
+    public async Task<IActionResult> UpdateProfile([FromBody] Request.UpdateProfileRequest request)
     {
-        return null;
+        var result = await _userService.UpdateProfile(request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Update profile successfully", HttpContext.TraceIdentifier));
     }
     
     [HttpPatch("password")]
-    public Task<IActionResult> UpdateProfilePassword()
+    public async Task<IActionResult> UpdateProfileByPassword([FromBody] Request.UpdateProfileByPassword request)
     {
-        return null;
+        var result = await _userService.UpdateProfileByPassword(request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Update new password successfully", HttpContext.TraceIdentifier));
     }
-    
     
 }

@@ -8,6 +8,7 @@ using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.JwtService;
 using SWP391_AutoWashPro_BE.Service.MailService;
+using SWP391_AutoWashPro_BE.Service.Models;
 
 namespace SWP391_AutoWashPro_BE.Service.Auth;
 
@@ -19,7 +20,7 @@ public class Service : IService
     private readonly ILogger<Service> _logger;
     private readonly JwtOptions _jwtOption = new();
     private readonly JwtService.IService _jwtService;
-    private readonly Security.IService _service;
+    private readonly Security.IService _securityService;
 
     public Service(AppDbContext dbContext, MediaService.IService mediaService, MailService.IService mailService, ILogger<Service> logger, JwtService.IService jwtService, IConfiguration configuration, Security.IService service)
     {
@@ -28,7 +29,7 @@ public class Service : IService
         _mailService = mailService;
         _logger = logger;
         _jwtService = jwtService;
-        _service = service;
+        _securityService = service;
         configuration.GetSection(nameof(JwtOptions)).Bind(_jwtOption);
     }
 
@@ -64,7 +65,7 @@ public class Service : IService
         {
             Email =  request.Email,
             Phone = request.Phone,
-            PasswordHash = _service.Hash(request.Password),
+            PasswordHash = _securityService.Hash(request.Password),
             isVerify = false,
             Role = UserRole.Customer,
             Status = AccountStatus.Active,
@@ -394,18 +395,36 @@ public class Service : IService
 
     public async Task<Response.LoginResponse> Login(Request.LoginRequest request)
     {
-        var user = await _dbContext.Users.Where(u => u.Email == request.Email
-                                                     && u.Status == AccountStatus.Active).FirstOrDefaultAsync();
+        var user = await _dbContext.Users
+            .FirstOrDefaultAsync(u => u.Email == request.Identifier || u.Phone == request.Identifier);
         if (user == null)
         {
             throw new UnauthorizedAccessException("Invalid email or password");
         }
 
-        var isPasswordValid = _service.Verify(request.Password, user.PasswordHash);
+        var isPasswordValid = _securityService.Verify(request.Password, user.PasswordHash);
         if (!isPasswordValid)
         {
             throw new UnauthorizedAccessException("Invalid email or password");
         }
+
+        if (user.Status == AccountStatus.Locked)
+        {
+            throw new ForbiddenAccessException("Account is locked");
+        }
+
+        if (user.Status == AccountStatus.Inactive)
+        {
+            throw new ForbiddenAccessException("Account is inactive");
+        }
+
+        if (user.Status != AccountStatus.Active)
+        {
+            throw new ForbiddenAccessException("Account is not active");
+        }
+
+        user.LastLoginAt = DateTimeOffset.UtcNow;
+        await _dbContext.SaveChangesAsync();
 
         var claims = new List<Claim>
         {

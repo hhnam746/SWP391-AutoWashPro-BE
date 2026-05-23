@@ -99,14 +99,26 @@ Nguồn đồng bộ:
 ```json
 {
   "success": false,
-  "error": "Mô tả lỗi ngắn gọn cho user",
-  "details": {
-    "field": "phone",
-    "code": "PHONE_ALREADY_EXISTS"
+  "message": "Invalid email or password",
+  "data": null,
+  "errors": {
+    "detail": "Invalid email or password"
   },
-  "traceId": "guid"
+  "traceId": "0H...",
+  "timestampUtc": "2026-05-23T08:30:00.0000000Z"
 }
 ```
+
+Notes:
+
+- API hiện tại dùng wrapper `ApiResponse` cho cả success và error.
+- `errors` chỉ có giá trị chi tiết khi chạy môi trường Development.
+- HTTP status mapping hiện tại:
+  - `400`: `ArgumentException`, `InvalidOperationException`
+  - `401`: `UnauthorizedAccessException`
+  - `403`: `ForbiddenAccessException`
+  - `404`: `KeyNotFoundException`
+  - `500`: lỗi không xác định
 
 ### 3.6. Common status mapping
 
@@ -154,16 +166,13 @@ earn | redeem | reset
 
 ### Authentication & Profile
 
-| Method | Endpoint                       | Mục đích                  |
-| ------ | ------------------------------ | ------------------------- |
-| POST   | `/api/v1/auth/register`        | Đăng ký customer          |
-| POST   | `/api/v1/auth/login`           | Đăng nhập customer/admin  |
-| POST   | `/api/v1/auth/forgot-password` | Gửi OTP quên mật khẩu     |
-| POST   | `/api/v1/auth/reset-password`  | Đặt lại mật khẩu bằng OTP |
-| POST   | `/api/v1/auth/logout`          | Logout phía FE            |
-| GET    | `/api/v1/me`                   | Lấy profile hiện tại      |
-| PATCH  | `/api/v1/me`                   | Cập nhật profile          |
-| PATCH  | `/api/v1/me/password`          | Đổi mật khẩu              |
+| Method | Endpoint                | Mục đích                                |
+| ------ | ----------------------- | --------------------------------------- |
+| POST   | `/api/v1/auth/register` | Đăng ký tài khoản customer              |
+| POST   | `/api/v1/auth/login`    | Đăng nhập bằng email hoặc số điện thoại |
+| GET    | `/api/v1/me`            | Lấy profile customer hiện tại           |
+| PATCH  | `/api/v1/me`            | Cập nhật thông tin profile customer     |
+| PATCH  | `/api/v1/me/password`   | Đổi mật khẩu customer                   |
 
 ### Customer Vehicles
 
@@ -226,6 +235,7 @@ earn | redeem | reset
 | GET    | `/api/v1/admin/users`                  | Danh sách customer                |
 | GET    | `/api/v1/admin/users/{id}`             | Chi tiết customer                 |
 | PATCH  | `/api/v1/admin/users/{id}/status`      | Khóa/mở khóa account              |
+| PATCH  | `/api/v1/admin/users/{userId}/verify`  | Xác minh tài khoản customer       |
 | GET    | `/api/v1/admin/bookings`               | Xem booking toàn hệ thống         |
 | GET    | `/api/v1/admin/booking-slots`          | Xem slot theo chi nhánh/ngày      |
 | POST   | `/api/v1/admin/bookings/{id}/complete` | Hoàn tất booking thủ công khi cần |
@@ -286,257 +296,168 @@ earn | redeem | reset
 ### `POST /api/v1/auth/register`
 
 - Auth: Public
-- Mục đích: tạo tài khoản customer, kèm profile, ảnh mặt, xe ban đầu và wallet.
+- Content-Type: `multipart/form-data`
+- Mục đích: tạo tài khoản customer, profile customer, wallet, tier mặc định và lưu face images.
 
-Request
+Form-data request fields
+
+| Field | Type | Required | Ghi chú |
+| ----- | ---- | -------- | ------- |
+| `email` | string | Yes | phải đúng định dạng email |
+| `phone` | string | Yes | số điện thoại |
+| `password` | string | Yes | mật khẩu plain text |
+| `firstName` | string | Yes | tên |
+| `lastName` | string | Yes | họ |
+| `cccd` | string | No | số CCCD |
+| `faceImages` | file[] | Yes | tối thiểu 3 ảnh |
+
+Ví dụ cURL
+
+```bash
+curl -X POST "http://localhost:5000/api/v1/auth/register" \
+  -H "accept: application/json" \
+  -H "Content-Type: multipart/form-data" \
+  -F "email=customer@example.com" \
+  -F "phone=0900000000" \
+  -F "password=string" \
+  -F "firstName=Nguyen" \
+  -F "lastName=An" \
+  -F "cccd=012345678901" \
+  -F "faceImages=@face-1.jpg" \
+  -F "faceImages=@face-2.jpg" \
+  -F "faceImages=@face-3.jpg"
+```
+
+Response `200 OK`
 
 ```json
 {
-  "email": "customer@example.com",
-  "phone": "0900000000",
-  "password": "string",
-  "firstName": "Nguyen",
-  "lastName": "An",
-  "cccd": "012345678901",
-  "faceImages": [
-    {
-      "imageUrl": "https://storage/app/face-1.jpg"
-    },
-    {
-      "imageUrl": "https://storage/app/face-2.jpg"
-    },
-    {
-      "imageUrl": "https://storage/app/face-3.jpg"
-    }
-  ]
+  "success": true,
+  "message": "Create user successfully",
+  "data": "User registered successfully!",
+  "errors": null,
+  "traceId": "0H...",
+  "timestampUtc": "2026-05-23T08:30:00.0000000Z"
 }
 ```
 
-Response `201 Created`
+Error cases
 
-```json
-{
-  "accessToken": "string",
-  "tokenType": "Bearer",
-  "expiresIn": 3600,
-  "user": {
-    "id": "guid",
-    "role": "customer",
-    "status": "active",
-    "email": "customer@example.com",
-    "phone": "0900000000",
-    "profile": {
-      "id": "guid",
-      "firstName": "Nguyen",
-      "lastName": "An",
-      "tier": {
-        "id": "guid",
-        "name": "Silver",
-        "level": 1
-      },
-      "isVerify": true,
-      "totalPoints": 0,
-      "totalWashes": 0
-    },
-    "vehicleCount": 2
-  }
-}
-```
-
-Notes
-
-- `409 Conflict` nếu email hoặc phone đã tồn tại.
-- `400 Bad Request` nếu `faceImages.length < 3`.
-- `400 Bad Request` nếu `vehicles.length < 2`.
-- Backend tạo:
-  - `user`
-  - `customer_profile`
-  - `user_face_image`
-  - `vehicle`
-  - `wallet`
-- Backend tự gán tier mặc định thấp nhất, thường là Silver.
-- `role` luôn là `customer`, FE không được truyền role khi register.
+- `400 Bad Request`: email/phone không hợp lệ, thiếu ảnh, hoặc user đã tồn tại.
+- `500 Internal Server Error`: lỗi hệ thống.
 
 ### `POST /api/v1/auth/login`
 
 - Auth: Public
-- Mục đích: đăng nhập bằng email hoặc SĐT.
+- Content-Type: `multipart/form-data`
+- Mục đích: đăng nhập bằng `identifier` (email hoặc phone).
 
-Request
+Form-data request fields
 
-```json
-{
-  "identifier": "customer@example.com",
-  "password": "string"
-}
+| Field | Type | Required | Ghi chú |
+| ----- | ---- | -------- | ------- |
+| `identifier` | string | Yes | email hoặc phone |
+| `password` | string | Yes | mật khẩu |
+
+Ví dụ cURL
+
+```bash
+curl -X POST "http://localhost:5000/api/v1/auth/login" \
+  -H "accept: application/json" \
+  -H "Content-Type: multipart/form-data" \
+  -F "identifier=customer@example.com" \
+  -F "password=string"
 ```
 
 Response `200 OK`
 
 ```json
 {
-  "accessToken": "string",
-  "tokenType": "Bearer",
-  "expiresIn": 3600,
-  "user": {
-    "id": "guid",
-    "role": "customer",
-    "status": "active",
-    "email": "customer@example.com",
-    "phone": "0900000000",
-    "firstName": "Nguyen",
-    "lastName": "An"
-  }
+  "success": true,
+  "message": "Login successfully",
+  "data": {
+    "access_token": "<jwt_access_token>",
+    "isVerify": false
+  },
+  "errors": null,
+  "traceId": "0H...",
+  "timestampUtc": "2026-05-23T08:30:00.0000000Z"
 }
 ```
+
+Error cases
+
+- `401 Unauthorized`: sai `identifier` hoặc `password`.
+- `403 Forbidden`: account `locked` hoặc `inactive`.
+- `500 Internal Server Error`: lỗi hệ thống.
 
 Notes
 
-- `identifier` có thể là email hoặc phone.
-- `401 Unauthorized` nếu sai thông tin đăng nhập.
-- `403 Forbidden` nếu account `locked` hoặc `inactive`.
-- Backend cập nhật `last_login_at`.
-
-### `POST /api/v1/auth/forgot-password`
-
-- Auth: Public
-
-Request
-
-```json
-{
-  "email": "customer@example.com"
-}
-```
-
-Response `200 OK`
-
-```json
-{
-  "message": "OTP has been sent if the email exists"
-}
-```
-
-Notes
-
-- Không tiết lộ email có tồn tại hay không.
-- OTP storage có thể dùng cache/table riêng ngoài scope DBML hiện tại.
-
-### `POST /api/v1/auth/reset-password`
-
-- Auth: Public
-
-Request
-
-```json
-{
-  "email": "customer@example.com",
-  "otp": "123456",
-  "newPassword": "string"
-}
-```
-
-Response `200 OK`
-
-```json
-{
-  "message": "Password reset successfully"
-}
-```
-
-### `POST /api/v1/auth/logout`
-
-- Auth: Customer/Admin
-
-Request
-
-```json
-{}
-```
-
-Response `200 OK`
-
-```json
-{
-  "message": "Logged out successfully"
-}
-```
-
-Notes
-
-- MVP có thể để FE xóa token local.
-- Backend có thể ghi log nếu có audit/log table riêng.
+- Login thành công sẽ cập nhật `user.last_login_at`.
+- `isVerify` trong response map từ field `user.isVerify`.
 
 ### `GET /api/v1/me`
 
-- Auth: Customer/Admin
+- Auth: JWT Bearer token (`[Authorize]`)
+- Mục đích: lấy profile của user hiện tại.
 
 Response `200 OK`
 
 ```json
 {
-  "id": "guid",
-  "role": "customer",
-  "status": "active",
-  "email": "customer@example.com",
-  "phone": "0900000000",
-  "profile": {
+  "success": true,
+  "message": "Get profile successfully",
+  "data": {
     "id": "guid",
-    "firstName": "Nguyen",
-    "lastName": "An",
-    "cccd": "012345678901",
-    "tier": {
+    "email": "customer@example.com",
+    "phone": "0900000000",
+    "role": 1,
+    "status": 0,
+    "profileData": {
       "id": "guid",
-      "name": "Silver",
-      "level": 1
+      "firstName": "Nguyen",
+      "lastName": "An",
+      "cccd": "012345678901",
+      "tierData": {
+        "id": "guid",
+        "name": "Silver",
+        "level": 1
+      }
     },
-    "totalPoints": 120,
-    "totalWashes": 3,
-    "lastPointActivityAt": "ISO8601"
-  }
+    "totalPoints": 350,
+    "totalWashes": 7,
+    "lastPointActivityAt": "2026-05-23T08:30:00+07:00"
+  },
+  "errors": null,
+  "traceId": "0H...",
+  "timestampUtc": "2026-05-23T01:30:00.0000000Z"
 }
 ```
 
-### `PATCH /api/v1/me`
+Error cases
 
-- Auth: Customer
-
-Request
-
-```json
-{
-  "firstName": "Nguyen",
-  "lastName": "Anh",
-  "cccd": "012345678901"
-}
-```
-
-Response `200 OK`
-
-```json
-{
-  "profileId": "guid",
-  "firstName": "Nguyen",
-  "lastName": "Anh",
-  "cccd": "012345678901"
-}
-```
+- `401 Unauthorized`: token không hợp lệ/hết hạn hoặc thiếu claim `NameIdentifier`.
+- `404 Not Found`: user/profile không tồn tại hoặc account không phải customer đã verify.
 
 Notes
 
-- Không cập nhật ảnh mặt trong endpoint này.
-- `cccd` unique nếu có truyền.
+- Enum hiện đang serialize dạng số:
+  - `role`: `0 = Admin`, `1 = Customer`
+  - `status`: `0 = Active`, `1 = Locked`, `2 = Inactive`
 
-### `PATCH /api/v1/me/password`
+### `PATCH /api/v1/me`
 
-- Auth: Customer/Admin
+- Auth: JWT Bearer token (`[Authorize]`)
+- Content-Type: `application/json`
+- Mục đích: cập nhật profile customer hiện tại.
 
 Request
 
 ```json
 {
-  "oldPassword": "string",
-  "newPassword": "string"
+  "firstName": "Nguyen",
+  "lastName": "An",
+  "cccd": "012345678901"
 }
 ```
 
@@ -544,10 +465,57 @@ Response `200 OK`
 
 ```json
 {
-  "message": "Password changed successfully"
+  "success": true,
+  "message": "Update profile successfully",
+  "data": "Update customer profile successfully",
+  "errors": null,
+  "traceId": "0H...",
+  "timestampUtc": "2026-05-23T01:30:00.0000000Z"
 }
 ```
 
+Error cases
+
+- `400 Bad Request`: request body rỗng, không có field nào để update, hoặc `cccd` bị trùng.
+- `401 Unauthorized`: token không hợp lệ/hết hạn.
+- `404 Not Found`: user/profile không tồn tại hoặc account không phải customer đã verify.
+
+Notes
+
+- Nếu gửi data không thay đổi so với hiện tại, `data` trả về `"No profile changes detected"`.
+
+### `PATCH /api/v1/me/password`
+
+- Auth: JWT Bearer token (`[Authorize]`)
+- Content-Type: `application/json`
+- Mục đích: đổi mật khẩu cho customer hiện tại.
+
+Request
+
+```json
+{
+  "newPassword": "NewStrongPassword123!"
+}
+```
+
+Response `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Update new password successfully",
+  "data": "Update new password successfully",
+  "errors": null,
+  "traceId": "0H...",
+  "timestampUtc": "2026-05-23T01:30:00.0000000Z"
+}
+```
+
+Error cases
+
+- `400 Bad Request`: `newPassword` trống/null.
+- `401 Unauthorized`: token không hợp lệ/hết hạn.
+- `404 Not Found`: user không tồn tại hoặc account không phải customer đã verify.
 ---
 
 ## P1 - Customer Vehicles
@@ -1413,6 +1381,42 @@ Notes
 - `status` chỉ nhận `active | locked | inactive`.
 - Không cho admin khóa chính mình nếu hệ thống chỉ còn một admin active.
 - Khi account `locked`, user không được login hoặc gọi protected customer API.
+
+### `PATCH /api/v1/admin/users/{userId}/verify`
+
+- Auth: Admin (`[Authorize(Policy = JwtExtensions.AdminPolicy)]`)
+- Mục đích: chuyển tài khoản customer sang trạng thái đã verify (`isVerify = true`).
+- Path param:
+  - `userId` (guid): id của user cần verify.
+
+Request
+
+- Không có request body.
+
+Response `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Admin verification status updated",
+  "data": "Verify user successfully",
+  "errors": null,
+  "traceId": "0H...",
+  "timestampUtc": "2026-05-23T01:30:00.0000000Z"
+}
+```
+
+Possible success data
+
+- `"Verify user successfully"`
+- `"User is already verified."`
+
+Error cases
+
+- `400 Bad Request`: user không phải customer hoặc user không ở trạng thái `active`.
+- `401 Unauthorized`: thiếu token/ token không hợp lệ.
+- `403 Forbidden`: token không có quyền admin policy.
+- `404 Not Found`: không tìm thấy user theo `userId`.
 
 ---
 
@@ -2448,3 +2452,4 @@ Bản API contract này đã đồng bộ theo hướng:
   1. Customer đăng ký → quản lý xe → đặt lịch
   2. Booking lifecycle → admin theo dõi trạng thái
   3. Loyalty → tier upgrade → reward/voucher
+
