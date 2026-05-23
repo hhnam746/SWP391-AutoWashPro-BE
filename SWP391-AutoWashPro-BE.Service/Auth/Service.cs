@@ -9,7 +9,7 @@ using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.JwtService;
 using SWP391_AutoWashPro_BE.Service.MailService;
 
-namespace SWP391_AutoWashPro_BE.Service.User;
+namespace SWP391_AutoWashPro_BE.Service.Auth;
 
 public class Service : IService
 {
@@ -19,17 +19,15 @@ public class Service : IService
     private readonly ILogger<Service> _logger;
     private readonly JwtOptions _jwtOption = new();
     private readonly JwtService.IService _jwtService;
-    private readonly IHttpContextAccessor _httpContext;
     private readonly Security.IService _service;
 
-    public Service(AppDbContext dbContext, MediaService.IService mediaService, MailService.IService mailService, ILogger<Service> logger, JwtService.IService jwtService, IHttpContextAccessor httpContext, IConfiguration configuration, Security.IService service)
+    public Service(AppDbContext dbContext, MediaService.IService mediaService, MailService.IService mailService, ILogger<Service> logger, JwtService.IService jwtService, IConfiguration configuration, Security.IService service)
     {
         _dbContext = dbContext;
         _mediaService = mediaService;
         _mailService = mailService;
         _logger = logger;
         _jwtService = jwtService;
-        _httpContext = httpContext;
         _service = service;
         configuration.GetSection(nameof(JwtOptions)).Bind(_jwtOption);
     }

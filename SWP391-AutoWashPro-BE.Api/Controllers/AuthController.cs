@@ -1,16 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
 using SWP391_AutoWashPro_BE.Service.Models;
-using SWP391_AutoWashPro_BE.Service.User;
+using SWP391_AutoWashPro_BE.Service.Auth;
 
 namespace SWP391_AutoWashPro_BE.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/auth")]
-public class UserController : ControllerBase
+public class AuthController : ControllerBase
 {
     private readonly IService _userService;
 
-    public UserController(IService userService)
+    public AuthController(IService userService)
     {
         _userService = userService;
     }

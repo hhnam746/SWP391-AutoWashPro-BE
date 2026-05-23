@@ -1,6 +1,6 @@
 namespace SWP391_AutoWashPro_BE.Service.User;
 
-public class IService
+public interface IService
 {
-    
+    public Task<Response.ProfileResponse> GetProfile();
 }

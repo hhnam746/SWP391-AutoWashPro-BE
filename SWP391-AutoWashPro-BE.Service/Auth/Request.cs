@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
 
-namespace SWP391_AutoWashPro_BE.Service.User;
+namespace SWP391_AutoWashPro_BE.Service.Auth;
 
 public class Request
 {
