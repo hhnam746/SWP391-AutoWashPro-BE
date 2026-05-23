@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Enums;
@@ -7,10 +9,12 @@ namespace SWP391_AutoWashPro_BE.Service.Admin;
 public class Service : IService
 {
     private readonly AppDbContext _dbContext;
-
-    public Service(AppDbContext dbContext)
+    private readonly IHttpContextAccessor _httpContext;
+    
+    public Service(AppDbContext dbContext, IHttpContextAccessor httpContext)
     {
         _dbContext = dbContext;
+        _httpContext = httpContext;
     }
 
     public async Task<string> UpdateUserVerificationStatus(Guid userId)
@@ -271,8 +275,33 @@ public class Service : IService
         return result;
     }
 
-    public async Task<string> UpdateUserStatusById(Guid userId, Guid currentAdminId, Request.UpdateUserByStatusRequest request)
+    public async Task<Response.GetUserStatusResponse> GetUserStatusById(Guid userId)
     {
+        var result = await _dbContext.Users
+            .AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => new Response.GetUserStatusResponse
+            {
+                UserId = x.Id,
+                Status = x.Status
+            })
+            .FirstOrDefaultAsync();
+
+        if (result == null)
+        {
+            throw new KeyNotFoundException("User not found.");
+        }
+
+        return result;
+    }
+
+    public async Task<string> UpdateUserStatusById(Guid userId, Request.UpdateUserByStatusRequest request)
+    {
+        var currentAdminId = _httpContext.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(currentAdminId) || !Guid.TryParse(currentAdminId, out var currentAdminGuid))
+        {
+            throw new UnauthorizedAccessException("You are not logged in or your session has expired.");
+        }
         if (request == null)
         {
             throw new ArgumentException("Request body is required.");
@@ -301,7 +330,7 @@ public class Service : IService
             throw new InvalidOperationException("User is not verified.");
         }
 
-        var isSelfLocking = user.Id == currentAdminId && user.Role == UserRole.Admin && newStatus != AccountStatus.Active;
+        var isSelfLocking = user.Id == currentAdminGuid && user.Role == UserRole.Admin && newStatus != AccountStatus.Active;
         if (isSelfLocking)
         {
             var activeAdminCount = await _dbContext.Users.CountAsync(u =>

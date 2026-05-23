@@ -1,5 +1,3 @@
-using SWP391_AutoWashPro_BE.Service.Base;
-
 namespace SWP391_AutoWashPro_BE.Service.Admin;
 
 public interface IService
@@ -14,5 +12,6 @@ public interface IService
         int pageSize,
         int pageIndex);
     public Task<Response.GetUserByIdResponse> GetUserById(Guid userId);
-    public Task<string> UpdateUserStatusById(Guid userId, Guid currentAdminId, Request.UpdateUserByStatusRequest request);
+    public Task<Response.GetUserStatusResponse> GetUserStatusById(Guid userId);
+    public Task<string> UpdateUserStatusById(Guid userId, Request.UpdateUserByStatusRequest request);
 }

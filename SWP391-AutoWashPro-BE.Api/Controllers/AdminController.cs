@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using SWP391_AutoWashPro_BE.Api.Extensions;
@@ -18,7 +17,7 @@ public class AdminController : ControllerBase
     {
         _adminService = adminService;
     }
-    
+
     [HttpPatch("users/{userId:guid}/verify")]
     public async Task<IActionResult> UpdateUserVerificationStatus(Guid userId)
     {
@@ -39,30 +38,27 @@ public class AdminController : ControllerBase
         var result = await _adminService.GetUsersNeedVerification(searchTerm, pageSize, pageIndex);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get users pending verification", HttpContext.TraceIdentifier));
     }
-    
+
     [HttpGet("users/{userId:guid}")]
     public async Task<IActionResult> GetUserById(Guid userId)
     {
         var result = await _adminService.GetUserById(userId);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get user by id", HttpContext.TraceIdentifier));
     }
-    
+
     [HttpPatch("users/{userId:guid}/status")]
     public async Task<IActionResult> UpdateUserStatusById(
         [FromRoute] Guid userId,
         [FromBody] Request.UpdateUserByStatusRequest request)
     {
-        var currentAdminIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrWhiteSpace(currentAdminIdRaw) || !Guid.TryParse(currentAdminIdRaw, out var currentAdminId))
-        {
-            throw new UnauthorizedAccessException("You are not logged in or your session has expired.");
-        }
-
-        var result = await _adminService.UpdateUserStatusById(userId, currentAdminId, request);
+        var result = await _adminService.UpdateUserStatusById(userId, request);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Update user status", HttpContext.TraceIdentifier));
     }
-    
-    //làm thêm 1 cái API để get lấy ra status của user
-    
-    
+
+    [HttpGet("users/{userId:guid}/status")]
+    public async Task<IActionResult> GetUserStatusById(Guid userId)
+    {
+        var result = await _adminService.GetUserStatusById(userId);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get user status", HttpContext.TraceIdentifier));
+    }
 }

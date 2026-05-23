@@ -4,6 +4,12 @@ namespace SWP391_AutoWashPro_BE.Service.Admin;
 
 public class Response
 {
+    public class GetUserStatusResponse
+    {
+        public Guid UserId { get; set; }
+        public AccountStatus Status { get; set; }
+    }
+
     public class AllProfileResponse
     {
         public Guid Id { get; set; }
