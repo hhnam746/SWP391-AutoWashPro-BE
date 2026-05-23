@@ -1,91 +1,26 @@
-# AutoWashPro API Docs (Theo Controllers Hiện Tại)
+# APIs (Only from `SWP391-AutoWashPro-BE.Api/Controllers`)
 
-Tài liệu này chỉ dựa trên API đang có trong thư mục `SWP391-AutoWashPro-BE.Api/Controllers`:
-- `AuthController`
-- `UserController`
-- `AdminController`
-- `WeatherForecastController`
+Updated date: 2026-05-23
 
-Ngày cập nhật: 2026-05-23
+### `POST /api/v1/auth/register`
 
-## 1. Response format chung
+- Auth: Public
 
-Hầu hết endpoint trả về `ApiResponse`:
+Request
 
 ```json
 {
-  "success": true,
-  "message": "string",
-  "data": {},
-  "errors": null,
-  "traceId": "string",
-  "timestampUtc": "2026-05-23T10:00:00.0000000Z"
+  "email": "customer@example.com",
+  "phone": "0900000000",
+  "password": "string",
+  "firstName": "Nguyen",
+  "lastName": "An",
+  "cccd": "012345678901",
+  "faceImages": ["<file-1>", "<file-2>", "<file-3>"]
 }
 ```
 
-Lưu ý:
-- Field JSON dùng `camelCase`.
-- Enum mặc định serialize dạng số (không có `JsonStringEnumConverter` trong `Program.cs`).
-- Mapping enum:
-  - `UserRole`: `0 = Admin`, `1 = Customer`
-  - `AccountStatus`: `0 = Active`, `1 = Locked`, `2 = Inactive`
-
-## 2. Error format và HTTP status
-
-Global middleware trả lỗi theo `ApiResponse`:
-
-```json
-{
-  "success": false,
-  "message": "string",
-  "data": null,
-  "errors": {
-    "detail": "string"
-  },
-  "traceId": "string",
-  "timestampUtc": "2026-05-23T10:00:00.0000000Z"
-}
-```
-
-HTTP status mapping:
-- `400`: `ArgumentException`, `InvalidOperationException`
-- `401`: `UnauthorizedAccessException`
-- `403`: `ForbiddenAccessException`
-- `404`: `KeyNotFoundException`
-- `500`: lỗi khác
-
-## 3. Danh sách endpoint
-
-| Method | Endpoint | Auth |
-| --- | --- | --- |
-| POST | `/api/v1/auth/register` | Public |
-| POST | `/api/v1/auth/login` | Public |
-| GET | `/api/v1/me` | Bearer token |
-| PATCH | `/api/v1/me` | Bearer token |
-| PATCH | `/api/v1/me/password` | Bearer token |
-| PATCH | `/api/v1/admin/users/{userId}/verify` | Admin |
-| GET | `/api/v1/admin/users` | Admin |
-| GET | `/api/v1/admin/users/pending-verification` | Admin |
-| GET | `/api/v1/admin/users/{userId}` | Admin |
-| PATCH | `/api/v1/admin/users/{userId}/status` | Admin |
-| GET | `/api/v1/admin/users/{userId}/status` | Admin |
-| GET | `/WeatherForecast` | Public |
-
-## 4. Chi tiết request/response theo endpoint
-
-### 4.1 POST `/api/v1/auth/register`
-
-- Content-Type: `multipart/form-data`
-- Request (`FromForm`, `Request.RegisterRequest`):
-  - `email` (string, required)
-  - `phone` (string, required)
-  - `password` (string, required)
-  - `firstName` (string, required)
-  - `lastName` (string, required)
-  - `cccd` (string, optional)
-  - `faceImages` (file[], required, tối thiểu 3 file)
-
-Response `200 OK`:
+Response `200 OK`
 
 ```json
 {
@@ -98,14 +33,28 @@ Response `200 OK`:
 }
 ```
 
-### 4.2 POST `/api/v1/auth/login`
+Notes
 
-- Content-Type: `multipart/form-data`
-- Request (`FromForm`, `Request.LoginRequest`):
-  - `identifier` (string, required; email hoặc phone)
-  - `password` (string, required)
+- Content-Type: `multipart/form-data`.
+- `faceImages` must have at least 3 files.
+- API returns `ApiResponse` wrapper.
 
-Response `200 OK`:
+---
+
+### `POST /api/v1/auth/login`
+
+- Auth: Public
+
+Request
+
+```json
+{
+  "identifier": "customer@example.com",
+  "password": "string"
+}
+```
+
+Response `200 OK`
 
 ```json
 {
@@ -121,12 +70,25 @@ Response `200 OK`:
 }
 ```
 
-### 4.3 GET `/api/v1/me`
+Notes
 
-- Auth: `[Authorize]`
-- Request body: none
+- Content-Type: `multipart/form-data`.
+- `identifier` can be email or phone.
+- API returns `ApiResponse` wrapper.
 
-Response `200 OK` (`data` = `ProfileResponse`):
+---
+
+### `GET /api/v1/me`
+
+- Auth: Bearer token
+
+Request
+
+```json
+{}
+```
+
+Response `200 OK`
 
 ```json
 {
@@ -159,16 +121,30 @@ Response `200 OK` (`data` = `ProfileResponse`):
 }
 ```
 
-### 4.4 PATCH `/api/v1/me`
+Notes
 
-- Auth: `[Authorize]`
-- Content-Type: `application/json`
-- Request (`FromBody`, `Request.UpdateProfileRequest`):
-  - `firstName` (string, optional)
-  - `lastName` (string, optional)
-  - `cccd` (string, optional; truyền `null`/rỗng để xóa)
+- API returns `ApiResponse` wrapper.
+- Enum is numeric in JSON:
+- `role`: `0 = Admin`, `1 = Customer`.
+- `status`: `0 = Active`, `1 = Locked`, `2 = Inactive`.
 
-Response `200 OK`:
+---
+
+### `PATCH /api/v1/me`
+
+- Auth: Bearer token
+
+Request
+
+```json
+{
+  "firstName": "Nguyen",
+  "lastName": "An",
+  "cccd": "012345678901"
+}
+```
+
+Response `200 OK`
 
 ```json
 {
@@ -181,27 +157,27 @@ Response `200 OK`:
 }
 ```
 
-Trường hợp không thay đổi dữ liệu:
+Notes
+
+- Content-Type: `application/json`.
+- `firstName`, `lastName`, `cccd` are optional, but at least 1 field must be provided.
+- API returns `ApiResponse` wrapper.
+
+---
+
+### `PATCH /api/v1/me/password`
+
+- Auth: Bearer token
+
+Request
 
 ```json
 {
-  "success": true,
-  "message": "Update profile successfully",
-  "data": "No profile changes detected",
-  "errors": null,
-  "traceId": "0H...",
-  "timestampUtc": "2026-05-23T10:00:00.0000000Z"
+  "newPassword": "new_password_123"
 }
 ```
 
-### 4.5 PATCH `/api/v1/me/password`
-
-- Auth: `[Authorize]`
-- Content-Type: `application/json`
-- Request (`FromBody`, `Request.UpdateProfileByPassword`):
-  - `newPassword` (string, required theo validation service)
-
-Response `200 OK`:
+Response `200 OK`
 
 ```json
 {
@@ -214,14 +190,25 @@ Response `200 OK`:
 }
 ```
 
-### 4.6 PATCH `/api/v1/admin/users/{userId}/verify`
+Notes
 
-- Auth: Admin policy (`JwtExtensions.AdminPolicy`)
-- Route param:
-  - `userId` (guid, required)
-- Request body: none
+- Content-Type: `application/json`.
+- `newPassword` is required by service validation.
+- API returns `ApiResponse` wrapper.
 
-Response `200 OK`:
+---
+
+### `PATCH /api/v1/admin/users/{userId}/verify`
+
+- Auth: Admin
+
+Request
+
+```json
+{}
+```
+
+Response `200 OK`
 
 ```json
 {
@@ -234,28 +221,29 @@ Response `200 OK`:
 }
 ```
 
-Trường hợp đã verify:
+Notes
+
+- `userId` must be `guid`.
+- Only active customer account can be verified.
+- API returns `ApiResponse` wrapper.
+
+---
+
+### `GET /api/v1/admin/users`
+
+- Auth: Admin
+
+Request
 
 ```json
 {
-  "success": true,
-  "message": "Admin verification status updated",
-  "data": "User is already verified.",
-  "errors": null,
-  "traceId": "0H...",
-  "timestampUtc": "2026-05-23T10:00:00.0000000Z"
+  "searchTerm": "an",
+  "pageIndex": 1,
+  "pageSize": 10
 }
 ```
 
-### 4.7 GET `/api/v1/admin/users`
-
-- Auth: Admin policy
-- Query params:
-  - `searchTerm` (string, optional)
-  - `pageIndex` (int, default `1`)
-  - `pageSize` (int, default `10`)
-
-Response `200 OK` (`data` = `PageResult<AllProfileResponse>`):
+Response `200 OK`
 
 ```json
 {
@@ -298,25 +286,63 @@ Response `200 OK` (`data` = `PageResult<AllProfileResponse>`):
 }
 ```
 
-### 4.8 GET `/api/v1/admin/users/pending-verification`
+Notes
 
-- Auth: Admin policy
-- Query params:
-  - `searchTerm` (string, optional)
-  - `pageIndex` (int, default `1`)
-  - `pageSize` (int, default `10`)
+- Query params: `searchTerm`, `pageIndex` (default `1`), `pageSize` (default `10`).
+- API returns `ApiResponse` wrapper.
 
-Response `200 OK`:
-- Cấu trúc giống `GET /api/v1/admin/users`.
-- `message`: `Get users pending verification`.
+---
 
-### 4.9 GET `/api/v1/admin/users/{userId}`
+### `GET /api/v1/admin/users/pending-verification`
 
-- Auth: Admin policy
-- Route param:
-  - `userId` (guid, required)
+- Auth: Admin
 
-Response `200 OK` (`data` = `GetUserByIdResponse`):
+Request
+
+```json
+{
+  "searchTerm": "an",
+  "pageIndex": 1,
+  "pageSize": 10
+}
+```
+
+Response `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Get users pending verification",
+  "data": {
+    "items": [],
+    "totalItems": 0,
+    "pageSize": 10,
+    "pageIndex": 1
+  },
+  "errors": null,
+  "traceId": "0H...",
+  "timestampUtc": "2026-05-23T10:00:00.0000000Z"
+}
+```
+
+Notes
+
+- Query params: `searchTerm`, `pageIndex` (default `1`), `pageSize` (default `10`).
+- API returns `ApiResponse` wrapper.
+
+---
+
+### `GET /api/v1/admin/users/{userId}`
+
+- Auth: Admin
+
+Request
+
+```json
+{}
+```
+
+Response `200 OK`
 
 ```json
 {
@@ -362,17 +388,18 @@ Response `200 OK` (`data` = `GetUserByIdResponse`):
 }
 ```
 
-### 4.10 PATCH `/api/v1/admin/users/{userId}/status`
+Notes
 
-- Auth: Admin policy
-- Route param:
-  - `userId` (guid, required)
-- Content-Type: `application/json`
-- Request (`FromBody`, `Request.UpdateUserByStatusRequest`):
-  - `status` (required)
-  - Giá trị hợp lệ: `0`, `1`, `2` tương ứng `Active`, `Locked`, `Inactive`
+- `userId` must be `guid`.
+- API returns `ApiResponse` wrapper.
 
-Ví dụ request:
+---
+
+### `PATCH /api/v1/admin/users/{userId}/status`
+
+- Auth: Admin
+
+Request
 
 ```json
 {
@@ -380,7 +407,7 @@ Ví dụ request:
 }
 ```
 
-Response `200 OK`:
+Response `200 OK`
 
 ```json
 {
@@ -393,13 +420,27 @@ Response `200 OK`:
 }
 ```
 
-### 4.11 GET `/api/v1/admin/users/{userId}/status`
+Notes
 
-- Auth: Admin policy
-- Route param:
-  - `userId` (guid, required)
+- `status` chi nhan `0 | 1 | 2` (tuong ung `Active | Locked | Inactive`).
+- `reason` khong ton tai trong request DTO hien tai.
+- Khong cho admin khoa/chuyen `inactive` chinh minh neu he thong chi con 1 admin active.
+- Khi account bi `locked` hoac `inactive`, user khong login duoc.
+- Khi account bi `locked` hoac `inactive`, token se bi reject o protected API vi middleware chi cho `AccountStatus.Active`.
 
-Response `200 OK` (`data` = `GetUserStatusResponse`):
+---
+
+### `GET /api/v1/admin/users/{userId}/status`
+
+- Auth: Admin
+
+Request
+
+```json
+{}
+```
+
+Response `200 OK`
 
 ```json
 {
@@ -415,13 +456,25 @@ Response `200 OK` (`data` = `GetUserStatusResponse`):
 }
 ```
 
-### 4.12 GET `/WeatherForecast`
+Notes
 
-Lưu ý:
-- Endpoint này không dùng `ApiResponse` wrapper.
-- Trả trực tiếp `IEnumerable<WeatherForecast>`.
+- `userId` must be `guid`.
+- Enum `status`: `0 = Active`, `1 = Locked`, `2 = Inactive`.
+- API returns `ApiResponse` wrapper.
 
-Response `200 OK`:
+---
+
+### `GET /WeatherForecast`
+
+- Auth: Public
+
+Request
+
+```json
+{}
+```
+
+Response `200 OK`
 
 ```json
 [
@@ -434,3 +487,9 @@ Response `200 OK`:
 ]
 ```
 
+Notes
+
+- Endpoint nay khong dung `ApiResponse` wrapper.
+- Route theo controller token: `[Route("[controller]")]` => `/WeatherForecast`.
+
+---
