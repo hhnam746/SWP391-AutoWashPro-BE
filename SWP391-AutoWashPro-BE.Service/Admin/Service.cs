@@ -1,8 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SWP391_AutoWashPro_BE.Repository;
-using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
-using SWP391_AutoWashPro_BE.Service.User;
 
 namespace SWP391_AutoWashPro_BE.Service.Admin;
 
@@ -201,6 +199,75 @@ public class Service : IService
             PageSize = pageSize,
             TotalItems = totalItems,
         };
+
+        return result;
+    }
+
+    public async Task<Response.GetUserByIdResponse> GetUserById(Guid userId)
+    {
+        var result = await _dbContext.Users
+            .AsNoTracking()
+            .Where(x => x.Id == userId &&
+                        x.Role == UserRole.Customer &&
+                        x.CustomerProfile != null)
+            .Select(x => new Response.GetUserByIdResponse()
+            {
+                Id = x.Id,
+                Email = x.Email!,
+                Phone = x.Phone,
+                Role = x.Role,
+                IsVerified = x.isVerify,
+                Status = x.Status,
+                LastLoginAt = x.LastLoginAt,
+                ProfileData = new Response.ProfileData()
+                {
+                    Id = x.CustomerProfile!.Id,
+                    FirstName = x.CustomerProfile.FirstName,
+                    LastName = x.CustomerProfile.LastName,
+                    Cccd = x.CustomerProfile.Cccd,
+                    TotalPoints = x.CustomerProfile.TotalPoints,
+                    TotalWashes = x.CustomerProfile.TotalWashes,
+                    TierData = x.CustomerProfile.Tier! == null
+                        ? null
+                        : new Response.TierData()
+                        {
+                            Id = x.CustomerProfile.Tier.Id,
+                            Name = x.CustomerProfile.Tier.Name,
+                            Level = x.CustomerProfile.Tier.Level
+                        }
+                },
+                VehicleCount = x.CustomerProfile.Vehicles.Count(v =>
+                    v.IsActive &&
+                    v.DeletedAt == null),
+                ActiveBookingCount = x.CustomerProfile.Bookings.Count(b =>
+                    b.Status == BookingStatus.Pending ||
+                    b.Status == BookingStatus.Confirmed ||
+                    b.Status == BookingStatus.CheckIn ||
+                    b.Status == BookingStatus.InProgress),
+                Wallet = x.CustomerProfile.Wallet == null
+                    ? null
+                    : new Response.WalletResponse()
+                    {
+                        Balance = x.CustomerProfile.Wallet.Balance
+                    },
+                Vehicles = x.CustomerProfile.Vehicles
+                    .Where(v => v.DeletedAt == null)
+                    .OrderByDescending(v => v.IsActive)
+                    .ThenBy(v => v.CreatedAt)
+                    .Select(v => new Response.VehicleResponse()
+                    {
+                        Id = v.Id,
+                        LicensePlate = v.LicensePlate,
+                        IsActive = v.IsActive
+                    })
+                    .ToList()
+            })
+            .FirstOrDefaultAsync();
+
+        if (result == null)
+        {
+            throw new KeyNotFoundException("User not found.");
+        }
 
         return result;
     }

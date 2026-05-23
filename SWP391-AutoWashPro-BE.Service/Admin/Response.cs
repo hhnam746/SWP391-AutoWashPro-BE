@@ -35,4 +35,22 @@ public class Response
         public string Name { get; set; }
         public int Level { get; set; }
     }
+
+    public class GetUserByIdResponse : AllProfileResponse
+    {
+        public WalletResponse? Wallet { get; set; }
+        public List<VehicleResponse> Vehicles { get; set; } = new();
+    }
+
+    public class WalletResponse
+    {
+        public decimal Balance { get; set; }
+    }
+
+    public class VehicleResponse
+    {
+        public Guid Id { get; set; }
+        public string LicensePlate { get; set; }
+        public bool IsActive { get; set; }
+    }
 }

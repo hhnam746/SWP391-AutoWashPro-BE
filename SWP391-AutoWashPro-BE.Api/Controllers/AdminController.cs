@@ -39,4 +39,14 @@ public class AdminController : ControllerBase
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get users pending verification", HttpContext.TraceIdentifier));
     }
     
+    [HttpGet("users/{userId:guid}")]
+    public async Task<IActionResult> GetUserById(Guid userId)
+    {
+        var result = await _adminService.GetUserById(userId);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get user by id", HttpContext.TraceIdentifier));
+    }
+    
+    // ### `PATCH /api/v1/admin/users/{id}/status`
+    
+    
 }

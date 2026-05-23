@@ -13,4 +13,5 @@ public interface IService
         string? searchTerm,
         int pageSize,
         int pageIndex);
+    public Task<Response.GetUserByIdResponse> GetUserById(Guid userId);
 }
