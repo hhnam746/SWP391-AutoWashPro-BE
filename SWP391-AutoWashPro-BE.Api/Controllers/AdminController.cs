@@ -18,10 +18,10 @@ public class AdminController : ControllerBase
         _adminService = adminService;
     }
 
-    [HttpPatch("users/{userId:guid}/verify")]
-    public async Task<IActionResult> UpdateUserVerificationStatus(Guid userId)
+    [HttpPatch("users/{id:guid}/verify")]
+    public async Task<IActionResult> UpdateUserVerificationStatus(Guid id)
     {
-        var result = await _adminService.UpdateUserVerificationStatus(userId);
+        var result = await _adminService.UpdateUserVerificationStatus(id);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Admin verification status updated", HttpContext.TraceIdentifier));
     }
 
@@ -39,26 +39,26 @@ public class AdminController : ControllerBase
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get users pending verification", HttpContext.TraceIdentifier));
     }
 
-    [HttpGet("users/{userId:guid}")]
-    public async Task<IActionResult> GetUserById(Guid userId)
+    [HttpGet("users/{id:guid}")]
+    public async Task<IActionResult> GetUserById(Guid id)
     {
-        var result = await _adminService.GetUserById(userId);
+        var result = await _adminService.GetUserById(id);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get user by id", HttpContext.TraceIdentifier));
     }
 
-    [HttpPatch("users/{userId:guid}/status")]
+    [HttpPatch("users/{id:guid}/status")]
     public async Task<IActionResult> UpdateUserStatusById(
-        [FromRoute] Guid userId,
+        [FromRoute] Guid id,
         [FromBody] Request.UpdateUserByStatusRequest request)
     {
-        var result = await _adminService.UpdateUserStatusById(userId, request);
+        var result = await _adminService.UpdateUserStatusById(id, request);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Update user status", HttpContext.TraceIdentifier));
     }
 
-    [HttpGet("users/{userId:guid}/status")]
-    public async Task<IActionResult> GetUserStatusById(Guid userId)
+    [HttpGet("users/{id:guid}/status")]
+    public async Task<IActionResult> GetUserStatusById(Guid id)
     {
-        var result = await _adminService.GetUserStatusById(userId);
+        var result = await _adminService.GetUserStatusById(id);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get user status", HttpContext.TraceIdentifier));
     }
 }
