@@ -44,8 +44,8 @@ public class Service : IService
     }
 
     public async Task<Base.Response.PageResult<Response.AllProfileResponse>> GetAllUserProfile(
-        string? searchTerm, 
-        int pageSize, 
+        string? searchTerm,
+        int pageSize,
         int pageIndex)
     {
         var query = _dbContext.Users
@@ -55,20 +55,20 @@ public class Service : IService
             .Where(x => x.isVerify &&
                         x.Role == UserRole.Customer &&
                         x.CustomerProfile != null);
-        
+
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             searchTerm = searchTerm.Trim();
-            query = query.Where(x => 
-                x.CustomerProfile!.FirstName.Contains(searchTerm) || 
-                x.CustomerProfile!.LastName.Contains(searchTerm) || 
+            query = query.Where(x =>
+                x.CustomerProfile!.FirstName.Contains(searchTerm) ||
+                x.CustomerProfile!.LastName.Contains(searchTerm) ||
                 x.Email!.Contains(searchTerm));
         }
-        
+
         var totalItems = await query.CountAsync();
-        
+
         query = query.OrderBy(x => x.CreatedAt);
-    
+
         query = query
             .Skip((pageIndex - 1) * pageSize)
             .Take(pageSize);
@@ -81,7 +81,7 @@ public class Service : IService
             Role = x.Role,
             Status = x.Status,
             IsVerified = x.isVerify,
-            LastLoginAt  = x.LastLoginAt,
+            LastLoginAt = x.LastLoginAt,
             ProfileData = new Response.ProfileData()
             {
                 Id = x.Id,
@@ -107,11 +107,10 @@ public class Service : IService
                 b.Status == BookingStatus.Confirmed ||
                 b.Status == BookingStatus.CheckIn ||
                 b.Status == BookingStatus.InProgress),
-            
         });
-        
+
         var listResult = await selectedQuery.ToListAsync();
-        
+
         var result = new Base.Response.PageResult<Response.AllProfileResponse>()
         {
             Items = listResult,
@@ -270,5 +269,54 @@ public class Service : IService
         }
 
         return result;
+    }
+
+    public async Task<string> UpdateUserStatusById(Guid userId, Guid currentAdminId, Request.UpdateUserByStatusRequest request)
+    {
+        if (request == null)
+        {
+            throw new ArgumentException("Request body is required.");
+        }
+
+        if (request.Status is null)
+        {
+            throw new ArgumentException("Status is required.");
+        }
+
+        var newStatus = request.Status.Value;
+        if (!Enum.IsDefined(typeof(AccountStatus), newStatus))
+        {
+            throw new ArgumentException("Status must be one of: Active, Locked, Inactive.");
+        }
+
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null)
+        {
+            throw new KeyNotFoundException("User not found.");
+        }
+
+        if (user.Role == UserRole.Customer && !user.isVerify)
+        {
+            throw new InvalidOperationException("User is not verified.");
+        }
+
+        var isSelfLocking = user.Id == currentAdminId && user.Role == UserRole.Admin && newStatus != AccountStatus.Active;
+        if (isSelfLocking)
+        {
+            var activeAdminCount = await _dbContext.Users.CountAsync(u =>
+                u.Role == UserRole.Admin && u.Status == AccountStatus.Active);
+
+            if (activeAdminCount <= 1)
+            {
+                throw new InvalidOperationException("Cannot lock or deactivate yourself because the system must keep at least one active admin.");
+            }
+        }
+
+        user.Status = newStatus;
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+        await _dbContext.SaveChangesAsync();
+
+        return "Update user status successfully";
     }
 }
