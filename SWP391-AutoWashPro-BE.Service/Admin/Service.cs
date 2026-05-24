@@ -8,13 +8,48 @@ namespace SWP391_AutoWashPro_BE.Service.Admin;
 
 public class Service : IService
 {
+    private const int DefaultSlotDurationMinutes = 15;
+    private const int WorkingStartHour = 8;
+    private const int WorkingEndHour = 17;
+    private static readonly TimeSpan DefaultUtcOffset = TimeSpan.FromHours(7);
+
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContext;
-    
+
     public Service(AppDbContext dbContext, IHttpContextAccessor httpContext)
     {
         _dbContext = dbContext;
         _httpContext = httpContext;
+    }
+
+    public async Task<List<Response.BranchResponse>> GetBranches(bool? isActive, string? keyword)
+    {
+        var query = _dbContext.Branches.AsNoTracking();
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(x => x.IsActive == isActive.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            keyword = keyword.Trim();
+            query = query.Where(x =>
+                EF.Functions.ILike(x.Name, $"%{keyword}%") ||
+                EF.Functions.ILike(x.Address, $"%{keyword}%"));
+        }
+
+        return await query
+            .OrderByDescending(x => x.IsActive)
+            .ThenBy(x => x.Name)
+            .Select(x => new Response.BranchResponse
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Address = x.Address,
+                IsActive = x.IsActive
+            })
+            .ToListAsync();
     }
 
     public async Task<string> UpdateUserVerificationStatus(Guid userId)
@@ -302,6 +337,7 @@ public class Service : IService
         {
             throw new UnauthorizedAccessException("You are not logged in or your session has expired.");
         }
+
         if (request == null)
         {
             throw new ArgumentException("Request body is required.");
@@ -330,7 +366,8 @@ public class Service : IService
             throw new InvalidOperationException("User is not verified.");
         }
 
-        var isSelfLocking = user.Id == currentAdminGuid && user.Role == UserRole.Admin && newStatus != AccountStatus.Active;
+        var isSelfLocking = user.Id == currentAdminGuid && user.Role == UserRole.Admin &&
+                            newStatus != AccountStatus.Active;
         if (isSelfLocking)
         {
             var activeAdminCount = await _dbContext.Users.CountAsync(u =>
@@ -338,7 +375,8 @@ public class Service : IService
 
             if (activeAdminCount <= 1)
             {
-                throw new InvalidOperationException("Cannot lock or deactivate yourself because the system must keep at least one active admin.");
+                throw new InvalidOperationException(
+                    "Cannot lock or deactivate yourself because the system must keep at least one active admin.");
             }
         }
 
@@ -347,5 +385,202 @@ public class Service : IService
         await _dbContext.SaveChangesAsync();
 
         return "Update user status successfully";
+    }
+
+    public async Task<List<Response.BookingResponse>> GetBookings(
+        Request.GetBookingRequest request)
+    {
+        if (request.BranchId == Guid.Empty)
+        {
+            throw new ArgumentException("BranchId is required.");
+        }
+
+        if (request.Date == default)
+        {
+            throw new ArgumentException("Date is required.");
+        }
+
+        var branchExists = await _dbContext.Branches
+            .AsNoTracking()
+            .AnyAsync(x => x.Id == request.BranchId);
+
+        if (!branchExists)
+        {
+            throw new KeyNotFoundException("Branch not found.");
+        }
+
+        var query = _dbContext.Bookings
+            .AsNoTracking()
+            .Where(x =>
+                x.Customer.User.Role == UserRole.Customer &&
+                x.Customer.User.isVerify &&
+                x.Customer.User.Status == AccountStatus.Active &&
+                x.BranchId == request.BranchId &&
+                x.BookingDate == request.Date);
+
+        if (request.Status.HasValue)
+        {
+            query = query.Where(x => x.Status == request.Status.Value);
+        }
+
+        var items = await query
+            .OrderBy(x => x.StartTime)
+            .Select(x => new Response.BookingResponse
+            {
+                Id = x.Id,
+                Status = ToBookingStatusValue(x.Status),
+                BookingDate = x.BookingDate,
+                StartTime = x.StartTime,
+                EndTime = x.EndTime,
+                FinalPrice = x.FinalPrice,
+
+                Customer = new Response.BookingCustomerResponse
+                {
+                    Id = x.Customer.UserId,
+                    FullName = $"{x.Customer.FirstName} {x.Customer.LastName}".Trim(),
+                    Phone = x.Customer.User.Phone,
+                    TierName = x.Customer.Tier.Name
+                },
+
+                Vehicle = new Response.BookingVehicleResponse
+                {
+                    Id = x.Vehicle.Id,
+                    LicensePlate = x.Vehicle.LicensePlate
+                },
+
+                Branch = new Response.BookingBranchResponse
+                {
+                    Id = x.Branch.Id,
+                    Name = x.Branch.Name
+                }
+            })
+            .ToListAsync();
+
+        return items;
+    }
+
+    public async Task<Response.BookingSlotResponse> GetBookingSlots(Request.GetBookingSlotRequest request)
+    {
+        if (request.BranchId == Guid.Empty)
+        {
+            throw new ArgumentException("BranchId is required.");
+        }
+
+        if (request.Date == default)
+        {
+            throw new ArgumentException("Date is required.");
+        }
+
+        var branchExists = await _dbContext.Branches
+            .AsNoTracking()
+            .AnyAsync(x => x.Id == request.BranchId);
+
+        if (!branchExists)
+        {
+            throw new KeyNotFoundException("Branch not found.");
+        }
+
+        var bookedSlots = await _dbContext.Bookings
+            .AsNoTracking()
+            .Where(x => x.BranchId == request.BranchId &&
+                        x.BookingDate == request.Date &&
+                        x.Status != BookingStatus.Cancelled)
+            .OrderByDescending(x => x.CreatedAt)
+            .Select(x => new
+            {
+                x.Id,
+                x.Status,
+                x.StartTime,
+                x.EndTime,
+                x.Vehicle.LicensePlate,
+                x.Customer.FirstName,
+                x.Customer.LastName
+            })
+            .ToListAsync();
+
+        var bookingsBySlotStart = bookedSlots
+            .GroupBy(x => x.StartTime.ToOffset(DefaultUtcOffset))
+            .ToDictionary(x => x.Key, x => x.First());
+
+        var slotData = new List<Response.SlotDataResponse>();
+        var slotStart = BuildSlotTime(request.Date, WorkingStartHour, 0);
+        var workingEnd = BuildSlotTime(request.Date, WorkingEndHour, 0);
+
+        while (slotStart < workingEnd)
+        {
+            var slotEnd = slotStart.AddMinutes(DefaultSlotDurationMinutes);
+            if (bookingsBySlotStart.TryGetValue(slotStart, out var booking))
+            {
+                slotData.Add(new Response.SlotDataResponse
+                {
+                    StartTime = slotStart,
+                    EndTime = slotEnd,
+                    Status = "booked",
+                    Booking = new Response.SlotBookingResponse
+                    {
+                        Id = booking.Id,
+                        Status = ToBookingStatusValue(booking.Status),
+                        LicensePlate = booking.LicensePlate,
+                        CustomerName = $"{booking.FirstName} {booking.LastName}".Trim()
+                    }
+                });
+            }
+            else
+            {
+                slotData.Add(new Response.SlotDataResponse
+                {
+                    StartTime = slotStart,
+                    EndTime = slotEnd,
+                    Status = "available",
+                    Booking = null
+                });
+            }
+
+            slotStart = slotEnd;
+        }
+
+        return new Response.BookingSlotResponse
+        {
+            BranchId = request.BranchId,
+            Date = request.Date,
+            SlotDurationMinutes = DefaultSlotDurationMinutes,
+            Data = slotData
+        };
+    }
+
+    private static DateTimeOffset BuildSlotTime(DateOnly date, int hour, int minute)
+    {
+        var localDateTime = date.ToDateTime(new TimeOnly(hour, minute));
+        return new DateTimeOffset(localDateTime, DefaultUtcOffset);
+    }
+
+    private static string ToBookingStatusValue(BookingStatus status)
+    {
+        return status switch
+        {
+            BookingStatus.Pending => "pending",
+            BookingStatus.Confirmed => "confirmed",
+            BookingStatus.CheckIn => "check_in",
+            BookingStatus.InProgress => "in_progress",
+            BookingStatus.Completed => "completed",
+            BookingStatus.Cancelled => "cancelled",
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+        };
+    }
+
+    private static BookingStatus ParseBookingStatus(string status)
+    {
+        var normalizedStatus = status.Trim().ToLowerInvariant();
+        return normalizedStatus switch
+        {
+            "pending" => BookingStatus.Pending,
+            "confirmed" => BookingStatus.Confirmed,
+            "check_in" => BookingStatus.CheckIn,
+            "in_progress" => BookingStatus.InProgress,
+            "completed" => BookingStatus.Completed,
+            "cancelled" => BookingStatus.Cancelled,
+            _ => throw new ArgumentException(
+                "Status must be one of: pending, confirmed, check_in, in_progress, completed, cancelled.")
+        };
     }
 }

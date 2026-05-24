@@ -11,4 +11,18 @@ public class Request
         [EnumDataType(typeof(AccountStatus))]
         public AccountStatus? Status { get; set; }
     }
+    
+    public class GetBookingRequest
+    {
+        public Guid BranchId { get; set; }
+        public DateOnly Date { get; set; }
+        public BookingStatus? Status { get; set; }
+    }
+    
+    public class GetBookingSlotRequest
+    {
+        public Guid BranchId { get; set; }
+        public DateOnly Date { get; set; }
+    }
+    
 }

@@ -4,6 +4,14 @@ namespace SWP391_AutoWashPro_BE.Service.Admin;
 
 public class Response
 {
+    public class BranchResponse
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public bool IsActive { get; set; }
+    }
+
     public class GetUserStatusResponse
     {
         public Guid UserId { get; set; }
@@ -58,5 +66,68 @@ public class Response
         public Guid Id { get; set; }
         public string LicensePlate { get; set; }
         public bool IsActive { get; set; }
+    }
+
+    public class BookingListResponse
+    {
+        public List<BookingResponse> Data { get; set; } = new();
+    }
+    
+
+    public class BookingResponse
+    {
+        public Guid Id { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateOnly BookingDate { get; set; }
+        public DateTimeOffset StartTime { get; set; }
+        public DateTimeOffset EndTime { get; set; }
+        public BookingCustomerResponse Customer { get; set; } = new();
+        public BookingVehicleResponse Vehicle { get; set; } = new();
+        public BookingBranchResponse Branch { get; set; } = new();
+        public decimal FinalPrice { get; set; }
+    }
+
+    public class BookingCustomerResponse
+    {
+        public Guid Id { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string TierName { get; set; } = string.Empty;
+    }
+
+    public class BookingVehicleResponse
+    {
+        public Guid Id { get; set; }
+        public string LicensePlate { get; set; } = string.Empty;
+    }
+
+    public class BookingBranchResponse
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class BookingSlotResponse
+    {
+        public Guid BranchId { get; set; }
+        public DateOnly Date { get; set; }
+        public int SlotDurationMinutes { get; set; }
+        public List<SlotDataResponse> Data { get; set; } = new();
+    }
+
+    public class SlotDataResponse
+    {
+        public DateTimeOffset StartTime { get; set; }
+        public DateTimeOffset EndTime { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public SlotBookingResponse? Booking { get; set; }
+    }
+
+    public class SlotBookingResponse
+    {
+        public Guid Id { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string LicensePlate { get; set; } = string.Empty;
+        public string CustomerName { get; set; } = string.Empty;
     }
 }

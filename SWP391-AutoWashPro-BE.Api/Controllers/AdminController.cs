@@ -18,6 +18,13 @@ public class AdminController : ControllerBase
         _adminService = adminService;
     }
 
+    [HttpGet("branches")]
+    public async Task<IActionResult> GetBranches([FromQuery] bool? isActive, [FromQuery] string? keyword)
+    {
+        var result = await _adminService.GetBranches(isActive, keyword);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get branches", HttpContext.TraceIdentifier));
+    }
+
     [HttpPatch("users/{id:guid}/verify")]
     public async Task<IActionResult> UpdateUserVerificationStatus(Guid id)
     {
@@ -37,6 +44,20 @@ public class AdminController : ControllerBase
     {
         var result = await _adminService.GetUsersNeedVerification(searchTerm, pageSize, pageIndex);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get users pending verification", HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("bookings")]
+    public async Task<IActionResult> GetBookings([FromBody] Request.GetBookingRequest request)
+    {
+        var result = await _adminService.GetBookings(request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get bookings", HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("booking-slots")]
+    public async Task<IActionResult> GetBookingSlots([FromBody] Request.GetBookingSlotRequest request)
+    {
+        var result = await _adminService.GetBookingSlots(request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get booking slots", HttpContext.TraceIdentifier));
     }
 
     [HttpGet("users/{id:guid}")]
