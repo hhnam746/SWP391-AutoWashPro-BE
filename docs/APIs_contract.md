@@ -225,6 +225,7 @@ earn | redeem | reset
 | ------ | -------------------------------------- | --------------------------------- |
 | GET    | `/api/v1/admin/users`                  | Danh sách customer                |
 | GET    | `/api/v1/admin/users/{id}`             | Chi tiết customer                 |
+| PATCH  | `/api/v1/admin/users/{userId}/verify`  | Xác nhận duyệt khuôn mặt          |
 | PATCH  | `/api/v1/admin/users/{id}/status`      | Khóa/mở khóa account              |
 | GET    | `/api/v1/admin/bookings`               | Xem booking toàn hệ thống         |
 | GET    | `/api/v1/admin/booking-slots`          | Xem slot theo chi nhánh/ngày      |
@@ -771,22 +772,16 @@ Response `200 OK`
   "branchId": "guid",
   "date": "2026-05-20",
   "slotDurationMinutes": 15,
-  "workingHours": {
-    "start": "08:00",
-    "end": "17:00"
-  },
   "data": [
     {
       "startTime": "2026-05-20T08:00:00+07:00",
       "endTime": "2026-05-20T08:15:00+07:00",
-      "status": "available",
-      "isPriorityOnly": false
+      "status": "available"
     },
     {
       "startTime": "2026-05-20T08:15:00+07:00",
       "endTime": "2026-05-20T08:30:00+07:00",
-      "status": "booked",
-      "isPriorityOnly": false
+      "status": "booked"
     }
   ]
 }
@@ -938,7 +933,7 @@ Request
 
 ```json
 {
-  "confirm": true
+  "isCheckin": "CheckIn"
 }
 ```
 
