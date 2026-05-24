@@ -74,6 +74,9 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnType("numeric(12,2)")
                         .HasColumnName("final_price");
 
+                    b.Property<int?>("RedemAmount")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("StartTime")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("start_time");

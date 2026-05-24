@@ -15,8 +15,8 @@ public class AppDbContext : DbContext
     private static readonly ValueConverter<VoucherStatus, string> VoucherStatusConverter = new(v => ToDbVoucherStatus(v), v => FromDbVoucherStatus(v));
     private static readonly ValueConverter<NotificationType, string> NotificationTypeConverter = new(v => ToDbNotificationType(v), v => FromDbNotificationType(v));
     private static readonly ValueConverter<PointTransactionType, string> PointTransactionTypeConverter = new(v => ToDbPointTransactionType(v), v => FromDbPointTransactionType(v));
-    
-    
+
+
     private static string ToDbUserRole(UserRole value) => value switch
     {
         UserRole.Admin => "admin",
