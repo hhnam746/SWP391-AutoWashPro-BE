@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using SWP391_AutoWashPro_BE.Repository;
+using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 
 namespace SWP391_AutoWashPro_BE.Service.Admin;
@@ -51,6 +52,112 @@ public class Service : IService
             })
             .ToListAsync();
     }
+
+    public async Task<string> CreateBranch(Request.CreateBranch request)
+    {
+        var branchName = request.Name.Trim();
+        var branchAddress = request.Address.Trim();
+        if (string.IsNullOrWhiteSpace(branchName))
+        {
+            throw new ArgumentException("Branch name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(branchAddress))
+        {
+            throw new ArgumentException("Branch address is required.");
+        }
+
+        var branchNameExists = await _dbContext.Branches
+            .AnyAsync(x => x.Name.ToLower() == branchName.ToLower());
+
+        if (branchNameExists)
+        {
+            throw new InvalidOperationException("Branch name already exists.");
+        }
+
+        var newBranch = new Branch()
+        {
+            Name = branchName,
+            Address = branchAddress,
+            IsActive = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        
+        _dbContext.Add(newBranch);
+        await _dbContext.SaveChangesAsync();
+        return "Create branch successfully";
+    }
+
+    public async Task<string> UpdateBranch(Guid id, Request.UpdateBranch request)
+    {
+        var branch = await _dbContext.Branches.FirstOrDefaultAsync(x => x.Id == id && x.IsActive == true);
+        if (branch == null)
+        {
+            throw new KeyNotFoundException("Branch not found.");
+        }
+
+        var hasName = request.Name != null;
+        var hasAddress = request.Address != null;
+        var hasIsActive = request.IsActive.HasValue;
+
+        if (!hasName && !hasAddress && !hasIsActive)
+        {
+            throw new ArgumentException("At least one field is required for update.");
+        }
+
+        if (hasName && string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new ArgumentException("Branch name cannot be empty.");
+        }
+
+        if (hasAddress && string.IsNullOrWhiteSpace(request.Address))
+        {
+            throw new ArgumentException("Branch address cannot be empty.");
+        }
+
+        if (hasName)
+        {
+            var branchName = request.Name!.Trim();
+            var branchNameExists = await _dbContext.Branches
+                .AnyAsync(x => x.Id != id && x.Name.ToLower() == branchName.ToLower());
+
+            if (branchNameExists)
+            {
+                throw new InvalidOperationException("Branch name already exists.");
+            }
+
+            branch.Name = branchName;
+        }
+
+        if (hasAddress)
+        {
+            branch.Address = request.Address!.Trim();
+        }
+
+        if (hasIsActive)
+        {
+            branch.IsActive = request.IsActive!.Value;
+        }
+
+        branch.UpdatedAt = DateTimeOffset.UtcNow;
+        await _dbContext.SaveChangesAsync();
+        return "Update branch successfully";
+    }
+
+    public async Task<string> DeleteBranch(Guid id)
+    {
+        var branch = await _dbContext.Branches.FirstOrDefaultAsync(x => x.Id == id && x.IsActive == true);
+        if (branch == null)
+        {
+            throw new KeyNotFoundException("Branch not found.");
+        }
+        
+        branch.IsActive = false;
+        branch.UpdatedAt = DateTimeOffset.UtcNow;
+        await _dbContext.SaveChangesAsync();
+        return "Delete branch successfully";
+    }
+
 
     public async Task<string> UpdateUserVerificationStatus(Guid userId)
     {

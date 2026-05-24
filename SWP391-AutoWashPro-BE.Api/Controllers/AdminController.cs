@@ -24,7 +24,31 @@ public class AdminController : ControllerBase
         var result = await _adminService.GetBranches(isActive, keyword);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get branches", HttpContext.TraceIdentifier));
     }
-
+    
+    //CRUD branch by Admin
+    [HttpPost("branches")]
+    public async Task<IActionResult> CreateBranch(Request.CreateBranch request)
+    {
+        var result = await _adminService.CreateBranch(request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Create branch successfully", HttpContext.TraceIdentifier));
+    }
+    
+    [HttpPatch("branches/{id:guid}")]
+    public async Task<IActionResult> UpdateBranch(Guid id, Request.UpdateBranch request)
+    {
+        var result = await _adminService.UpdateBranch(id, request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Update branch successfully", HttpContext.TraceIdentifier));
+    }
+    
+    [HttpDelete("branches/{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var result = await _adminService.DeleteBranch(id);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Delete branch successfully", HttpContext.TraceIdentifier));
+    }
+    
+    
+    //Using admin to verify user
     [HttpPatch("users/{id:guid}/verify")]
     public async Task<IActionResult> UpdateUserVerificationStatus(Guid id)
     {

@@ -24,5 +24,17 @@ public class Request
         public Guid BranchId { get; set; }
         public DateOnly Date { get; set; }
     }
-    
+
+    public class CreateBranch
+    {
+        public required string Name { get; set; }
+        public required string Address { get; set; }
+    }
+
+    public class UpdateBranch
+    {
+        public string? Name { get; set; }
+        public string? Address { get; set; }
+        public bool? IsActive { get; set; }
+    }
 }
