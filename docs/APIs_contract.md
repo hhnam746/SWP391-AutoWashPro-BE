@@ -806,7 +806,8 @@ Request
   "vehicleId": "guid",
   "bookingDate": "2026-05-20",
   "startTime": "2026-05-20T09:00:00+07:00",
-  "voucherCode": "WELCOME10"
+  "voucherId": "Guid",
+  "redemPoint": "true"
 }
 ```
 

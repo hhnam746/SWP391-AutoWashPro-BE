@@ -31,17 +31,32 @@ public class BookingController:ControllerBase
     }
 
     [HttpGet("")]
-    public async Task<IActionResult> GetBooking(BookingStatus? status, DateOnly fromDate, DateOnly toDate, int page,
-        int pageSize)
+    public async Task<IActionResult> GetBooking(BookingStatus? status, DateOnly? fromDate, DateOnly? toDate, int? page,
+        int? pageSize)
     {
-        var result = await _service.GetBookings(status, fromDate, toDate, page, pageSize);
+        if (!fromDate.HasValue || !toDate.HasValue)
+        {
+            return BadRequest("fromDate and toDate are required.");
+        }
+
+        if (!page.HasValue || !pageSize.HasValue)
+        {
+            return BadRequest("page and pageSize are required.");
+        }
+
+        if (page.Value < 1 || pageSize.Value < 1)
+        {
+            return BadRequest("page and pageSize must be greater than 0.");
+        }
+
+        var result = await _service.GetBookings(status, fromDate.Value, toDate.Value, page.Value, pageSize.Value);
         return Ok(result);
     }
 
     [HttpPost("{id}/check-in")]
-    public async Task<IActionResult> CheckInBooking(Guid Id)
+    public async Task<IActionResult> CheckInBooking([FromRoute]Guid id)
     {
-        var result = await _service.CheckInBooking(Id);
+        var result = await _service.CheckInBooking(id);
         return Ok(result);
     }
 
@@ -53,9 +68,9 @@ public class BookingController:ControllerBase
     }
 
     [HttpPost("{id}/cancel")]
-    public async Task<IActionResult> CancelBooking(Guid Id, Request.CancelBookingRequest bookingRequest)
+    public async Task<IActionResult> CancelBooking([FromRoute]Guid id, Request.CancelBookingRequest bookingRequest)
     {
-        var result = await _service.CancelBooking(Id, bookingRequest);
+        var result = await _service.CancelBooking(id, bookingRequest);
         return Ok(result);
     }
 }

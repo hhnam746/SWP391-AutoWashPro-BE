@@ -15,9 +15,11 @@ public class Request
     {
         public required Guid BranchId { get; set; }
         public required Guid VehicleId { get; set; }
+        public required Guid? VoucherId { get; set; }
         public required DateOnly BookingDate { get; set; }
         public required DateTime StartTime { get; set; }
-        public Guid? VoucherId { get; set; }
+        public required bool? redemPoint { get; set; }
+       
     }
 
     public class GetBookingsRequest

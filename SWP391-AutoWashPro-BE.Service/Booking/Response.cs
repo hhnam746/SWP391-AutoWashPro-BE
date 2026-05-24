@@ -22,12 +22,12 @@ public class Response
     public class CreateBookingResponse
     {
         public required Guid Id { get; set; }
-        public required string Status { get; set; }
+        public required BookingStatus Status { get; set; }
         public required BookingBranch Branch { get; set; }
         public required BookingVehicle Vehicle { get; set; }
         public required DateOnly BookingDate { get; set; }
-        public required DateTime StartTime { get; set; }
-        public required DateTime EndTime { get; set; }
+        public required DateTimeOffset StartTime { get; set; }
+        public required DateTimeOffset EndTime { get; set; }
         public required decimal BasePrice { get; set; }
         public required decimal DiscountAmount { get; set; }
         public required decimal FinalPrice { get; set; }
@@ -72,8 +72,8 @@ public class Response
     {
         public required Guid Id { get; set; }
         public required BookingStatus Status { get; set; }
-        public required DateTime CheckedInAt { get; set; }
-        public required DateTime EstimatedCompletedAt { get; set; }
+        public required DateTimeOffset CheckedInAt { get; set; }
+        public required DateTimeOffset EstimatedCompletedAt { get; set; }
         public required string Message { get; set; }
     }
 

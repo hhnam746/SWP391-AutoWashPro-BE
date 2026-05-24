@@ -29,6 +29,9 @@ public class Service : IService
 
         if (user == null)
             throw new Exception("User not found");
+        var customerProfile = await _dbContext.CustomerProfiles.FirstOrDefaultAsync(x => x.UserId == userIdGuid);
+        if (customerProfile == null)
+            throw new Exception("Customer profile not found");
         var query = _dbContext.Notifications.Where(x => x.UserId == user.Id);
         if (isRead.HasValue)
         {
@@ -51,16 +54,23 @@ public class Service : IService
             MetaData = x.Metadata,
         });
         var totalCount = await query.CountAsync();
+
+        data = data
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize);
         var result = new Response.GetNotificationResponse
         {
             Data = data.ToList(),
-            UnreadCount = _dbContext.Notifications.Where(x => !x.IsRead).Count(),
+            UnreadCount = await _dbContext.Notifications
+                .Where(x => !x.IsRead)
+                .CountAsync(),
+
             Pagination = new Response.PaginationResponse
             {
                 Page = page,
                 PageSize = pageSize,
                 TotalCount = totalCount,
-                TotalPages = totalCount / pageSize,
+                TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),
             }
         };
         return result;

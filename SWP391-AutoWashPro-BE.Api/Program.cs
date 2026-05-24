@@ -10,6 +10,7 @@ using MailService = SWP391_AutoWashPro_BE.Service.MailService;
 using UserService = SWP391_AutoWashPro_BE.Service.User;
 using AdminService = SWP391_AutoWashPro_BE.Service.Admin;
 using SecurityService = SWP391_AutoWashPro_BE.Service.Security;
+using System.Text.Json.Serialization;
 
 using VehicleService = SWP391_AutoWashPro_BE.Service.Vehicles;
 using WalletService = SWP391_AutoWashPro_BE.Service.Wallet;
@@ -22,6 +23,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddHttpContextAccessor();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

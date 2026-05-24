@@ -7,31 +7,33 @@ namespace SWP391_AutoWashPro_BE.Service.Vehicles;
 
 public class Service : IService
 {
-    
+
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContext;
-    
+
     public Service(AppDbContext dbContext, IHttpContextAccessor httpContext)
     {
         _dbContext = dbContext;
         _httpContext = httpContext;
     }
-    
+
     public async Task<Response.GetVehiclesResponse> GetVehicles(int page, int pageSize)
     {
-            var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
+        var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
-            var user = await _dbContext.Users
-                .FirstOrDefaultAsync(x => x.Id == userIdGuid);
-
-            if (user == null)
-                throw new Exception("User not found");
+        var user = await _dbContext.Users
+           .FirstOrDefaultAsync(x => x.Id == userIdGuid);
+        if (user == null)
+            throw new Exception("User not found");
+        var customerProfile = await _dbContext.CustomerProfiles.FirstOrDefaultAsync(x => x.UserId == userIdGuid);
+        if (customerProfile == null)
+            throw new Exception("Customer profile not found");
         
-        var query = _dbContext.Vehicles.Where(x => x.CustomerId == user.Id);
+        var query = _dbContext.Vehicles.Where(x => x.CustomerId == customerProfile.Id && x.IsActive == true);
         var selectedQuery = query.Select(x => new Response.VehicleListItemResponse
         {
             Id = x.Id,
-            LicensePlate = x.LicensePlate  ,
+            LicensePlate = x.LicensePlate,
             Brand = x.Brand,
             Model = x.Model,
             Color = x.Color,
@@ -58,17 +60,22 @@ public class Service : IService
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
         var user = await _dbContext.Users
-            .FirstOrDefaultAsync(x => x.Id == userIdGuid);
+           .FirstOrDefaultAsync(x => x.Id == userIdGuid);
         if (user == null)
             throw new Exception("User not found");
+        var customerProfile = await _dbContext.CustomerProfiles.FirstOrDefaultAsync(x => x.UserId == userIdGuid);
+        if (customerProfile == null)
+            throw new Exception("Customer profile not found");
+
         var newVehile = new Repository.Entities.Vehicle()
         {
             Id = Guid.NewGuid(),
-            CustomerId = user.Id,
+            CustomerId = customerProfile.Id,
             LicensePlate = request.LicensePlate,
             Brand = request.Brand,
             Model = request.Model,
             Color = request.Color,
+            IsActive = true,
         };
         _dbContext.Vehicles.Add(newVehile);
         await _dbContext.SaveChangesAsync();
@@ -89,11 +96,14 @@ public class Service : IService
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
         var user = await _dbContext.Users
-            .FirstOrDefaultAsync(x => x.Id == userIdGuid);
+           .FirstOrDefaultAsync(x => x.Id == userIdGuid);
         if (user == null)
             throw new Exception("User not found");
-        
-        var query = await _dbContext.Vehicles.FirstOrDefaultAsync(x => x.CustomerId == user.Id);
+        var customerProfile = await _dbContext.CustomerProfiles.FirstOrDefaultAsync(x => x.UserId == userIdGuid);
+        if (customerProfile == null)
+            throw new Exception("Customer profile not found");
+
+        var query = await _dbContext.Vehicles.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id && x.IsActive == true);
         if (query == null)
         {
             throw new Exception("Vehicle not found");
@@ -116,10 +126,13 @@ public class Service : IService
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
         var user = await _dbContext.Users
-            .FirstOrDefaultAsync(x => x.Id == userIdGuid);
+           .FirstOrDefaultAsync(x => x.Id == userIdGuid);
         if (user == null)
             throw new Exception("User not found");
-        
+        var customerProfile = await _dbContext.CustomerProfiles.FirstOrDefaultAsync(x => x.UserId == userIdGuid);
+        if (customerProfile == null)
+            throw new Exception("Customer profile not found");
+
         var Vehicle = await _dbContext.Vehicles.FirstOrDefaultAsync(x => x.Id == id);
         if (Vehicle == null)
         {
@@ -146,10 +159,13 @@ public class Service : IService
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
         var user = await _dbContext.Users
-            .FirstOrDefaultAsync(x => x.Id == userIdGuid);
+           .FirstOrDefaultAsync(x => x.Id == userIdGuid);
         if (user == null)
             throw new Exception("User not found");
-        var  Vehicle = await _dbContext.Vehicles.FirstOrDefaultAsync(x => x.Id == id);
+        var customerProfile = await _dbContext.CustomerProfiles.FirstOrDefaultAsync(x => x.UserId == userIdGuid);
+        if (customerProfile == null)
+            throw new Exception("Customer profile not found");
+        var Vehicle = await _dbContext.Vehicles.FirstOrDefaultAsync(x => x.Id == id);
         if (Vehicle == null)
         {
             throw new Exception("Vehicle not found");
@@ -162,6 +178,6 @@ public class Service : IService
             Message = "Successfully deleted vehicle",
         };
         return result;
-        
+
     }
 }

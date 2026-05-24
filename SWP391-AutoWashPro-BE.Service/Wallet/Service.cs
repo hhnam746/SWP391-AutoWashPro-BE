@@ -9,13 +9,13 @@ public class Service : IService
 {
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContext;
-    
+
     public Service(AppDbContext dbContext, IHttpContextAccessor httpContext)
     {
         _dbContext = dbContext;
         _httpContext = httpContext;
     }
-    
+
     public async Task<Response.GetWalleResponse> GetUserWallet()
     {
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
@@ -25,7 +25,12 @@ public class Service : IService
 
         if (user == null)
             throw new Exception("User not found");
-        var query = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == user.Id);
+        var customerProfile = await _dbContext.CustomerProfiles.FirstOrDefaultAsync(x => x.UserId == userIdGuid);
+        if (customerProfile == null)
+            throw new Exception("Customer profile not found");
+
+        var query = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
+        
         var result = new Response.GetWalleResponse
         {
             Id = query.Id,
@@ -40,11 +45,14 @@ public class Service : IService
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
         var user = await _dbContext.Users
-            .FirstOrDefaultAsync(x => x.Id == userIdGuid);
+           .FirstOrDefaultAsync(x => x.Id == userIdGuid);
         if (user == null)
             throw new Exception("User not found");
-        
-        var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == user.Id);
+        var customerProfile = await _dbContext.CustomerProfiles.FirstOrDefaultAsync(x => x.UserId == userIdGuid);
+        if (customerProfile == null)
+            throw new Exception("Customer profile not found");
+
+        var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
         if (wallet == null)
         {
             throw new Exception("Wallet not found");
