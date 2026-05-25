@@ -49,6 +49,7 @@ public class AppDbContext : DbContext
 
     private static string ToDbBookingStatus(BookingStatus value) => value switch
     {
+        BookingStatus.Available => "available",
         BookingStatus.Pending => "pending",
         BookingStatus.Confirmed => "confirmed",
         BookingStatus.CheckIn => "check_in",
@@ -60,6 +61,7 @@ public class AppDbContext : DbContext
 
     private static BookingStatus FromDbBookingStatus(string value) => value switch
     {
+        "available" => BookingStatus.Available,
         "pending" => BookingStatus.Pending,
         "confirmed" => BookingStatus.Confirmed,
         "check_in" => BookingStatus.CheckIn,

@@ -145,7 +145,10 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("is_active");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -159,6 +162,8 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("IsActive");
+
+                    b.HasIndex("IsDeleted");
 
                     b.ToTable("branch", (string)null);
                 });

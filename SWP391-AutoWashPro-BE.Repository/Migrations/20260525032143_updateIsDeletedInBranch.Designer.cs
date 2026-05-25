@@ -12,8 +12,8 @@ using SWP391_AutoWashPro_BE.Repository;
 namespace SWP391_AutoWashPro_BE.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260525030420_UpdateIsDeletedInBranch")]
-    partial class UpdateIsDeletedInBranch
+    [Migration("20260525032143_updateIsDeletedInBranch")]
+    partial class updateIsDeletedInBranch
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -148,7 +148,10 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("is_active");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -162,6 +165,8 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("IsActive");
+
+                    b.HasIndex("IsDeleted");
 
                     b.ToTable("branch", (string)null);
                 });

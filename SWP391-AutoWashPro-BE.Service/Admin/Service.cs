@@ -1168,6 +1168,7 @@ public class Service : IService
     {
         return status switch
         {
+            BookingStatus.Available => "available",
             BookingStatus.Pending => "pending",
             BookingStatus.Confirmed => "confirmed",
             BookingStatus.CheckIn => "check_in",
@@ -1175,22 +1176,6 @@ public class Service : IService
             BookingStatus.Completed => "completed",
             BookingStatus.Cancelled => "cancelled",
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
-        };
-    }
-
-    private static BookingStatus ParseBookingStatus(string status)
-    {
-        var normalizedStatus = status.Trim().ToLowerInvariant();
-        return normalizedStatus switch
-        {
-            "pending" => BookingStatus.Pending,
-            "confirmed" => BookingStatus.Confirmed,
-            "check_in" => BookingStatus.CheckIn,
-            "in_progress" => BookingStatus.InProgress,
-            "completed" => BookingStatus.Completed,
-            "cancelled" => BookingStatus.Cancelled,
-            _ => throw new ArgumentException(
-                "Status must be one of: pending, confirmed, check_in, in_progress, completed, cancelled.")
         };
     }
 }

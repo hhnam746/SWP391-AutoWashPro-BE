@@ -117,14 +117,14 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("bookings")]
-    public async Task<IActionResult> GetBookings([FromBody] Request.GetBookingRequest request)
+    public async Task<IActionResult> GetBookings([FromQuery] Request.GetBookingRequest request)
     {
         var result = await _adminService.GetBookings(request);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get bookings", HttpContext.TraceIdentifier));
     }
 
     [HttpGet("booking-slots")]
-    public async Task<IActionResult> GetBookingSlots([FromBody] Request.GetBookingSlotRequest request)
+    public async Task<IActionResult> GetBookingSlots([FromQuery] Request.GetBookingSlotRequest request)
     {
         var result = await _adminService.GetBookingSlots(request);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get booking slots", HttpContext.TraceIdentifier));
