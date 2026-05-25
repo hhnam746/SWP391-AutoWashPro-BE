@@ -324,10 +324,12 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Name).HasColumnName("name").IsRequired();
             builder.Property(x => x.Address).HasColumnName("address").HasColumnType("text").IsRequired();
             builder.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true).IsRequired();
+            builder.Property(x => x.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false).IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.IsActive);
+            builder.HasIndex(x => x.IsDeleted);
         });
 
         modelBuilder.Entity<SystemConfig>(builder =>

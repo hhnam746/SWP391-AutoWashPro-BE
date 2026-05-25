@@ -26,7 +26,9 @@ public class Service : IService
 
     public async Task<List<Response.BranchResponse>> GetBranches(bool? isActive, string? keyword)
     {
-        var query = _dbContext.Branches.AsNoTracking();
+        var query = _dbContext.Branches
+            .AsNoTracking()
+            .Where(x => !x.IsDeleted);
 
         if (isActive.HasValue)
         {
@@ -69,7 +71,7 @@ public class Service : IService
         }
 
         var branchNameExists = await _dbContext.Branches
-            .AnyAsync(x => x.Name.ToLower() == branchName.ToLower());
+            .AnyAsync(x => !x.IsDeleted && x.Name.ToLower() == branchName.ToLower());
 
         if (branchNameExists)
         {
@@ -81,6 +83,7 @@ public class Service : IService
             Name = branchName,
             Address = branchAddress,
             IsActive = true,
+            IsDeleted = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
         
@@ -91,7 +94,8 @@ public class Service : IService
 
     public async Task<string> UpdateBranch(Guid id, Request.UpdateBranch request)
     {
-        var branch = await _dbContext.Branches.FirstOrDefaultAsync(x => x.Id == id && x.IsActive == true);
+        var branch = await _dbContext.Branches
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
         if (branch == null)
         {
             throw new KeyNotFoundException("Branch not found.");
@@ -120,7 +124,7 @@ public class Service : IService
         {
             var branchName = request.Name!.Trim();
             var branchNameExists = await _dbContext.Branches
-                .AnyAsync(x => x.Id != id && x.Name.ToLower() == branchName.ToLower());
+                .AnyAsync(x => x.Id != id && !x.IsDeleted && x.Name.ToLower() == branchName.ToLower());
 
             if (branchNameExists)
             {
@@ -147,13 +151,14 @@ public class Service : IService
 
     public async Task<string> DeleteBranch(Guid id)
     {
-        var branch = await _dbContext.Branches.FirstOrDefaultAsync(x => x.Id == id && x.IsActive == true);
+        var branch = await _dbContext.Branches
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
         if (branch == null)
         {
             throw new KeyNotFoundException("Branch not found.");
         }
         
-        branch.IsActive = false;
+        branch.IsDeleted = true;
         branch.UpdatedAt = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync();
         return "Delete branch successfully";
@@ -177,7 +182,7 @@ public class Service : IService
         {
             var requestedBranch = await _dbContext.Branches
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == request.BranchId.Value);
+                .FirstOrDefaultAsync(x => x.Id == request.BranchId.Value && !x.IsDeleted);
 
             if (requestedBranch == null)
             {
@@ -189,8 +194,8 @@ public class Service : IService
         }
         else
         {
-            totalBranches = await _dbContext.Branches.AsNoTracking().CountAsync();
-            activeBranches = await _dbContext.Branches.AsNoTracking().CountAsync(x => x.IsActive);
+            totalBranches = await _dbContext.Branches.AsNoTracking().CountAsync(x => !x.IsDeleted);
+            activeBranches = await _dbContext.Branches.AsNoTracking().CountAsync(x => !x.IsDeleted && x.IsActive);
         }
 
         var bookingsInRangeQuery = _dbContext.Bookings
@@ -306,7 +311,7 @@ public class Service : IService
 
         var branchExists = await _dbContext.Branches
             .AsNoTracking()
-            .AnyAsync(x => x.Id == request.BranchId);
+            .AnyAsync(x => x.Id == request.BranchId && !x.IsDeleted);
 
         if (!branchExists)
         {
@@ -1007,7 +1012,7 @@ public class Service : IService
 
         var branchExists = await _dbContext.Branches
             .AsNoTracking()
-            .AnyAsync(x => x.Id == request.BranchId);
+            .AnyAsync(x => x.Id == request.BranchId && !x.IsDeleted);
 
         if (!branchExists)
         {
@@ -1078,7 +1083,7 @@ public class Service : IService
 
         var branchExists = await _dbContext.Branches
             .AsNoTracking()
-            .AnyAsync(x => x.Id == request.BranchId);
+            .AnyAsync(x => x.Id == request.BranchId && !x.IsDeleted);
 
         if (!branchExists)
         {
