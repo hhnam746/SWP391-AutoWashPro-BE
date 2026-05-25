@@ -75,7 +75,7 @@ public class Service : IService
             throw new InvalidOperationException("Branch name already exists.");
         }
 
-        var newBranch = new Branch()
+        var newBranch = new Repository.Entities.Branch()
         {
             Name = branchName,
             Address = branchAddress,
@@ -170,10 +170,11 @@ public class Service : IService
             throw new ArgumentException("FromDate must be less than or equal to ToDate.");
         }
 
-        Branch? requestedBranch = null;
+        var totalBranches = 0;
+        var activeBranches = 0;
         if (request.BranchId.HasValue)
         {
-            requestedBranch = await _dbContext.Branches
+            var requestedBranch = await _dbContext.Branches
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == request.BranchId.Value);
 
@@ -181,6 +182,14 @@ public class Service : IService
             {
                 throw new KeyNotFoundException("Branch not found.");
             }
+
+            totalBranches = 1;
+            activeBranches = requestedBranch.IsActive ? 1 : 0;
+        }
+        else
+        {
+            totalBranches = await _dbContext.Branches.AsNoTracking().CountAsync();
+            activeBranches = await _dbContext.Branches.AsNoTracking().CountAsync(x => x.IsActive);
         }
 
         var bookingsInRangeQuery = _dbContext.Bookings
@@ -210,13 +219,6 @@ public class Service : IService
         var totalRevenue = await bookingsInRangeQuery
             .Where(x => x.Status == BookingStatus.Completed)
             .SumAsync(x => (decimal?)x.FinalPrice) ?? 0m;
-
-        var totalBranches = request.BranchId.HasValue
-            ? 1
-            : await _dbContext.Branches.AsNoTracking().CountAsync();
-        var activeBranches = request.BranchId.HasValue
-            ? (requestedBranch!.IsActive ? 1 : 0)
-            : await _dbContext.Branches.AsNoTracking().CountAsync(x => x.IsActive);
 
         var todayDate = DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(DefaultUtcOffset).DateTime);
         var todayBookingsQuery = _dbContext.Bookings

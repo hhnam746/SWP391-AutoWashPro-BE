@@ -23,6 +23,7 @@ public class Booking : BaseEntity, IAuditableEntity
     public BookingStatus Status { get; set; } = BookingStatus.Pending;
     public decimal BasePrice { get; set; }
     public decimal DiscountAmount { get; set; }
+    public int? RedemAmount { get; set; }
     public decimal FinalPrice { get; set; }
     public DateTimeOffset? CancelledAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }

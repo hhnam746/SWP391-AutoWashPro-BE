@@ -8,12 +8,16 @@ using CloudinaryService = SWP391_AutoWashPro_BE.Service.CloudinaryService;
 using MediaService = SWP391_AutoWashPro_BE.Service.MediaService;
 using MailService = SWP391_AutoWashPro_BE.Service.MailService;
 using AuthService = SWP391_AutoWashPro_BE.Service.Auth;
+using UserService = SWP391_AutoWashPro_BE.Service.User;
 using AdminService = SWP391_AutoWashPro_BE.Service.Admin;
 using SecurityService = SWP391_AutoWashPro_BE.Service.Security;
-using UserService = SWP391_AutoWashPro_BE.Service.User;
+using System.Text.Json.Serialization;
 
-
-
+using VehicleService = SWP391_AutoWashPro_BE.Service.Vehicles;
+using WalletService = SWP391_AutoWashPro_BE.Service.Wallet;
+using NotificationService = SWP391_AutoWashPro_BE.Service.Notification;
+using BranchAndTierService = SWP391_AutoWashPro_BE.Service.Branch;
+using BookingService = SWP391_AutoWashPro_BE.Service.Booking;
 var builder = WebApplication.CreateBuilder(args);
 
 
@@ -35,10 +39,14 @@ builder.Services.AddScoped<JwtService.IService, JwtService.Service>();
 builder.Services.AddScoped<MediaService.IService, CloudinaryService.Service>();
 builder.Services.AddScoped<MailService.IService, MailService.Service>();
 builder.Services.AddScoped<SecurityService.IService, SecurityService.Service>();
-builder.Services.AddScoped<AuthService.IService, AuthService.Service>();
 builder.Services.AddScoped<UserService.IService, UserService.Service>();
+builder.Services.AddScoped<AuthService.IService, AuthService.Service>();
 builder.Services.AddScoped<AdminService.IService, AdminService.Service>();
-
+builder.Services.AddScoped<VehicleService.IService, VehicleService.Service>();
+builder.Services.AddScoped<WalletService.IService, WalletService.Service>();
+builder.Services.AddScoped<NotificationService.IService, NotificationService.Service>();
+builder.Services.AddScoped<BranchAndTierService.IService, BranchAndTierService.Service>();
+builder.Services.AddScoped<BookingService.IService, BookingService.Service>();
 builder.Services.AddTransient<GlobalExceptionHandlerMiddleware>();
 
 var app = builder.Build();
