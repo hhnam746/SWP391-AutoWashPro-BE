@@ -74,7 +74,24 @@ public class AdminController : ControllerBase
         var result = await _adminService.GetLoyaltyReport(request);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get loyalty report", HttpContext.TraceIdentifier));
     }
-    
+
+    [HttpPost("bookings/{id:guid}/complete")]
+    public async Task<IActionResult> CompleteBookingByAdmin(
+        [FromRoute] Guid id,
+        [FromBody] Request.CompleteBookingByAdminRequest request)
+    {
+        var result = await _adminService.CompleteBookingByAdmin(id, request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Booking completed manually", HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("bookings/{id:guid}/cancel")]
+    public async Task<IActionResult> CancelBookingByAdmin(
+        [FromRoute] Guid id,
+        [FromBody] Request.CancelBookingByAdminRequest request)
+    {
+        var result = await _adminService.CancelBookingByAdmin(id, request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Booking cancelled manually", HttpContext.TraceIdentifier));
+    }
     
     
     //Using admin to verify user

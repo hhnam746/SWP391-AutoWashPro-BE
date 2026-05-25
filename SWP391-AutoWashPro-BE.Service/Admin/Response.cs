@@ -212,4 +212,21 @@ public class Response
         public string TierName { get; set; } = string.Empty;
         public int CustomerCount { get; set; }
     }
+
+    public class CompleteBookingByAdminResponse
+    {
+        public Guid Id { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTimeOffset CompletedAt { get; set; }
+        public int PointsEarned { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+
+    public class CancelBookingByAdminResponse
+    {
+        public Guid Id { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTimeOffset CancelledAt { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
 }

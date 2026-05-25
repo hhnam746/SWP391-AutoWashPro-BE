@@ -72,4 +72,14 @@ public class Request
         public DateOnly FromDate { get; set; }
         public DateOnly ToDate { get; set; }
     }
+
+    public class CompleteBookingByAdminRequest
+    {
+        public string? Note { get; set; }
+    }
+
+    public class CancelBookingByAdminRequest
+    {
+        public string? Reason { get; set; }
+    }
 }

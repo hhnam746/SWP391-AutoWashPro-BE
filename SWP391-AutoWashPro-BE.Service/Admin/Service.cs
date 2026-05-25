@@ -12,6 +12,7 @@ public class Service : IService
     private const int DefaultSlotDurationMinutes = 15;
     private const int WorkingStartHour = 8;
     private const int WorkingEndHour = 17;
+    private const int PointsPerCompletedWash = 50;
     private static readonly TimeSpan DefaultUtcOffset = TimeSpan.FromHours(7);
 
     private readonly AppDbContext _dbContext;
@@ -490,6 +491,168 @@ public class Service : IService
                 TierUpgradeCount = tierUpgradeCount
             },
             TierDistribution = tierDistribution
+        };
+    }
+
+    public async Task<Response.CompleteBookingByAdminResponse> CompleteBookingByAdmin(
+        Guid bookingId,
+        Request.CompleteBookingByAdminRequest request)
+    {
+        if (request == null)
+        {
+            throw new ArgumentException("Request body is required.");
+        }
+
+        var booking = await _dbContext.Bookings
+            .Include(x => x.Customer)
+                .ThenInclude(x => x.User)
+            .Include(x => x.Branch)
+            .FirstOrDefaultAsync(x => x.Id == bookingId);
+
+        if (booking == null)
+        {
+            throw new KeyNotFoundException("Booking not found.");
+        }
+
+        if (booking.Status != BookingStatus.InProgress &&
+            booking.Status != BookingStatus.CheckIn)
+        {
+            throw new InvalidOperationException("Only check_in or in_progress bookings can be completed manually.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        booking.Status = BookingStatus.Completed;
+        booking.CompletedAt = now;
+        booking.UpdatedAt = now;
+
+        var customerProfile = booking.Customer;
+        customerProfile.TotalPoints += PointsPerCompletedWash;
+        customerProfile.TotalWashes += 1;
+        customerProfile.LastPointActivityAt = now;
+
+        _dbContext.PointTransactions.Add(new Repository.Entities.PointTransaction
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customerProfile.Id,
+            BookingId = booking.Id,
+            Points = PointsPerCompletedWash,
+            TransactionType = PointTransactionType.Earn,
+            Description = "Points earned from completed booking.",
+            CreatedAt = now
+        });
+
+        var currentTier = await _dbContext.Tiers
+            .FirstOrDefaultAsync(x => x.Id == customerProfile.TierId);
+
+        if (currentTier != null)
+        {
+            var upgradedTier = await _dbContext.Tiers
+                .Where(x => x.Level > currentTier.Level &&
+                            x.RequiredWashes <= customerProfile.TotalWashes)
+                .OrderByDescending(x => x.Level)
+                .FirstOrDefaultAsync();
+
+            if (upgradedTier != null)
+            {
+                customerProfile.TierId = upgradedTier.Id;
+                _dbContext.Notifications.Add(new Repository.Entities.Notification
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = customerProfile.UserId,
+                    Type = NotificationType.TierUpgraded,
+                    Title = "Tier Upgraded",
+                    Content = $"Congratulations! Your tier has been upgraded from {currentTier.Name} to {upgradedTier.Name}.",
+                    IsRead = false,
+                    CreatedAt = now
+                });
+            }
+        }
+
+        var manualNote = string.IsNullOrWhiteSpace(request.Note)
+            ? string.Empty
+            : $" Note: {request.Note.Trim()}";
+
+        _dbContext.Notifications.Add(new Repository.Entities.Notification
+        {
+            Id = Guid.NewGuid(),
+            UserId = customerProfile.UserId,
+            Type = NotificationType.BookingCompleted,
+            Title = "Booking Completed",
+            Content = $"Your booking at {booking.Branch.Name} has been completed successfully.{manualNote}",
+            IsRead = false,
+            CreatedAt = now
+        });
+
+        await _dbContext.SaveChangesAsync();
+
+        return new Response.CompleteBookingByAdminResponse
+        {
+            Id = booking.Id,
+            Status = ToBookingStatusValue(booking.Status),
+            CompletedAt = booking.CompletedAt.Value,
+            PointsEarned = PointsPerCompletedWash,
+            Message = "Booking completed and loyalty points applied"
+        };
+    }
+
+    public async Task<Response.CancelBookingByAdminResponse> CancelBookingByAdmin(
+        Guid bookingId,
+        Request.CancelBookingByAdminRequest request)
+    {
+        if (request == null)
+        {
+            throw new ArgumentException("Request body is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            throw new ArgumentException("Reason is required.");
+        }
+
+        var booking = await _dbContext.Bookings
+            .Include(x => x.Customer)
+            .Include(x => x.Branch)
+            .FirstOrDefaultAsync(x => x.Id == bookingId);
+
+        if (booking == null)
+        {
+            throw new KeyNotFoundException("Booking not found.");
+        }
+
+        if (booking.Status == BookingStatus.Cancelled)
+        {
+            throw new InvalidOperationException("Booking is already cancelled.");
+        }
+
+        if (booking.Status == BookingStatus.Completed)
+        {
+            throw new InvalidOperationException("Completed booking cannot be cancelled.");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        booking.Status = BookingStatus.Cancelled;
+        booking.CancelledAt = now;
+        booking.UpdatedAt = now;
+
+        _dbContext.Notifications.Add(new Repository.Entities.Notification
+        {
+            Id = Guid.NewGuid(),
+            UserId = booking.Customer.UserId,
+            Type = NotificationType.BookingCancelled,
+            Title = "Booking Cancelled",
+            Content = $"Your booking at {booking.Branch.Name} has been cancelled. Reason: {request.Reason.Trim()}",
+            IsRead = false,
+            CreatedAt = now
+        });
+
+        await _dbContext.SaveChangesAsync();
+
+        return new Response.CancelBookingByAdminResponse
+        {
+            Id = booking.Id,
+            Status = ToBookingStatusValue(booking.Status),
+            CancelledAt = booking.CancelledAt.Value,
+            Message = "Booking cancelled"
         };
     }
 
