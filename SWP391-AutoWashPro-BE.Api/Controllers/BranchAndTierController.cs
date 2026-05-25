@@ -26,4 +26,18 @@ public class BranchAndTierController : ControllerBase
         var result = await _service.GetTiers();
         return Ok(result);
     }
+
+    [HttpGet("promotions/available")]
+    public async Task<IActionResult> GetPromotions()
+    {
+        var result = await _service.GetPromotions();
+        return Ok(result);
+    }
+
+    [HttpGet("rewards")]
+    public async Task<IActionResult> GetRewards()
+    {
+        var result = await _service.GetRewards();
+        return Ok(result);
+    }
 }

@@ -193,7 +193,7 @@ earn | redeem | reset
 | GET    | `/api/v1/bookings/{id}`          | Chi tiết booking                      |
 | POST   | `/api/v1/bookings/{id}/check-in` | Check-in khi đến rửa                  |
 | POST   | `/api/v1/bookings/{id}/cancel`   | Customer hủy booking                  |
-| GET    | `/api/v1/booking-slots`          | Xem slot trống/đã đặt                 |
+| GET    | `/api/v1/booking/slot`           | Xem slot trống/đã đặt                 |
 
 ### Loyalty, Rewards, Vouchers
 
@@ -754,7 +754,7 @@ Response `200 OK`
 
 ## P3 - Booking Customer Flow
 
-### `GET /api/v1/booking-slots`
+### `GET /api/v1/booking/slot`
 
 - Auth: Customer
 - Mục đích: lấy slot trống/đã đặt theo chi nhánh/ngày.
