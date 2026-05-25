@@ -7,6 +7,7 @@ public class Branch : BaseEntity, IAuditableEntity
     public string Name { get; set; } = null!;
     public string Address { get; set; } = null!;
     public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
 
