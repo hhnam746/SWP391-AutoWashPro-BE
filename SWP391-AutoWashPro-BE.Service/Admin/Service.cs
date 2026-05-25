@@ -158,6 +158,339 @@ public class Service : IService
         return "Delete branch successfully";
     }
 
+    public async Task<Response.DashboardResponse> GetDashboard(Request.GetDashboardRequest request)
+    {
+        if (request.FromDate == default || request.ToDate == default)
+        {
+            throw new ArgumentException("FromDate and ToDate are required.");
+        }
+
+        if (request.FromDate > request.ToDate)
+        {
+            throw new ArgumentException("FromDate must be less than or equal to ToDate.");
+        }
+
+        Branch? requestedBranch = null;
+        if (request.BranchId.HasValue)
+        {
+            requestedBranch = await _dbContext.Branches
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == request.BranchId.Value);
+
+            if (requestedBranch == null)
+            {
+                throw new KeyNotFoundException("Branch not found.");
+            }
+        }
+
+        var bookingsInRangeQuery = _dbContext.Bookings
+            .AsNoTracking()
+            .Where(x => x.BookingDate >= request.FromDate && x.BookingDate <= request.ToDate);
+
+        if (request.BranchId.HasValue)
+        {
+            bookingsInRangeQuery = bookingsInRangeQuery.Where(x => x.BranchId == request.BranchId.Value);
+        }
+
+        var totalCustomers = await _dbContext.Users
+            .AsNoTracking()
+            .CountAsync(x => x.Role == UserRole.Customer);
+
+        var activeCustomers = await _dbContext.Users
+            .AsNoTracking()
+            .CountAsync(x => x.Role == UserRole.Customer && x.Status == AccountStatus.Active);
+
+        var lockedCustomers = await _dbContext.Users
+            .AsNoTracking()
+            .CountAsync(x => x.Role == UserRole.Customer && x.Status == AccountStatus.Locked);
+
+        var totalBookings = await bookingsInRangeQuery.CountAsync();
+        var completedBookings = await bookingsInRangeQuery.CountAsync(x => x.Status == BookingStatus.Completed);
+        var cancelledBookings = await bookingsInRangeQuery.CountAsync(x => x.Status == BookingStatus.Cancelled);
+        var totalRevenue = await bookingsInRangeQuery
+            .Where(x => x.Status == BookingStatus.Completed)
+            .SumAsync(x => (decimal?)x.FinalPrice) ?? 0m;
+
+        var totalBranches = request.BranchId.HasValue
+            ? 1
+            : await _dbContext.Branches.AsNoTracking().CountAsync();
+        var activeBranches = request.BranchId.HasValue
+            ? (requestedBranch!.IsActive ? 1 : 0)
+            : await _dbContext.Branches.AsNoTracking().CountAsync(x => x.IsActive);
+
+        var todayDate = DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(DefaultUtcOffset).DateTime);
+        var todayBookingsQuery = _dbContext.Bookings
+            .AsNoTracking()
+            .Where(x => x.BookingDate == todayDate);
+
+        if (request.BranchId.HasValue)
+        {
+            todayBookingsQuery = todayBookingsQuery.Where(x => x.BranchId == request.BranchId.Value);
+        }
+
+        var todayBookings = await todayBookingsQuery
+            .OrderBy(x => x.StartTime)
+            .Take(50)
+            .Select(x => new
+            {
+                x.Id,
+                x.StartTime,
+                x.Status,
+                BranchName = x.Branch.Name,
+                x.Vehicle.LicensePlate
+            })
+            .ToListAsync();
+
+        var topBranches = await bookingsInRangeQuery
+            .Where(x => x.Status == BookingStatus.Completed)
+            .GroupBy(x => new { x.BranchId, x.Branch.Name })
+            .Select(x => new Response.DashboardTopBranchResponse
+            {
+                BranchId = x.Key.BranchId,
+                BranchName = x.Key.Name,
+                CompletedBookings = x.Count(),
+                Revenue = x.Sum(y => y.FinalPrice)
+            })
+            .OrderByDescending(x => x.Revenue)
+            .ThenByDescending(x => x.CompletedBookings)
+            .Take(5)
+            .ToListAsync();
+
+        return new Response.DashboardResponse
+        {
+            Summary = new Response.DashboardSummaryResponse
+            {
+                TotalCustomers = totalCustomers,
+                ActiveCustomers = activeCustomers,
+                LockedCustomers = lockedCustomers,
+                TotalBookings = totalBookings,
+                CompletedBookings = completedBookings,
+                CancelledBookings = cancelledBookings,
+                TotalRevenue = totalRevenue,
+                TotalBranches = totalBranches,
+                ActiveBranches = activeBranches
+            },
+            TodayBookings = todayBookings
+                .Select(x => new Response.DashboardTodayBookingResponse
+                {
+                    Id = x.Id,
+                    StartTime = x.StartTime,
+                    Status = ToBookingStatusValue(x.Status),
+                    BranchName = x.BranchName,
+                    LicensePlate = x.LicensePlate
+                })
+                .ToList(),
+            TopBranches = topBranches
+        };
+    }
+
+    public async Task<Response.RevenueReportResponse> GetRevenueReport(Request.GetRevenueReportRequest request)
+    {
+        if (request.FromDate == default || request.ToDate == default)
+        {
+            throw new ArgumentException("FromDate and ToDate are required.");
+        }
+
+        if (request.FromDate > request.ToDate)
+        {
+            throw new ArgumentException("FromDate must be less than or equal to ToDate.");
+        }
+
+        if (request.BranchId == Guid.Empty)
+        {
+            throw new ArgumentException("BranchId is required.");
+        }
+
+        var branchExists = await _dbContext.Branches
+            .AsNoTracking()
+            .AnyAsync(x => x.Id == request.BranchId);
+
+        if (!branchExists)
+        {
+            throw new KeyNotFoundException("Branch not found.");
+        }
+
+        var dailyRaw = await _dbContext.Bookings
+            .AsNoTracking()
+            .Where(x => x.BranchId == request.BranchId &&
+                        x.BookingDate >= request.FromDate &&
+                        x.BookingDate <= request.ToDate)
+            .GroupBy(x => x.BookingDate)
+            .Select(x => new
+            {
+                Date = x.Key,
+                BookingCount = x.Count(),
+                CompletedBookingCount = x.Count(y => y.Status == BookingStatus.Completed),
+                Revenue = x
+                    .Where(y => y.Status == BookingStatus.Completed)
+                    .Sum(y => (decimal?)y.FinalPrice) ?? 0m
+            })
+            .ToListAsync();
+
+        var dailyLookup = dailyRaw.ToDictionary(x => x.Date, x => x);
+        var data = new List<Response.RevenueReportItemResponse>();
+        var totalRevenue = 0m;
+
+        for (var date = request.FromDate; date <= request.ToDate; date = date.AddDays(1))
+        {
+            if (dailyLookup.TryGetValue(date, out var day))
+            {
+                data.Add(new Response.RevenueReportItemResponse
+                {
+                    Date = day.Date,
+                    BookingCount = day.BookingCount,
+                    CompletedBookingCount = day.CompletedBookingCount,
+                    Revenue = day.Revenue
+                });
+                totalRevenue += day.Revenue;
+                continue;
+            }
+
+            data.Add(new Response.RevenueReportItemResponse
+            {
+                Date = date,
+                BookingCount = 0,
+                CompletedBookingCount = 0,
+                Revenue = 0m
+            });
+        }
+
+        return new Response.RevenueReportResponse
+        {
+            FromDate = request.FromDate,
+            ToDate = request.ToDate,
+            TotalRevenue = totalRevenue,
+            Data = data
+        };
+    }
+
+    public async Task<Base.Response.PageResult<Response.BranchReportItemResponse>> GetBranchReport(
+        Request.GetBranchReportRequest request)
+    {
+        if (request.FromDate == default || request.ToDate == default)
+        {
+            throw new ArgumentException("FromDate and ToDate are required.");
+        }
+
+        if (request.FromDate > request.ToDate)
+        {
+            throw new ArgumentException("FromDate must be less than or equal to ToDate.");
+        }
+
+        if (request.PageIndex <= 0)
+        {
+            throw new ArgumentException("PageIndex must be greater than 0.");
+        }
+
+        if (request.PageSize <= 0)
+        {
+            throw new ArgumentException("PageSize must be greater than 0.");
+        }
+
+        var groupedQuery = _dbContext.Bookings
+            .AsNoTracking()
+            .Where(x => x.BookingDate >= request.FromDate &&
+                        x.BookingDate <= request.ToDate)
+            .GroupBy(x => new { x.BranchId, x.Branch.Name })
+            .Select(x => new Response.BranchReportItemResponse
+            {
+                BranchId = x.Key.BranchId,
+                BranchName = x.Key.Name,
+                CompletedBookings = x.Count(y => y.Status == BookingStatus.Completed),
+                CancelledBookings = x.Count(y => y.Status == BookingStatus.Cancelled),
+                Revenue = x
+                    .Where(y => y.Status == BookingStatus.Completed)
+                    .Sum(y => (decimal?)y.FinalPrice) ?? 0m
+            })
+            .OrderByDescending(x => x.Revenue)
+            .ThenByDescending(x => x.CompletedBookings)
+            .ThenBy(x => x.BranchName);
+
+        var totalItems = await groupedQuery.CountAsync();
+        var items = await groupedQuery
+            .Skip((request.PageIndex - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ToListAsync();
+
+        return new Base.Response.PageResult<Response.BranchReportItemResponse>
+        {
+            Items = items,
+            TotalItems = totalItems,
+            PageSize = request.PageSize,
+            PageIndex = request.PageIndex
+        };
+    }
+
+    public async Task<Response.LoyaltyReportResponse> GetLoyaltyReport(Request.GetLoyaltyReportRequest request)
+    {
+        if (request.FromDate == default || request.ToDate == default)
+        {
+            throw new ArgumentException("FromDate and ToDate are required.");
+        }
+
+        if (request.FromDate > request.ToDate)
+        {
+            throw new ArgumentException("FromDate must be less than or equal to ToDate.");
+        }
+
+        var fromDateTime = request.FromDate.ToDateTime(TimeOnly.MinValue);
+        var toExclusiveDateTime = request.ToDate.AddDays(1).ToDateTime(TimeOnly.MinValue);
+        var fromLocal = new DateTimeOffset(fromDateTime, DefaultUtcOffset);
+        var toExclusiveLocal = new DateTimeOffset(toExclusiveDateTime, DefaultUtcOffset);
+        var fromUtc = fromLocal.ToUniversalTime();
+        var toExclusiveUtc = toExclusiveLocal.ToUniversalTime();
+
+        var pointTransactionsInRange = _dbContext.PointTransactions
+            .AsNoTracking()
+            .Where(x => x.CreatedAt >= fromUtc && x.CreatedAt < toExclusiveUtc);
+
+        var totalPointsEarned = await pointTransactionsInRange
+            .Where(x => x.TransactionType == PointTransactionType.Earn)
+            .SumAsync(x => (int?)x.Points) ?? 0;
+
+        var totalPointsRedeemed = await pointTransactionsInRange
+            .Where(x => x.TransactionType == PointTransactionType.Redeem)
+            .SumAsync(x => (int?)x.Points) ?? 0;
+
+        var totalRewardsRedeemed = await pointTransactionsInRange
+            .CountAsync(x => x.TransactionType == PointTransactionType.Redeem && x.RewardId != null);
+
+        var tierUpgradeCount = await _dbContext.Notifications
+            .AsNoTracking()
+            .CountAsync(x => x.Type == NotificationType.TierUpgraded &&
+                             x.CreatedAt >= fromUtc &&
+                             x.CreatedAt < toExclusiveUtc);
+
+        var tierDistribution = await _dbContext.CustomerProfiles
+            .AsNoTracking()
+            .Where(x => x.User.Role == UserRole.Customer)
+            .GroupBy(x => new { x.TierId, x.Tier.Name, x.Tier.Level })
+            .Select(x => new
+            {
+                x.Key.Level,
+                Item = new Response.TierDistributionItemResponse
+                {
+                    TierName = x.Key.Name,
+                    CustomerCount = x.Count()
+                }
+            })
+            .OrderBy(x => x.Level)
+            .Select(x => x.Item)
+            .ToListAsync();
+
+        return new Response.LoyaltyReportResponse
+        {
+            Summary = new Response.LoyaltySummaryResponse
+            {
+                TotalPointsEarned = totalPointsEarned,
+                TotalPointsRedeemed = totalPointsRedeemed,
+                TotalRewardsRedeemed = totalRewardsRedeemed,
+                TierUpgradeCount = tierUpgradeCount
+            },
+            TierDistribution = tierDistribution
+        };
+    }
+
 
     public async Task<string> UpdateUserVerificationStatus(Guid userId)
     {

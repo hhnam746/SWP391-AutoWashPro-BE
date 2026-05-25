@@ -25,6 +25,13 @@ public class Request
         public DateOnly Date { get; set; }
     }
 
+    public class GetDashboardRequest
+    {
+        public DateOnly FromDate { get; set; }
+        public DateOnly ToDate { get; set; }
+        public Guid? BranchId { get; set; }
+    }
+
     public class CreateBranch
     {
         public required string Name { get; set; }
@@ -36,5 +43,33 @@ public class Request
         public string? Name { get; set; }
         public string? Address { get; set; }
         public bool? IsActive { get; set; }
+    }
+    
+    public class ReportRequest
+    {
+        public DateTimeOffset FromDate { get; set; }
+        public DateTimeOffset ToDate { get; set; }
+        public Guid? BranchId { get; set; }
+    }
+
+    public class GetRevenueReportRequest
+    {
+        public DateOnly FromDate { get; set; }
+        public DateOnly ToDate { get; set; }
+        public Guid BranchId { get; set; }
+    }
+
+    public class GetBranchReportRequest
+    {
+        public DateOnly FromDate { get; set; }
+        public DateOnly ToDate { get; set; }
+        public int PageIndex { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
+    }
+
+    public class GetLoyaltyReportRequest
+    {
+        public DateOnly FromDate { get; set; }
+        public DateOnly ToDate { get; set; }
     }
 }

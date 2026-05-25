@@ -12,6 +12,43 @@ public class Response
         public bool IsActive { get; set; }
     }
 
+    public class DashboardResponse
+    {
+        public DashboardSummaryResponse Summary { get; set; } = new();
+        public List<DashboardTodayBookingResponse> TodayBookings { get; set; } = new();
+        public List<DashboardTopBranchResponse> TopBranches { get; set; } = new();
+    }
+
+    public class DashboardSummaryResponse
+    {
+        public int TotalCustomers { get; set; }
+        public int ActiveCustomers { get; set; }
+        public int LockedCustomers { get; set; }
+        public int TotalBookings { get; set; }
+        public int CompletedBookings { get; set; }
+        public int CancelledBookings { get; set; }
+        public decimal TotalRevenue { get; set; }
+        public int TotalBranches { get; set; }
+        public int ActiveBranches { get; set; }
+    }
+
+    public class DashboardTodayBookingResponse
+    {
+        public Guid Id { get; set; }
+        public DateTimeOffset StartTime { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string BranchName { get; set; } = string.Empty;
+        public string LicensePlate { get; set; } = string.Empty;
+    }
+
+    public class DashboardTopBranchResponse
+    {
+        public Guid BranchId { get; set; }
+        public string BranchName { get; set; } = string.Empty;
+        public int CompletedBookings { get; set; }
+        public decimal Revenue { get; set; }
+    }
+
     public class GetUserStatusResponse
     {
         public Guid UserId { get; set; }
@@ -129,5 +166,50 @@ public class Response
         public string Status { get; set; } = string.Empty;
         public string LicensePlate { get; set; } = string.Empty;
         public string CustomerName { get; set; } = string.Empty;
+    }
+
+    public class RevenueReportResponse
+    {
+        public DateOnly FromDate { get; set; }
+        public DateOnly ToDate { get; set; }
+        public decimal TotalRevenue { get; set; }
+        public List<RevenueReportItemResponse> Data { get; set; } = new();
+    }
+
+    public class RevenueReportItemResponse
+    {
+        public DateOnly Date { get; set; }
+        public int BookingCount { get; set; }
+        public int CompletedBookingCount { get; set; }
+        public decimal Revenue { get; set; }
+    }
+
+    public class BranchReportItemResponse
+    {
+        public Guid BranchId { get; set; }
+        public string BranchName { get; set; } = string.Empty;
+        public int CompletedBookings { get; set; }
+        public int CancelledBookings { get; set; }
+        public decimal Revenue { get; set; }
+    }
+
+    public class LoyaltyReportResponse
+    {
+        public LoyaltySummaryResponse Summary { get; set; } = new();
+        public List<TierDistributionItemResponse> TierDistribution { get; set; } = new();
+    }
+
+    public class LoyaltySummaryResponse
+    {
+        public int TotalPointsEarned { get; set; }
+        public int TotalPointsRedeemed { get; set; }
+        public int TotalRewardsRedeemed { get; set; }
+        public int TierUpgradeCount { get; set; }
+    }
+
+    public class TierDistributionItemResponse
+    {
+        public string TierName { get; set; } = string.Empty;
+        public int CustomerCount { get; set; }
     }
 }

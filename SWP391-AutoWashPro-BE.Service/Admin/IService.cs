@@ -6,6 +6,7 @@ public interface IService
     public Task<string> CreateBranch(Request.CreateBranch request);
     public Task<string> UpdateBranch(Guid id, Request.UpdateBranch request);
     public Task<string> DeleteBranch(Guid id);
+    public Task<Response.DashboardResponse> GetDashboard(Request.GetDashboardRequest request);
     public Task<string> UpdateUserVerificationStatus(Guid userId);
     public Task<Base.Response.PageResult<Response.AllProfileResponse>> GetAllUserProfile(
         string? searchTerm,
@@ -22,5 +23,8 @@ public interface IService
     public Task<List<Response.BookingResponse>> GetBookings(
         Request.GetBookingRequest request);
     public Task<Response.BookingSlotResponse> GetBookingSlots(Request.GetBookingSlotRequest request);
+    public Task<Response.RevenueReportResponse> GetRevenueReport(Request.GetRevenueReportRequest request);
+    public Task<Base.Response.PageResult<Response.BranchReportItemResponse>> GetBranchReport(Request.GetBranchReportRequest request);
+    public Task<Response.LoyaltyReportResponse> GetLoyaltyReport(Request.GetLoyaltyReportRequest request);
     
 }

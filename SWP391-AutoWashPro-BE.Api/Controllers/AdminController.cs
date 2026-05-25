@@ -47,6 +47,35 @@ public class AdminController : ControllerBase
         return Ok(ApiResponseFactory.SuccessResponse(result, "Delete branch successfully", HttpContext.TraceIdentifier));
     }
     
+    [HttpGet("dashboard")]
+    public async Task<IActionResult> GetDashboard([FromQuery] Request.GetDashboardRequest request)
+    {
+        var result = await _adminService.GetDashboard(request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get dashboard", HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("reports/revenue")]
+    public async Task<IActionResult> GetRevenueReport([FromQuery] Request.GetRevenueReportRequest request)
+    {
+        var result = await _adminService.GetRevenueReport(request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get revenue report", HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("reports/branches")]
+    public async Task<IActionResult> GetBranchReport([FromQuery] Request.GetBranchReportRequest request)
+    {
+        var result = await _adminService.GetBranchReport(request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get branch report", HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("reports/loyalty")]
+    public async Task<IActionResult> GetLoyaltyReport([FromQuery] Request.GetLoyaltyReportRequest request)
+    {
+        var result = await _adminService.GetLoyaltyReport(request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get loyalty report", HttpContext.TraceIdentifier));
+    }
+    
+    
     
     //Using admin to verify user
     [HttpPatch("users/{id:guid}/verify")]
