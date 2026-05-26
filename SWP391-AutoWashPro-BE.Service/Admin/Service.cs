@@ -1000,41 +1000,50 @@ public class Service : IService
     public async Task<List<Response.BookingResponse>> GetBookings(
         Request.GetBookingRequest request)
     {
-        if (request.BranchId == Guid.Empty)
+        if (request == null)
         {
-            throw new ArgumentException("BranchId is required.");
+            throw new ArgumentException("Request is required.");
         }
 
-        if (request.Date == default)
+        if (request.BranchId.HasValue && request.BranchId.Value == Guid.Empty)
         {
-            throw new ArgumentException("Date is required.");
+            throw new ArgumentException("BranchId is invalid.");
         }
 
-        var branchExists = await _dbContext.Branches
-            .AsNoTracking()
-            .AnyAsync(x => x.Id == request.BranchId && !x.IsDeleted);
-
-        if (!branchExists)
+        if (request.BranchId.HasValue)
         {
-            throw new KeyNotFoundException("Branch not found.");
+            var branchExists = await _dbContext.Branches
+                .AsNoTracking()
+                .AnyAsync(x => x.Id == request.BranchId.Value && !x.IsDeleted);
+
+            if (!branchExists)
+            {
+                throw new KeyNotFoundException("Branch not found.");
+            }
         }
 
         var query = _dbContext.Bookings
             .AsNoTracking()
-            .Where(x =>
-                x.Customer.User.Role == UserRole.Customer &&
-                x.Customer.User.isVerify &&
-                x.Customer.User.Status == AccountStatus.Active &&
-                x.BranchId == request.BranchId &&
-                x.BookingDate == request.Date);
+            .AsQueryable();
 
-        if (request.Status.HasValue)
+        if (request.BranchId.HasValue)
+        {
+            query = query.Where(x => x.BranchId == request.BranchId.Value);
+        }
+
+        if (request.Date.HasValue)
+        {
+            query = query.Where(x => x.BookingDate == request.Date.Value);
+        }
+
+        if (request.Status.HasValue && request.Status.Value != BookingStatus.Available)
         {
             query = query.Where(x => x.Status == request.Status.Value);
         }
 
         var items = await query
-            .OrderBy(x => x.StartTime)
+            .OrderByDescending(x => x.BookingDate)
+            .ThenBy(x => x.StartTime)
             .Select(x => new Response.BookingResponse
             {
                 Id = x.Id,
@@ -1048,8 +1057,8 @@ public class Service : IService
                 {
                     Id = x.Customer.UserId,
                     FullName = $"{x.Customer.FirstName} {x.Customer.LastName}".Trim(),
-                    Phone = x.Customer.User.Phone,
-                    TierName = x.Customer.Tier.Name
+                    Phone = x.Customer.User.Phone ?? string.Empty,
+                    TierName = x.Customer.Tier != null ? x.Customer.Tier.Name : string.Empty
                 },
 
                 Vehicle = new Response.BookingVehicleResponse

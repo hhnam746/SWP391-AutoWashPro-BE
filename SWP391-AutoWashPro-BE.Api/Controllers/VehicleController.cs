@@ -33,7 +33,7 @@ public class VehicleController:ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateVehicle(Request.CreateVehicleRequest request)
+    public async Task<IActionResult> CreateVehicle([FromForm] Request.CreateVehicleRequest request)
     {
         var result = await _service.CreateVehicle(request);
         return Ok(result);

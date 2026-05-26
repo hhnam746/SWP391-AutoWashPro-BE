@@ -14,8 +14,8 @@ public class Request
     
     public class GetBookingRequest
     {
-        public Guid BranchId { get; set; }
-        public DateOnly Date { get; set; }
+        public Guid? BranchId { get; set; }
+        public DateOnly? Date { get; set; }
         public BookingStatus? Status { get; set; }
     }
     

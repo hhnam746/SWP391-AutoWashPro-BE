@@ -10,11 +10,13 @@ public class Service : IService
 
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContext;
-
-    public Service(AppDbContext dbContext, IHttpContextAccessor httpContext)
+    private readonly MediaService.IService _mediaService;
+    
+    public Service(AppDbContext dbContext, IHttpContextAccessor httpContext, MediaService.IService mediaService)
     {
         _dbContext = dbContext;
         _httpContext = httpContext;
+        _mediaService = mediaService;
     }
 
     public async Task<Response.GetVehiclesResponse> GetVehicles(int page, int pageSize)
@@ -82,7 +84,7 @@ public class Service : IService
         var result = new Response.CreateVehicleResponse
         {
             Id = newVehile.Id,
-            LicensePlate = newVehile.LicensePlate,
+            LicensePlate = await _mediaService.UploadImageAsync(request.LicensePlateImageUrl),
             Brand = newVehile.Brand,
             Model = newVehile.Model,
             Color = newVehile.Color,

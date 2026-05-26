@@ -9,19 +9,17 @@ namespace SWP391_AutoWashPro_BE.Service.Booking;
 
 public class Service : IService
 {
-    
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContext;
     private readonly IServiceScopeFactory _serviceScopeFactory;
-    
+
     public Service(AppDbContext dbContext, IHttpContextAccessor httpContext, IServiceScopeFactory serviceScopeFactory)
     {
         _dbContext = dbContext;
         _httpContext = httpContext;
         _serviceScopeFactory = serviceScopeFactory;
     }
-    
-    
+
 
     public async Task<Response.GetBookingSlotsResponse> GetBookingSlots(Guid branchId, DateOnly date)
     {
@@ -88,7 +86,7 @@ public class Service : IService
 
         return result;
     }
-    
+
     public async Task<Response.CreateBookingResponse> CreateBooking(Request.CreateBookingRequest bookingRequest)
     {
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
@@ -99,11 +97,11 @@ public class Service : IService
         if (user == null)
             throw new Exception("User not found");
         var customerProfile = await _dbContext.CustomerProfiles
-    .Include(x => x.Tier)
-    .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
+            .Include(x => x.Tier)
+            .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
         if (customerProfile == null)
             throw new Exception("Customer profile not found");
-        
+
         var hasActiveBooking = await _dbContext.Bookings.AnyAsync(x =>
             x.VehicleId == bookingRequest.VehicleId &&
             x.Status != BookingStatus.Completed &&
@@ -113,16 +111,19 @@ public class Service : IService
         {
             throw new Exception("Vehicle already has active booking");
         }
-        var basePrice = 100000;   
-        
+
+        var basePrice = 100000;
+
         if (bookingRequest.StartTime <= DateTimeOffset.Now)
         {
             throw new Exception("Cannot book past time");
         }
 
         var utcStartTime = bookingRequest.StartTime.ToUniversalTime();
-        
-        var isBooked = _dbContext.Bookings.Any(x => x.BranchId == bookingRequest.BranchId && x.BookingDate == bookingRequest.BookingDate && x.StartTime == utcStartTime );
+
+        var isBooked = _dbContext.Bookings.Any(x =>
+            x.BranchId == bookingRequest.BranchId && x.BookingDate == bookingRequest.BookingDate &&
+            x.StartTime == utcStartTime);
         if (isBooked)
         {
             throw new Exception("Slot already booked");
@@ -133,9 +134,9 @@ public class Service : IService
         {
             throw new Exception("Your rank is not enough for this booked");
         }
-        
+
         //Discount Voucher
-        var voucherDiscountAmount = (decimal) 0;
+        var voucherDiscountAmount = (decimal)0;
         var voucher = await _dbContext.Vouchers
             .FirstOrDefaultAsync(x => x.Id == bookingRequest.VoucherId);
 
@@ -143,19 +144,20 @@ public class Service : IService
         {
             voucherDiscountAmount += voucher.DiscountValue;
         }
-        
+
         //Discount by promotion
         var promotionDiscountAmount = (decimal)0;
         if (_dbContext.Promotions.Any(x => x.IsGlobal == true))
         {
             promotionDiscountAmount += _dbContext.Promotions.Where(x => x.IsGlobal == true).Sum(p => p.DiscountValue);
-        } 
+        }
+
         if (_dbContext.PromotionTiers.FirstOrDefault(x => x.TierId == customerProfile.TierId) != null)
         {
             promotionDiscountAmount += _dbContext.PromotionTiers.FirstOrDefault(x => x.TierId == customerProfile.TierId)
                 .Promotion.DiscountValue;
         }
-        
+
         var discountAmount = voucherDiscountAmount + promotionDiscountAmount;
 
         // Discount By Redeem
@@ -176,21 +178,22 @@ public class Service : IService
         }
 
         discountAmount += redeemDiscountAmount;
-        
+
         if (customerProfile.TotalWashes > 0 && customerProfile.TotalWashes % 5 == 0)
         {
             discountAmount = basePrice;
         }
 
         var utcEndTime = utcStartTime.AddMinutes(15);
-       
+
         //Wallet
         if (discountAmount > basePrice)
         {
             discountAmount = basePrice;
         }
+
         var finalPrice = basePrice - discountAmount;
-        var wallet = await  _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
+        var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
         if (wallet == null)
         {
             throw new Exception("Wallet not exists");
@@ -201,7 +204,7 @@ public class Service : IService
             throw new Exception("Not enough balance");
         }
 
-        wallet.Balance -= finalPrice * 0.3m;// Cọc slot 
+        wallet.Balance -= finalPrice * 0.3m; // Cọc slot 
         var newId = Guid.NewGuid();
         var newBooking = new Repository.Entities.Booking()
         {
@@ -209,16 +212,16 @@ public class Service : IService
             CustomerId = customerProfile.Id,
             BranchId = bookingRequest.BranchId,
             VehicleId = bookingRequest.VehicleId,
-            VoucherId =  bookingRequest.VoucherId,
+            VoucherId = bookingRequest.VoucherId,
             BookingDate = bookingRequest.BookingDate,
             StartTime = utcStartTime,
             EndTime = utcEndTime,
             Status = BookingStatus.Confirmed,
             BasePrice = basePrice,
             DiscountAmount = discountAmount,
-            RedemAmount =  (int)redeemDiscountAmount,
+            RedemAmount = (int)redeemDiscountAmount,
             FinalPrice = finalPrice,
-            CreatedAt =  DateTimeOffset.UtcNow
+            CreatedAt = DateTimeOffset.UtcNow
         };
         _dbContext.Bookings.Add(newBooking);
         var Branch = _dbContext.Branches.FirstOrDefault(x => x.Id == bookingRequest.BranchId);
@@ -228,7 +231,8 @@ public class Service : IService
             UserId = userIdGuid,
             Type = NotificationType.BookingCreated,
             Title = "Booking Confirmed",
-            Content = $"Your booking at {Branch.Name} has been confirmed for {bookingRequest.StartTime:HH:mm dd/MM/yyyy}.",
+            Content =
+                $"Your booking at {Branch.Name} has been confirmed for {bookingRequest.StartTime:HH:mm dd/MM/yyyy}.",
             IsRead = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
@@ -249,7 +253,7 @@ public class Service : IService
                 LicensePlate = _dbContext.Vehicles.FirstOrDefault(x => x.Id == newBooking.VehicleId).LicensePlate,
             },
             BookingDate = newBooking.BookingDate,
-            StartTime = newBooking.StartTime.ToOffset(TimeSpan.FromHours(7)),           
+            StartTime = newBooking.StartTime.ToOffset(TimeSpan.FromHours(7)),
             EndTime = newBooking.EndTime.ToOffset(TimeSpan.FromHours(7)),
             BasePrice = basePrice,
             DiscountAmount = discountAmount,
@@ -257,8 +261,9 @@ public class Service : IService
         };
         return result;
     }
-    
-    public async Task<Response.GetBookingsResponse> GetBookings(BookingStatus? status, DateOnly fromDate, DateOnly toDate, int page, int pageSize)
+
+    public async Task<Response.GetBookingsResponse> GetBookings(BookingStatus? status, DateOnly fromDate,
+        DateOnly toDate, int page, int pageSize)
     {
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
@@ -322,7 +327,7 @@ public class Service : IService
                 TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
             }
         };
-        
+
         return result;
     }
 
@@ -340,7 +345,8 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
         if (customerProfile == null)
             throw new Exception("Customer profile not found");
-        var query = await _dbContext.Bookings.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id && x.Id == bookingId);
+        var query = await _dbContext.Bookings.FirstOrDefaultAsync(x =>
+            x.CustomerId == customerProfile.Id && x.Id == bookingId);
         if (query == null)
         {
             throw new Exception("Booking not found");
@@ -392,14 +398,15 @@ public class Service : IService
 
         if (user == null)
             throw new Exception("User not found");
-        
+
         var customerProfile = await _dbContext.CustomerProfiles
             .Include(x => x.Tier)
             .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
         if (customerProfile == null)
             throw new Exception("Customer profile not found");
-        
-        var booking = await _dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == Id && x.Status == BookingStatus.Confirmed);
+
+        var booking =
+            await _dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == Id && x.Status == BookingStatus.Confirmed);
         if (booking == null)
         {
             throw new Exception("Booking not found or has been check-in");
@@ -412,7 +419,7 @@ public class Service : IService
         {
             throw new Exception("Wallet not found");
         }
-        
+
         if (wallet.Balance - (booking.FinalPrice - (booking.FinalPrice * 0.3m)) < 0)
         {
             booking.Status = BookingStatus.Cancelled;
@@ -424,10 +431,11 @@ public class Service : IService
             wallet.Balance -= remainingAmount;
             booking.Status = BookingStatus.InProgress;
             msg = "Check-in successful";
-            if(voucher != null)
+            if (voucher != null)
             {
                 voucher.Status = VoucherStatus.Used;
             }
+
             //////////////////////////////////////////////////////
             customerProfile.TotalPoints -= booking.RedemAmount ?? 0;
             //////////////////////////////////////////////////////
@@ -435,7 +443,7 @@ public class Service : IService
             customerProfile.TotalPoints += 10;
             var currentTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level);
             var nextTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level + 1);
-            
+
             if (nextTier != null &&
                 customerProfile.TotalWashes >= nextTier.RequiredWashes)
             {
@@ -447,14 +455,15 @@ public class Service : IService
                     UserId = userIdGuid,
                     Type = NotificationType.TierUpgraded,
                     Title = "Tier Upgraded",
-                    Content = $"Congratulations! Your tier has been upgraded from {currentTier.Name} to {nextTier.Name}.",
+                    Content =
+                        $"Congratulations! Your tier has been upgraded from {currentTier.Name} to {nextTier.Name}.",
                     IsRead = false,
                     CreatedAt = DateTimeOffset.UtcNow,
                 };
                 _dbContext.Notifications.Add(notification);
             }
-            
-            if(booking.RedemAmount != null)
+
+            if (booking.RedemAmount != null)
             {
                 var pointTransaction = new Repository.Entities.PointTransaction()
                 {
@@ -466,41 +475,54 @@ public class Service : IService
                     Points = booking.RedemAmount ?? 0,
                     TransactionType = PointTransactionType.Redeem,
                     Description = $"Redeemed {booking.RedemAmount} points for booking payment.",
-                    CreatedAt =  DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow,
                 };
                 _dbContext.PointTransactions.Add(pointTransaction);
             }
-        }
-        await _dbContext.SaveChangesAsync();
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(TimeSpan.FromMinutes(15));
-            using var scope = _serviceScopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var delayedBooking = await dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == booking.Id);
-            if (delayedBooking != null && delayedBooking.Status == BookingStatus.InProgress)
+
+            _ = Task.Run(async () =>
             {
-                delayedBooking.Status = BookingStatus.Completed;
-                delayedBooking.CompletedAt = DateTime.UtcNow;
-                var branch = dbContext.Branches.FirstOrDefault(x => x.Id == delayedBooking.BranchId);
-                var customer = dbContext.CustomerProfiles.FirstOrDefault(x => x.Id == delayedBooking.CustomerId);
-                if (customer != null)
+                try
                 {
-                    var notification = new Repository.Entities.Notification()
+                    await Task.Delay(TimeSpan.FromMinutes(15));
+                    using var scope = _serviceScopeFactory.CreateScope();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    var delayedBooking = await dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == booking.Id);
+                    if (delayedBooking != null && delayedBooking.Status == BookingStatus.InProgress)
                     {
-                        Id = Guid.NewGuid(),
-                        UserId = customer.UserId,
-                        Type = NotificationType.BookingCompleted,
-                        Title = "Booking Completed",
-                        Content = $"Your booking at {branch.Name} has been completed successfully. Thank you for using our service.",
-                        IsRead = false,
-                        CreatedAt = DateTimeOffset.UtcNow,
-                    };
-                    dbContext.Notifications.Add(notification);
+                        delayedBooking.Status = BookingStatus.Completed;
+                        delayedBooking.CompletedAt = DateTime.UtcNow;
+                        var branch = dbContext.Branches.FirstOrDefault(x => x.Id == delayedBooking.BranchId);
+                        var customer =
+                            dbContext.CustomerProfiles.FirstOrDefault(x => x.Id == delayedBooking.CustomerId);
+                        if (customer != null)
+                        {
+                            var notification = new Repository.Entities.Notification()
+                            {
+                                Id = Guid.NewGuid(),
+                                UserId = customer.UserId,
+                                Type = NotificationType.BookingCompleted,
+                                Title = "Booking Completed",
+                                Content =
+                                    $"Your booking at {branch?.Name ?? "our branch"} has been completed successfully. Thank you for using our service.",
+                                IsRead = false,
+                                CreatedAt = DateTimeOffset.UtcNow,
+                            };
+                            dbContext.Notifications.Add(notification);
+                        }
+
+                        await dbContext.SaveChangesAsync();
+                    }
                 }
-                await dbContext.SaveChangesAsync();
-            }
-        });
+                catch (Exception e)
+                {
+                    Console.WriteLine("=======Error Occure " + e.Message + " ==========");
+                }
+            });
+        }
+
+        await _dbContext.SaveChangesAsync();
+
         var result = new Response.CheckInBookingResponse
         {
             Id = booking.Id,
@@ -512,7 +534,9 @@ public class Service : IService
         return result;
     }
 
-    public async Task<Response.CancelBookingResponse> CancelBooking(Guid Id, Request.CancelBookingRequest bookingRequest)
+    public async Task<Response.CancelBookingResponse> CancelBooking(
+        Guid Id,
+        Request.CancelBookingRequest bookingRequest)
     {
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
@@ -520,44 +544,73 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
+        {
             throw new Exception("User not found");
-        
-        var booking = await _dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == Id && x.Status == BookingStatus.Confirmed);
+        }
+
+        var booking = await _dbContext.Bookings
+            .FirstOrDefaultAsync(x => x.Id == Id);
+
         if (booking == null)
         {
-            throw new Exception("Booking not found or can't be cancelled");
+            throw new Exception("Booking not found");
         }
 
         if (booking.Status == BookingStatus.Cancelled)
         {
-            throw new Exception("Booking has been cancelled before");
+            throw new Exception("Booking has already been cancelled");
         }
 
-        if ((booking.BookingDate.DayNumber - DateOnly.FromDateTime(DateTime.Now).DayNumber) < 1)
+        if (booking.Status == BookingStatus.InProgress ||
+            booking.Status == BookingStatus.Completed)
         {
-            throw new Exception("Too Close to be Cancelled");
+            throw new Exception("This booking cannot be cancelled");
         }
+
+        if (booking.Status != BookingStatus.Confirmed)
+        {
+            throw new Exception("Only confirmed bookings can be cancelled");
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.Now);
+
+        if ((booking.BookingDate.DayNumber - today.DayNumber) < 1)
+        {
+            throw new Exception("Booking is too close to the scheduled time to cancel");
+        }
+
         booking.Status = BookingStatus.Cancelled;
-        var Branch = _dbContext.Branches.FirstOrDefault(x => x.Id == booking.BranchId);
+        booking.CancelledAt = DateTime.UtcNow;
+
+        var branch = await _dbContext.Branches
+            .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
+
         var notification = new Repository.Entities.Notification()
         {
             Id = Guid.NewGuid(),
             UserId = userIdGuid,
             Type = NotificationType.BookingCancelled,
             Title = "Booking Cancelled",
-            Content = $"Your booking at {Branch.Name} for {booking.StartTime:HH:mm dd/MM/yyyy} has been cancelled successfully.",
+            Content =
+                $"Your booking at {branch?.Name ?? "our branch"} " +
+                $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
+                $"has been cancelled successfully.",
             IsRead = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
+
         _dbContext.Notifications.Add(notification);
+
         await _dbContext.SaveChangesAsync();
+
         var result = new Response.CancelBookingResponse
         {
-            Id = Id,
+            Id = booking.Id,
             Status = booking.Status,
-            CancelledAt = DateTime.UtcNow,
-            Message = "Cancelled successfully",
+            CancelledAt = booking.CancelledAt ?? DateTime.UtcNow,
+            Message = "Booking cancelled successfully",
         };
+
         return result;
     }
 }
