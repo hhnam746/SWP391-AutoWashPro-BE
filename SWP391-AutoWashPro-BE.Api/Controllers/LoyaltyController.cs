@@ -31,4 +31,20 @@ public class LoyaltyController : ControllerBase
         var result = await _loyaltyService.GetPointTransactions(request);
         return Ok(result);
     }
+    
+    [Authorize(Policy = JwtExtensions.AdminPolicy)]
+    [HttpGet("points-config")]
+    public async Task<IActionResult> GetAllConfigs()
+    {
+        var result = await _loyaltyService.GetAllConfigs();
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get all configs successfully", HttpContext.TraceIdentifier));
+    }
+    
+    [Authorize(Policy = JwtExtensions.AdminPolicy)]
+    [HttpPut("Update-points-config")]
+    public async Task<IActionResult> UpdateConfig(Request.ConfigRequest request)
+    {
+        var result = await _loyaltyService.UpdateConfig(request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Update configs successfully", HttpContext.TraceIdentifier));
+    }
 }

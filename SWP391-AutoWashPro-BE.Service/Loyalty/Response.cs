@@ -53,4 +53,11 @@ public class Response
         public int TotalCount { get; set; }
         public int TotalPages { get; set; }
     }
+    
+    public class ConfigResponse
+    {
+        public string ConfigKey { get; set; }
+        public string ConfigValue { get; set; } 
+        public string? Description { get; set; }
+    }
 }

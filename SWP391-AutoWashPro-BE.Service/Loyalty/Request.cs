@@ -10,4 +10,10 @@ public class Request
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
     }
+    
+    public class ConfigRequest
+    {
+        public string ConfigKey { get; set; }
+        public string ConfigValue { get; set; }
+    }
 }

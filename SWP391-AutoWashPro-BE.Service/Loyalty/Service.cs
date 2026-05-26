@@ -172,4 +172,39 @@ public class Service : IService
             }
         };
     }
+    
+    public async Task<List<Response.ConfigResponse>> GetAllConfigs()
+    {
+        var query = _dbContext.SystemConfigs.Where(x => true);
+
+        var selected = query.Select(x => new Response.ConfigResponse()
+        {
+            ConfigKey = x.ConfigKey,
+            ConfigValue = x.ConfigValue,
+            Description = x.Description
+        });
+
+        var result = await selected.ToListAsync();
+        
+        return result;
+
+    }
+
+    public async Task<string> UpdateConfig(Request.ConfigRequest request)
+    {
+        var config = await _dbContext.SystemConfigs
+            .FirstOrDefaultAsync(x => x.ConfigKey == request.ConfigKey);
+
+        if (config == null)
+        {
+            throw new Exception("Config not found");
+        }
+
+        config.ConfigValue = request.ConfigValue;
+        config.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+
+        return "Updated Config successfully";
+    }
 }
