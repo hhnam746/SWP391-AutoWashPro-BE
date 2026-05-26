@@ -116,6 +116,9 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
 
                     b.HasIndex("VoucherId");
 
+                    b.HasIndex("BranchId", "BookingDate", "StartTime")
+                        .IsUnique();
+
                     b.ToTable("booking", (string)null);
                 });
 

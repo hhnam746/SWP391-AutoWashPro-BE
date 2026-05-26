@@ -264,7 +264,14 @@ public class Service : IService
             CreatedAt = DateTimeOffset.UtcNow,
         };
         _dbContext.Notifications.Add(notification);
-        await _dbContext.SaveChangesAsync();
+        try
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            throw new Exception("Slot already booked");
+        }
         var result = new Response.CreateBookingResponse
         {
             Id = newId,
