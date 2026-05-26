@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SWP391_AutoWashPro_BE.Api.Extensions;
 using SWP391_AutoWashPro_BE.Service.Loyalty;
 using SWP391_AutoWashPro_BE.Service.Models;
 
 namespace SWP391_AutoWashPro_BE.Api.Controllers;
 
-[Authorize]
+[Authorize(Policy = JwtExtensions.UserPolicy)]
 [ApiController]
 [Route("api/v1/loyalty")]
 public class LoyaltyController : ControllerBase
