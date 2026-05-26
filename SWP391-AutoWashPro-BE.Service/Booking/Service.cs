@@ -272,6 +272,61 @@ public class Service : IService
         {
             throw new Exception("Slot already booked");
         }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var reminderTime = utcStartTime.AddDays(-1);
+
+                var delayTime = reminderTime - DateTimeOffset.UtcNow;
+
+                if (delayTime > TimeSpan.Zero)
+                {
+                    await Task.Delay(delayTime);
+
+                    using var scope = _serviceScopeFactory.CreateScope();
+
+                    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                    var reminderBooking = await dbContext.Bookings
+                        .FirstOrDefaultAsync(x => x.Id == newBooking.Id);
+
+                    if (reminderBooking != null &&
+                        reminderBooking.Status == BookingStatus.Confirmed)
+                    {
+                        var branch = await dbContext.Branches
+                            .FirstOrDefaultAsync(x => x.Id == reminderBooking.BranchId);
+
+                        var customer = await dbContext.CustomerProfiles
+                            .FirstOrDefaultAsync(x => x.Id == reminderBooking.CustomerId);
+
+                        if (customer != null)
+                        {
+                            var reminderNotification = new Repository.Entities.Notification()
+                            {
+                                Id = Guid.NewGuid(),
+                                UserId = customer.UserId,
+                                Type = NotificationType.BookingReminder,
+                                Title = "Booking Reminder",
+                                Content =
+                                    $"Reminder: Your booking at {branch?.Name ?? "our branch"} starts at {reminderBooking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy}.",
+                                IsRead = false,
+                                CreatedAt = DateTimeOffset.UtcNow,
+                            };
+
+                            dbContext.Notifications.Add(reminderNotification);
+
+                            await dbContext.SaveChangesAsync();
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("======= Reminder Error " + e.Message + " ==========");
+            }
+        });
         var result = new Response.CreateBookingResponse
         {
             Id = newId,
