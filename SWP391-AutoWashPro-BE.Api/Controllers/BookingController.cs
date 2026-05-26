@@ -61,7 +61,7 @@ public class BookingController:ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetBookingById([FromQuery]Guid id)
+    public async Task<IActionResult> GetBookingById([FromRoute]Guid id)
     {
         var result = await _service.GetBookingById(id);
         return Ok(result);
