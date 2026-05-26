@@ -149,6 +149,9 @@ public class Response
         public Guid BranchId { get; set; }
         public DateOnly Date { get; set; }
         public int SlotDurationMinutes { get; set; }
+        public int TotalItems { get; set; }
+        public int PageIndex { get; set; }
+        public int PageSize { get; set; }
         public List<SlotDataResponse> Data { get; set; } = new();
     }
 

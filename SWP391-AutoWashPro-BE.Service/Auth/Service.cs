@@ -89,10 +89,10 @@ public class Service : IService
         {
             defaultTier = new Repository.Entities.Tier
             {
-                Name = "Silver",
+                Name = "Member",
                 Level = 1,
                 RequiredWashes = 0,
-                PriorityBookingDays = 0,
+                PriorityBookingDays = 5,
                 Description = "Default tier for newly registered customers.",
                 CreatedAt = DateTimeOffset.UtcNow,
             };

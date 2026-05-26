@@ -997,7 +997,7 @@ public class Service : IService
         return "Update user status successfully";
     }
 
-    public async Task<List<Response.BookingResponse>> GetBookings(
+    public async Task<Base.Response.PageResult<Response.BookingResponse>> GetBookings(
         Request.GetBookingRequest request)
     {
         if (request == null)
@@ -1008,6 +1008,16 @@ public class Service : IService
         if (request.BranchId.HasValue && request.BranchId.Value == Guid.Empty)
         {
             throw new ArgumentException("BranchId is invalid.");
+        }
+
+        if (request.PageIndex <= 0)
+        {
+            throw new ArgumentException("PageIndex must be greater than 0.");
+        }
+
+        if (request.PageSize <= 0)
+        {
+            throw new ArgumentException("PageSize must be greater than 0.");
         }
 
         if (request.BranchId.HasValue)
@@ -1041,9 +1051,13 @@ public class Service : IService
             query = query.Where(x => x.Status == request.Status.Value);
         }
 
+        var totalItems = await query.CountAsync();
+
         var items = await query
             .OrderByDescending(x => x.BookingDate)
             .ThenBy(x => x.StartTime)
+            .Skip((request.PageIndex - 1) * request.PageSize)
+            .Take(request.PageSize)
             .Select(x => new Response.BookingResponse
             {
                 Id = x.Id,
@@ -1075,7 +1089,13 @@ public class Service : IService
             })
             .ToListAsync();
 
-        return items;
+        return new Base.Response.PageResult<Response.BookingResponse>
+        {
+            Items = items,
+            TotalItems = totalItems,
+            PageIndex = request.PageIndex,
+            PageSize = request.PageSize
+        };
     }
 
     public async Task<Response.BookingSlotResponse> GetBookingSlots(Request.GetBookingSlotRequest request)
@@ -1088,6 +1108,16 @@ public class Service : IService
         if (request.Date == default)
         {
             throw new ArgumentException("Date is required.");
+        }
+
+        if (request.PageIndex <= 0)
+        {
+            throw new ArgumentException("PageIndex must be greater than 0.");
+        }
+
+        if (request.PageSize <= 0)
+        {
+            throw new ArgumentException("PageSize must be greater than 0.");
         }
 
         var branchExists = await _dbContext.Branches
@@ -1117,10 +1147,6 @@ public class Service : IService
             })
             .ToListAsync();
 
-        var bookingsBySlotStart = bookedSlots
-            .GroupBy(x => x.StartTime.ToOffset(DefaultUtcOffset))
-            .ToDictionary(x => x.Key, x => x.First());
-
         var slotData = new List<Response.SlotDataResponse>();
         var slotStart = BuildSlotTime(request.Date, WorkingStartHour, 0);
         var workingEnd = BuildSlotTime(request.Date, WorkingEndHour, 0);
@@ -1128,7 +1154,11 @@ public class Service : IService
         while (slotStart < workingEnd)
         {
             var slotEnd = slotStart.AddMinutes(DefaultSlotDurationMinutes);
-            if (bookingsBySlotStart.TryGetValue(slotStart, out var booking))
+            var booking = bookedSlots.FirstOrDefault(x =>
+                x.StartTime.UtcDateTime == slotStart.UtcDateTime &&
+                x.EndTime.UtcDateTime == slotEnd.UtcDateTime);
+
+            if (booking != null)
             {
                 slotData.Add(new Response.SlotDataResponse
                 {
@@ -1158,12 +1188,21 @@ public class Service : IService
             slotStart = slotEnd;
         }
 
+        var totalItems = slotData.Count;
+        var pagedSlotData = slotData
+            .Skip((request.PageIndex - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ToList();
+
         return new Response.BookingSlotResponse
         {
             BranchId = request.BranchId,
             Date = request.Date,
             SlotDurationMinutes = DefaultSlotDurationMinutes,
-            Data = slotData
+            TotalItems = totalItems,
+            PageIndex = request.PageIndex,
+            PageSize = request.PageSize,
+            Data = pagedSlotData
         };
     }
 

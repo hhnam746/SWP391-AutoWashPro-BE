@@ -20,7 +20,7 @@ public interface IService
     public Task<Response.GetUserStatusResponse> GetUserStatusById(Guid userId);
     public Task<string> UpdateUserStatusById(Guid userId, Request.UpdateUserByStatusRequest request);
 
-    public Task<List<Response.BookingResponse>> GetBookings(
+    public Task<Base.Response.PageResult<Response.BookingResponse>> GetBookings(
         Request.GetBookingRequest request);
     public Task<Response.BookingSlotResponse> GetBookingSlots(Request.GetBookingSlotRequest request);
     public Task<Response.RevenueReportResponse> GetRevenueReport(Request.GetRevenueReportRequest request);

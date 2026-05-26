@@ -17,12 +17,16 @@ public class Request
         public Guid? BranchId { get; set; }
         public DateOnly? Date { get; set; }
         public BookingStatus? Status { get; set; }
+        public int PageIndex { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
     }
     
     public class GetBookingSlotRequest
     {
         public Guid BranchId { get; set; }
         public DateOnly Date { get; set; }
+        public int PageIndex { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
     }
 
     public class GetDashboardRequest
