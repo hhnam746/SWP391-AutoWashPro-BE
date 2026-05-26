@@ -81,7 +81,7 @@ public class Response
     {
         public required Guid Id { get; set; }
         public required BookingStatus Status { get; set; }
-        public required DateTime CancelledAt { get; set; }
+        public required DateTimeOffset CancelledAt { get; set; }
         public required string Message { get; set; }
     }
 
