@@ -12,8 +12,8 @@ using SWP391_AutoWashPro_BE.Repository;
 namespace SWP391_AutoWashPro_BE.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260525032143_updateIsDeletedInBranch")]
-    partial class updateIsDeletedInBranch
+    [Migration("20260526040143_AddPropRedemAmount")]
+    partial class AddPropRedemAmount
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -118,6 +118,9 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.HasIndex("VehicleId");
 
                     b.HasIndex("VoucherId");
+
+                    b.HasIndex("BranchId", "BookingDate", "StartTime")
+                        .IsUnique();
 
                     b.ToTable("booking", (string)null);
                 });
