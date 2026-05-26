@@ -2,6 +2,7 @@ namespace SWP391_AutoWashPro_BE.Service.User;
 
 public interface IService
 {
-    public Task<string> Register(Request.RegisterRequest request);
-    public Task<Response.LoginResponse> Login(Request.LoginRequest request);
+    public Task<Response.ProfileResponse> GetProfile();
+    public Task<string> UpdateProfile(Request.UpdateProfileRequest request);
+    public Task<string> UpdateProfileByPassword(Request.UpdateProfileByPassword request);
 }

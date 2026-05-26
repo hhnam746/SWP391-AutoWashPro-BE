@@ -9,6 +9,11 @@ namespace SWP391_AutoWashPro_BE.Service.Booking;
 
 public class Service : IService
 {
+    private static readonly TimeSpan DefaultUtcOffset = TimeSpan.FromHours(7);
+    private const int WorkingStartHour = 8;
+    private const int WorkingEndHour = 17;
+    private const int SlotDurationMinutes = 15;
+
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContext;
     private readonly IServiceScopeFactory _serviceScopeFactory;
@@ -119,6 +124,28 @@ public class Service : IService
             throw new Exception("Cannot book past time");
         }
 
+        var bookingLocalDate = DateOnly.FromDateTime(bookingRequest.StartTime);
+        if (bookingLocalDate != bookingRequest.BookingDate)
+        {
+            throw new Exception("BookingDate must match StartTime date.");
+        }
+
+        if (bookingRequest.StartTime.Minute % SlotDurationMinutes != 0 ||
+            bookingRequest.StartTime.Second != 0 ||
+            bookingRequest.StartTime.Millisecond != 0)
+        {
+            throw new Exception("StartTime must align to 15-minute slot boundaries.");
+        }
+
+        var localStartTimeOnly = TimeOnly.FromDateTime(bookingRequest.StartTime);
+        var workingStart = new TimeOnly(WorkingStartHour, 0);
+        var workingEnd = new TimeOnly(WorkingEndHour, 0);
+
+        if (localStartTimeOnly < workingStart || localStartTimeOnly >= workingEnd)
+        {
+            throw new Exception("StartTime must be within working hours (08:00-17:00).");
+        }
+
         var utcStartTime = bookingRequest.StartTime.ToUniversalTime();
 
         var isBooked = _dbContext.Bookings.Any(x =>
@@ -184,7 +211,7 @@ public class Service : IService
             discountAmount = basePrice;
         }
 
-        var utcEndTime = utcStartTime.AddMinutes(15);
+        var utcEndTime = utcStartTime.AddMinutes(SlotDurationMinutes);
 
         //Wallet
         if (discountAmount > basePrice)

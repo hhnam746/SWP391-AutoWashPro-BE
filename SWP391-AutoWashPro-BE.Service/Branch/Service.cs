@@ -28,7 +28,7 @@ public class Service : IService
         if (user == null)
             throw new Exception("User not found");
 
-        var query = _dbContext.Branches.Where(x => true);
+        var query = _dbContext.Branches.Where(x => !x.IsDeleted);
         if (keyword != null)
         {
             query = query.Where(x => x.Name.ToLower().Contains(keyword.ToLower()));

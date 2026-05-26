@@ -52,6 +52,7 @@ public class GlobalExceptionHandlerMiddleware : IMiddleware
             ArgumentException => StatusCodes.Status400BadRequest,
             InvalidOperationException => StatusCodes.Status400BadRequest,
             UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
+            ForbiddenAccessException => StatusCodes.Status403Forbidden,
             KeyNotFoundException => StatusCodes.Status404NotFound,
             _ => StatusCodes.Status500InternalServerError
         };

@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+
 namespace SWP391_AutoWashPro_BE.Service.Vehicles;
 
 public class Request
@@ -15,7 +17,7 @@ public class Request
         public string Brand { get; set; }
         public string Model { get; set; }
         public string Color { get; set; }
-        public string LicensePlateImageUrl { get; set; }
+        public required IFormFile LicensePlateImageUrl { get; set; }
     }
 
     public class UpdateVehicleRequest
