@@ -177,4 +177,99 @@ public class Service : IService
 
         return response;
     }
+    
+    public async Task<Base.Response.PageResult<Response.BranchItem>> GetAllBranches(string? searchTerm, int pageSize, int pageIndex)
+    {
+        var query = _dbContext.Branches.Where(x => true);
+        if (searchTerm != null)
+        {
+            query = query.Where(x => x.Name.Contains(searchTerm));
+        }
+
+        query = query.OrderBy(x => x.Name);
+        query = query.Skip((pageIndex - 1) * pageSize).Take(pageSize);
+
+        var selected = query.Select(x => new Response.BranchItem()
+        {
+            Id = x.Id,
+            Name = x.Name,
+            Address = x.Address,
+            IsActive = x.IsActive,
+        });
+          
+        var listResult = await selected.ToListAsync();
+        var totalItems = listResult.Count;
+
+        var result = new Base.Response.PageResult<Response.BranchItem>()
+        {
+            Items = listResult,
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            TotalItems = totalItems
+        };
+        
+        return result;
+        
+
+    }
+
+    public async Task<string> CreateBranch(Request.BranchRequest request)
+    {
+        var existing = _dbContext.Branches.FirstOrDefault(x => x.Name == request.Name);
+        if (existing != null)
+        {
+            throw new Exception("Branch already exists");
+        }
+
+        var newBranch = new Repository.Entities.Branch()
+        {
+            Name = request.Name,
+            Address = request.Address,
+            IsActive = true
+        };
+        _dbContext.Branches.Add(newBranch);
+        await _dbContext.SaveChangesAsync();
+
+        return "Branch created successfully";
+        
+    }
+
+    public async Task<string> UpdateBranch(Guid id,Request.BranchRequest request)
+    {
+        var branch = await _dbContext.Branches
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (branch == null)
+        {
+            throw new Exception("Branch not found");
+        }
+
+        branch.Name = request.Name;
+        branch.Address = request.Address;
+        branch.IsActive = request.IsActive;
+        branch.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+
+        
+        return "Branch updated successfully";
+    }
+
+    public async Task<string> DeleteBranch(Guid id)
+    {
+        var branch = await _dbContext.Branches
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (branch == null)
+        {
+            throw new Exception("Branch not found");
+        }
+
+        branch.IsActive = false;
+        branch.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+         
+        return "Branch deleted successfully";
+    }
 }

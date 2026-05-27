@@ -19,6 +19,11 @@ using NotificationService = SWP391_AutoWashPro_BE.Service.Notification;
 using BranchAndTierService = SWP391_AutoWashPro_BE.Service.Branch;
 using BookingService = SWP391_AutoWashPro_BE.Service.Booking;
 using LoyaltyService = SWP391_AutoWashPro_BE.Service.Loyalty;
+using TierService = SWP391_AutoWashPro_BE.Service.Tier;
+using PromotionService = SWP391_AutoWashPro_BE.Service.Promotion;
+using RewardService = SWP391_AutoWashPro_BE.Service.Reward;
+using VoucherService = SWP391_AutoWashPro_BE.Service.Voucher;
+
 var builder = WebApplication.CreateBuilder(args);
 
 
@@ -54,6 +59,11 @@ builder.Services.AddScoped<NotificationService.IService, NotificationService.Ser
 builder.Services.AddScoped<BranchAndTierService.IService, BranchAndTierService.Service>();
 builder.Services.AddScoped<BookingService.IService, BookingService.Service>();
 builder.Services.AddScoped<LoyaltyService.IService, LoyaltyService.Service>();
+builder.Services.AddScoped<TierService.IService, TierService.Service>();
+builder.Services.AddScoped<PromotionService.IService, PromotionService.Service>();
+builder.Services.AddScoped<RewardService.IService, RewardService.Service>();
+builder.Services.AddScoped<VoucherService.IService, VoucherService.Service>();
+
 builder.Services.AddTransient<GlobalExceptionHandlerMiddleware>();
 
 var app = builder.Build();
