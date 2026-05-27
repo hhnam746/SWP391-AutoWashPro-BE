@@ -49,6 +49,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerAPI();
 }
 
+//Testing
+
 app.UseAuthentication();
 app.UseAuthorization();
 
