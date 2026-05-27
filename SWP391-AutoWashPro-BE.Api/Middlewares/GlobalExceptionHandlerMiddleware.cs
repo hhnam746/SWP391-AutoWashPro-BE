@@ -1,3 +1,4 @@
+using SWP391_AutoWashPro_BE.Service.DiscordService;
 using SWP391_AutoWashPro_BE.Service.Models;
 
 namespace SWP391_AutoWashPro_BE.Api.Middlewares;
@@ -6,13 +7,15 @@ public class GlobalExceptionHandlerMiddleware : IMiddleware
 {
     private readonly IHostEnvironment _environment;
     private readonly ILogger<GlobalExceptionHandlerMiddleware> _logger;
+    private readonly IService _discordService; 
 
     public GlobalExceptionHandlerMiddleware(
         IHostEnvironment environment,
-        ILogger<GlobalExceptionHandlerMiddleware> logger)
+        ILogger<GlobalExceptionHandlerMiddleware> logger, IService discordService)
     {
         _environment = environment;
         _logger = logger;
+        _discordService = discordService;
     }
 
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
@@ -36,6 +39,12 @@ public class GlobalExceptionHandlerMiddleware : IMiddleware
             context.Response.StatusCode = statusCode;
             context.Response.ContentType = "application/json";
 
+            // chỉ gửi Discord khi là lỗi 500
+            if (statusCode >= StatusCodes.Status500InternalServerError)
+            {
+                await _discordService.SendExceptionAlertAsync(context, ex, statusCode);
+            }
+            
             var response = ApiResponseFactory.ErrorResponse(
                 message: ResolveClientMessage(ex, statusCode),
                 errors: _environment.IsDevelopment() ? new { detail = ex.Message } : null,

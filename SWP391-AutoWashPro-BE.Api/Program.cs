@@ -23,6 +23,7 @@ using TierService = SWP391_AutoWashPro_BE.Service.Tier;
 using PromotionService = SWP391_AutoWashPro_BE.Service.Promotion;
 using RewardService = SWP391_AutoWashPro_BE.Service.Reward;
 using VoucherService = SWP391_AutoWashPro_BE.Service.Voucher;
+using DiscordService = SWP391_AutoWashPro_BE.Service.DiscordService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +64,12 @@ builder.Services.AddScoped<TierService.IService, TierService.Service>();
 builder.Services.AddScoped<PromotionService.IService, PromotionService.Service>();
 builder.Services.AddScoped<RewardService.IService, RewardService.Service>();
 builder.Services.AddScoped<VoucherService.IService, VoucherService.Service>();
+
+//test thử discord
+builder.Services.Configure<DiscordService.DiscordAlertOptions>(
+    builder.Configuration.GetSection("DiscordAlertOptions"));
+builder.Services.AddHttpClient<DiscordService.IService, DiscordService.Service>(); // AddHttpClient là do nó tự gọi API ở bên ngoài
+// Cụ thể ở đây của mình là tự gọi API webhook của discord
 
 builder.Services.AddTransient<GlobalExceptionHandlerMiddleware>();
 
