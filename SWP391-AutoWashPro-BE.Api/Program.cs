@@ -84,12 +84,14 @@ var app = builder.Build();
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwaggerAPI();
-}
+// if (app.Environment.IsDevelopment())
+// {
+//     app.UseSwaggerAPI();
+// }
 
 //Testing
+
+app.UseSwaggerAPI();
 
 app.UseAuthentication();
 app.UseAuthorization();
