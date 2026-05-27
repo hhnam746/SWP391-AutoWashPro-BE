@@ -42,7 +42,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: SWP391_AutoWashPro_BE.Api/Dockerfile
+          file: SWP391-AutoWashPro-BE.Api/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
