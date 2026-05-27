@@ -49,7 +49,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-#      - name: Trigger Render Deploy
-#        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-#        run: |
-#          curl -f ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      - name: Trigger Render Deploy
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: |
+          curl -f ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
