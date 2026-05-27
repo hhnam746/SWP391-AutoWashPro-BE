@@ -12,7 +12,7 @@ using UserService = SWP391_AutoWashPro_BE.Service.User;
 using AdminService = SWP391_AutoWashPro_BE.Service.Admin;
 using SecurityService = SWP391_AutoWashPro_BE.Service.Security;
 using System.Text.Json.Serialization;
-
+using DotNetEnv;
 using VehicleService = SWP391_AutoWashPro_BE.Service.Vehicles;
 using WalletService = SWP391_AutoWashPro_BE.Service.Wallet;
 using NotificationService = SWP391_AutoWashPro_BE.Service.Notification;
@@ -24,6 +24,12 @@ using PromotionService = SWP391_AutoWashPro_BE.Service.Promotion;
 using RewardService = SWP391_AutoWashPro_BE.Service.Reward;
 using VoucherService = SWP391_AutoWashPro_BE.Service.Voucher;
 using DiscordService = SWP391_AutoWashPro_BE.Service.DiscordService;
+
+
+Env.Load();
+
+var aspnetCoreEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", aspnetCoreEnv);
 
 var builder = WebApplication.CreateBuilder(args);
 
