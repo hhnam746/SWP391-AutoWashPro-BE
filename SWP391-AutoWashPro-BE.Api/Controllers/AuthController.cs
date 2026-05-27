@@ -25,6 +25,7 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromForm] Request.LoginRequest request)
     {
+        // throw new Exception("bug demo SWP391 AutoWashPro API");
         var result = await _userService.Login(request);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Login successfully", HttpContext.TraceIdentifier));
     }
