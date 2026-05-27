@@ -9,6 +9,7 @@ public class Tier : BaseEntity, IAuditableEntity
     public int RequiredWashes { get; set; }
     public int PriorityBookingDays { get; set; }
     public string? Description { get; set; }
+    public bool IsDeleted { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
 

@@ -1,0 +1,202 @@
+using Microsoft.EntityFrameworkCore;
+using SWP391_AutoWashPro_BE.Repository;
+using SWP391_AutoWashPro_BE.Repository.Entities;
+using SWP391_AutoWashPro_BE.Repository.Enums;
+
+namespace SWP391_AutoWashPro_BE.Service.Reward;
+
+public class Service : IService
+{
+    private readonly AppDbContext _dbContext;
+
+    public Service(AppDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
+    public async Task<Base.Response.PageResult<Response.RewardResponse>> GetAllReward(string? searchTerm, int pageSize,
+        int pageIndex)
+    {
+        var query = _dbContext.Rewards.Where(x => true);
+        if (searchTerm != null)
+        {
+            query = query.Where(x => x.Name.Contains(searchTerm));
+        }
+
+        query = query.OrderBy(x => x.Name);
+        query = query.Skip((pageIndex - 1) * pageSize).Take(pageSize);
+
+        var selected = query.Select(x => new Response.RewardResponse()
+        {
+            Id = x.Id,
+            Name = x.Name,
+            RewardType = x.RewardType,
+            PointsRequired = x.PointsRequired,
+            QuantityAvailable = x.QuantityAvailable,
+            ValidDays = x.ValidDays,
+            Description = x.Description,
+            IsActive = x.IsActive,
+        });
+
+        var listResult = await selected.ToListAsync();
+        var totalItems = listResult.Count;
+
+        var result = new Base.Response.PageResult<Response.RewardResponse>()
+        {
+            Items = listResult,
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            TotalItems = totalItems
+        };
+
+        return result;
+    }
+
+    public async Task<string> CreateReward(Request.RewardRequest request)
+    {
+        var exist = _dbContext.Rewards.Where(x => x.Name == request.Name);
+        if (exist != null)
+        {
+            throw new Exception("Reward already exists");
+        }
+
+        var newReward = new Repository.Entities.Reward()
+        {
+            Name = request.Name,
+            RewardType = request.RewardType,
+            PointsRequired = request.PointsRequired,
+            QuantityAvailable = request.QuantityAvailable,
+            ValidDays = request.ValidDays,
+            Description = request.Description,
+            IsActive = true,
+        };
+        _dbContext.Add(newReward);
+        await _dbContext.SaveChangesAsync();
+
+        return "Reward created successfully";
+    }
+
+    public async Task<string> UpdateReward(Guid id, Request.RewardRequest request)
+    {
+        var reward = await _dbContext.Rewards
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (reward == null)
+        {
+            throw new Exception("Reward not found");
+        }
+
+        reward.Name = request.Name;
+        reward.RewardType = request.RewardType;
+        reward.PointsRequired = request.PointsRequired;
+        reward.QuantityAvailable = request.QuantityAvailable;
+        reward.ValidDays = request.ValidDays;
+        reward.Description = request.Description;
+        reward.IsActive = request.IsActive;
+        reward.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+        return "Reward updated successfully";
+    }
+
+    public async Task<string> DeleteReward(Guid id)
+    {
+        var reward = await _dbContext.Rewards
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (reward == null)
+        {
+            throw new Exception("Reward not found");
+        }
+
+        reward.IsActive = false;
+        reward.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _dbContext.SaveChangesAsync();
+
+        return "Reward deleted successfully";
+    }
+
+    public async Task<string> RedeemReward(Guid rewardId, Guid userId)
+    {
+        var customer = await _dbContext.CustomerProfiles
+            .FirstOrDefaultAsync(x => x.UserId == userId);
+
+        if (customer == null)
+            throw new Exception("Customer not found");
+
+        var reward = await _dbContext.Rewards
+            .Include(x => x.RewardTiers)
+            .FirstOrDefaultAsync(x => x.Id == rewardId);
+
+        if (reward == null)
+            throw new Exception("Reward not found");
+
+        if (!reward.IsActive)
+            throw new Exception("Reward is inactive");
+
+        if (reward.QuantityAvailable <= 0)
+            throw new Exception("Reward out of stock");
+
+        if (customer.TotalPoints < reward.PointsRequired)
+            throw new Exception("Not enough points");
+
+        var canRedeem = reward.RewardTiers
+            .Any(x => x.TierId == customer.TierId);
+
+        if (!canRedeem)
+            throw new Exception("Your tier cannot redeem this reward");
+
+        customer.TotalPoints -= reward.PointsRequired;
+
+        reward.QuantityAvailable -= 1;
+
+        var pointTransaction = new Repository.Entities.PointTransaction()
+        {
+            CustomerId = customer.Id,
+            RewardId = reward.Id,
+            Points = -reward.PointsRequired,
+            TransactionType = PointTransactionType.Redeem,
+            Description = $"Redeem reward: {reward.Name}",
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        var voucher = new Repository.Entities.Voucher
+        {
+            CustomerId = customer.Id,
+            RewardId = reward.Id,
+
+            Code = Guid.NewGuid()
+                .ToString("N")[..8]
+                .ToUpper(),
+
+            Status = VoucherStatus.Active,
+
+            DiscountType = DiscountType.Percentage,
+            DiscountValue = 10,
+
+            ExpiresAt = DateTimeOffset.UtcNow
+                .AddDays(reward.ValidDays),
+
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        var notification = new Repository.Entities.Notification
+        {
+            UserId = userId,
+            Type = NotificationType.RewardRedeemed,
+            Title = "Reward Redeemed",
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        _dbContext.PointTransactions.Add(pointTransaction);
+
+        _dbContext.Vouchers.Add(voucher);
+
+        _dbContext.Notifications.Add(notification);
+
+        await _dbContext.SaveChangesAsync();
+
+        return "Reward redeemed successfully";
+    }
+}

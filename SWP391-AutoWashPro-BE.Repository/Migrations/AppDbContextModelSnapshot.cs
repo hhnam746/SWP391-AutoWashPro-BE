@@ -74,6 +74,9 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnType("numeric(12,2)")
                         .HasColumnName("final_price");
 
+                    b.Property<int?>("RedemAmount")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("StartTime")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("start_time");
@@ -113,6 +116,9 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
 
                     b.HasIndex("VoucherId");
 
+                    b.HasIndex("BranchId", "BookingDate", "StartTime")
+                        .IsUnique();
+
                     b.ToTable("booking", (string)null);
                 });
 
@@ -141,6 +147,12 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text")
@@ -153,6 +165,8 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("IsActive");
+
+                    b.HasIndex("IsDeleted");
 
                     b.ToTable("branch", (string)null);
                 });

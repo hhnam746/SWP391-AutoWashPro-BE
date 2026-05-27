@@ -15,8 +15,8 @@ public class AppDbContext : DbContext
     private static readonly ValueConverter<VoucherStatus, string> VoucherStatusConverter = new(v => ToDbVoucherStatus(v), v => FromDbVoucherStatus(v));
     private static readonly ValueConverter<NotificationType, string> NotificationTypeConverter = new(v => ToDbNotificationType(v), v => FromDbNotificationType(v));
     private static readonly ValueConverter<PointTransactionType, string> PointTransactionTypeConverter = new(v => ToDbPointTransactionType(v), v => FromDbPointTransactionType(v));
-    
-    
+
+
     private static string ToDbUserRole(UserRole value) => value switch
     {
         UserRole.Admin => "admin",
@@ -49,6 +49,7 @@ public class AppDbContext : DbContext
 
     private static string ToDbBookingStatus(BookingStatus value) => value switch
     {
+        BookingStatus.Available => "available",
         BookingStatus.Pending => "pending",
         BookingStatus.Confirmed => "confirmed",
         BookingStatus.CheckIn => "check_in",
@@ -60,6 +61,7 @@ public class AppDbContext : DbContext
 
     private static BookingStatus FromDbBookingStatus(string value) => value switch
     {
+        "available" => BookingStatus.Available,
         "pending" => BookingStatus.Pending,
         "confirmed" => BookingStatus.Confirmed,
         "check_in" => BookingStatus.CheckIn,
@@ -324,10 +326,12 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Name).HasColumnName("name").IsRequired();
             builder.Property(x => x.Address).HasColumnName("address").HasColumnType("text").IsRequired();
             builder.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true).IsRequired();
+            builder.Property(x => x.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false).IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.IsActive);
+            builder.HasIndex(x => x.IsDeleted);
         });
 
         modelBuilder.Entity<SystemConfig>(builder =>
@@ -508,6 +512,7 @@ public class AppDbContext : DbContext
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.BookingDate);
             builder.HasIndex(x => x.StartTime);
+            builder.HasIndex(x => new { x.BranchId, x.BookingDate, x.StartTime }).IsUnique();
 
             builder.HasOne(x => x.Customer)
                 .WithMany(x => x.Bookings)

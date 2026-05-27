@@ -1,7 +1,10 @@
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SWP391_AutoWashPro_BE.Repository;
+using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.JwtService;
 namespace SWP391_AutoWashPro_BE.Api.Extensions;
 
@@ -36,6 +39,37 @@ public static class JwtExtensions
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     NameClaimType = ClaimTypes.NameIdentifier,
                     RoleClaimType = ClaimTypes.Role
+                };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var userIdRaw = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                        if (string.IsNullOrWhiteSpace(userIdRaw) || !Guid.TryParse(userIdRaw, out var userId))
+                        {
+                            context.Fail("Invalid token subject.");
+                            return;
+                        }
+
+                        var dbContext = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                        var status = await dbContext.Users
+                            .AsNoTracking()
+                            .Where(x => x.Id == userId)
+                            .Select(x => (AccountStatus?)x.Status)
+                            .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
+
+                        if (status is null)
+                        {
+                            context.Fail("User no longer exists.");
+                            return;
+                        }
+
+                        if (status != AccountStatus.Active)
+                        {
+                            context.Fail("Account is not active.");
+                        }
+                    }
                 };
             });
 

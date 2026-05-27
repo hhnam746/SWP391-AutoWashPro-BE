@@ -1,31 +1,16 @@
-using Microsoft.AspNetCore.Http;
-using System.ComponentModel.DataAnnotations;
-
 namespace SWP391_AutoWashPro_BE.Service.User;
 
 public class Request
 {
-    public class RegisterRequest
+    public class UpdateProfileRequest
     {
-        public required string Email { get; set; }
-        
-        public required string Phone { get; set; }
-        
-        public required string Password { get; set; }
-        
-        public required string FirstName { get; set; }
-
-        public required string LastName { get; set; }
-
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
         public string? Cccd { get; set; }
-        
-        [MinLength(3, ErrorMessage = "At least 3 face images are required.")]
-        public List<IFormFile> FaceImages { get; set; } = new();
     }
-    
-    public class LoginRequest
+
+    public class UpdateProfileByPassword
     {
-        public required string Email { get; set; }
-        public required string Password { get; set; }
+        public string? NewPassword { get; set; }
     }
 }

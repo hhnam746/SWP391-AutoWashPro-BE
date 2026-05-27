@@ -1,0 +1,67 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Mvc;
+using SWP391_AutoWashPro_BE.Api.Extensions;
+using SWP391_AutoWashPro_BE.Service.Promotion;
+
+namespace SWP391_AutoWashPro_BE.Api.Controllers;
+
+[ApiController]
+[Route("[controller]")]
+public class PromotionController: ControllerBase
+{
+    private readonly IService _service;
+
+    public PromotionController(IService service)
+    {
+        _service = service;
+    }
+
+    [Authorize(Policy = JwtExtensions.AdminPolicy)] 
+    [HttpGet("promotions")]
+    public async Task<IActionResult> GetPromotion(
+        [FromQuery] string? searchTerm,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] int pageIndex = 1)
+    {
+        var result = await _service.GetPromotion(searchTerm, pageSize, pageIndex);
+        return Ok(result);
+    }
+
+    [Authorize(Policy = JwtExtensions.AdminPolicy)] 
+    [HttpPost("create-promotion")]
+    public async Task<IActionResult> CreatePromotion(
+        [FromBody] Request.PromotionRequest request)
+    {
+        var result = await _service.CreatePromotion(request);
+        return Ok(result);
+    }
+
+    [Authorize(Policy = JwtExtensions.AdminPolicy)] 
+    [HttpPatch("update-promotion")]
+    public async Task<IActionResult> UpdatePromotion(
+        [FromRoute] Guid id,
+        [FromBody] Request.UpdatePromotionRequest request)
+    {
+        var result = await _service.UpdatePromotion(id, request);
+        return Ok(result);
+    }
+
+    [Authorize(Policy = JwtExtensions.AdminPolicy)] 
+    [HttpPatch("update-promotion-status")]
+    public async Task<IActionResult> UpdatePromotionStatus(
+        [FromRoute] Guid id,
+        [FromBody] Request.UpdatePromotionStatusRequest request)
+    {
+        var result = await _service.UpdatePromotionStatus(id, request);
+        return Ok(result);
+    }
+
+    [Authorize(Policy = JwtExtensions.AdminPolicy)] 
+    [HttpDelete("delete-promotion")]
+    public async Task<IActionResult> DeletePromotion([FromRoute] Guid id)
+    {
+        var result = await _service.DeletePromotion(id);
+        return Ok(result);
+    }
+}
