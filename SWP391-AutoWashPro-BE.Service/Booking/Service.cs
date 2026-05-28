@@ -365,7 +365,7 @@ public class Service : IService
         if (customerProfile == null)
             throw new Exception("Customer profile not found");
 
-        var query = _dbContext.Bookings.Where(x => true);
+        var query = _dbContext.Bookings.Where(x => x.CustomerId == customerProfile.Id);
         if (status.HasValue)
         {
             query = query.Where(x => x.Status == status);
