@@ -17,7 +17,7 @@ public class TierController: ControllerBase
     }
     
     [Authorize(Policy = JwtExtensions.AdminPolicy)] 
-    [HttpGet("tiers")]
+    [HttpGet("admin/tiers")]
     public async Task<IActionResult> GetAllTier(
         [FromQuery] string? searchTerm,
         [FromQuery] int pageSize = 10,
@@ -28,7 +28,7 @@ public class TierController: ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpPost("create-tier")]
+    [HttpPost("admin/create-tier")]
     public async Task<IActionResult> CreateTier([FromBody] Request.TierRequest request)
     {
         var result = await _service.CreateTier(request);
@@ -36,7 +36,7 @@ public class TierController: ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpPatch("update-tier")]
+    [HttpPut("admin/update-tier")]
     public async Task<IActionResult> UpdateTier(
         [FromRoute] Guid id,
         [FromBody] Request.TierRequest request)
@@ -46,7 +46,7 @@ public class TierController: ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpDelete("delete-tier")]
+    [HttpDelete("admin/delete-tier")]
     public async Task<IActionResult> DeleteTier([FromRoute] Guid id)
     {
         var result = await _service.DeleteTier(id);

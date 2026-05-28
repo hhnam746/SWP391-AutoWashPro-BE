@@ -33,7 +33,7 @@ public class LoyaltyController : ControllerBase
     }
     
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpGet("points-config")]
+    [HttpGet("admin/points-config")]
     public async Task<IActionResult> GetAllConfigs()
     {
         var result = await _loyaltyService.GetAllConfigs();
@@ -41,7 +41,7 @@ public class LoyaltyController : ControllerBase
     }
     
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpPut("Update-points-config")]
+    [HttpPut("admin/Update-points-config")]
     public async Task<IActionResult> UpdateConfig(Request.ConfigRequest request)
     {
         var result = await _loyaltyService.UpdateConfig(request);
