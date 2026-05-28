@@ -44,7 +44,7 @@ public class BranchAndTierController : ControllerBase
     }
     
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpGet("branch")]
+    [HttpGet("admin/branch")]
     public async Task<IActionResult> GetAllBranches(
         [FromQuery] string? searchTerm,
         [FromQuery] int pageSize = 10,
@@ -55,7 +55,7 @@ public class BranchAndTierController : ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpPost("create-branches")]
+    [HttpPost("admin/create-branches")]
     public async Task<IActionResult> CreateBranch([FromBody] Request.BranchRequest request)
     {
         var result = await _service.CreateBranch(request);
@@ -63,7 +63,7 @@ public class BranchAndTierController : ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpPut("update-branches")]
+    [HttpPut("admin/update-branches")]
     public async Task<IActionResult> UpdateBranch(
         [FromRoute] Guid id,
         [FromBody] Request.BranchRequest request)
@@ -73,7 +73,7 @@ public class BranchAndTierController : ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpDelete("delete-branches")]
+    [HttpDelete("admin/delete-branches")]
     public async Task<IActionResult> DeleteBranch([FromRoute] Guid id)
     {
         var result = await _service.DeleteBranch(id);

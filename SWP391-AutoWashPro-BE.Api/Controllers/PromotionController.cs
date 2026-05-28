@@ -18,7 +18,7 @@ public class PromotionController: ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)] 
-    [HttpGet("promotions")]
+    [HttpGet("admin/promotions")]
     public async Task<IActionResult> GetPromotion(
         [FromQuery] string? searchTerm,
         [FromQuery] int pageSize = 10,
@@ -29,7 +29,7 @@ public class PromotionController: ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)] 
-    [HttpPost("create-promotion")]
+    [HttpPost("admin/create-promotion")]
     public async Task<IActionResult> CreatePromotion(
         [FromBody] Request.PromotionRequest request)
     {
@@ -38,7 +38,7 @@ public class PromotionController: ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)] 
-    [HttpPatch("update-promotion")]
+    [HttpPatch("admin/update-promotion")]
     public async Task<IActionResult> UpdatePromotion(
         [FromRoute] Guid id,
         [FromBody] Request.UpdatePromotionRequest request)
@@ -48,7 +48,7 @@ public class PromotionController: ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)] 
-    [HttpPatch("update-promotion-status")]
+    [HttpPatch("admin/update-promotion-status")]
     public async Task<IActionResult> UpdatePromotionStatus(
         [FromRoute] Guid id,
         [FromBody] Request.UpdatePromotionStatusRequest request)
@@ -58,7 +58,7 @@ public class PromotionController: ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)] 
-    [HttpDelete("delete-promotion")]
+    [HttpDelete("admin/delete-promotion")]
     public async Task<IActionResult> DeletePromotion([FromRoute] Guid id)
     {
         var result = await _service.DeletePromotion(id);
