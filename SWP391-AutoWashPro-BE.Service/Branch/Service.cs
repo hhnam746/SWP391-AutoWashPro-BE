@@ -215,8 +215,10 @@ public class Service : IService
 
     public async Task<string> CreateBranch(Request.BranchRequest request)
     {
-        var existing = _dbContext.Branches.FirstOrDefault(x => x.Name == request.Name);
-        if (existing != null)
+        var existing = await _dbContext.Branches
+            .AnyAsync(x => x.Name == request.Name);
+
+        if (existing)
         {
             throw new Exception("Branch already exists");
         }

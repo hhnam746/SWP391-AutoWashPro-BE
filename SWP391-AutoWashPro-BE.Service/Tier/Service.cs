@@ -48,22 +48,25 @@ public class Service: IService
 
     public async Task<string> CreateTier(Request.TierRequest request)
     {
-        var exsit = _dbContext.Tiers.Where(x => x.Name == request.Name);
-        if (exsit != null)
+        var exist = await _dbContext.Tiers
+            .AnyAsync(x => x.Name == request.Name);
+
+        if (exist)
         {
             throw new Exception("Tier already exists");
         }
 
-        var newTier = new Repository.Entities.Tier()
+        var newTier = new Repository.Entities.Tier
         {
             Name = request.Name,
             Level = request.Level,
             RequiredWashes = request.RequiredWashes,
             PriorityBookingDays = request.PriorityBookingDays,
             Description = request.Description,
+            CreatedAt = DateTimeOffset.UtcNow
         };
-        _dbContext.Tiers.Add(newTier);
 
+        _dbContext.Tiers.Add(newTier);
         await _dbContext.SaveChangesAsync();
 
         return "Tier created successfully";
