@@ -564,7 +564,14 @@ public class Service : IService
         {
             throw new Exception("Booking not found or has been check-in");
         }
+        var slotDurationConfig = await _dbContext.SystemConfigs
+                                     .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
+                                 ?? throw new Exception("SlotDurationMinutes config not found");
 
+        if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
+        {
+            throw new Exception("Invalid SlotDurationMinutes config value");
+        }
         var msg = "";
         var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
         var voucher = await _dbContext.Vouchers.FirstOrDefaultAsync(x => x.Id == booking.VoucherId);
@@ -572,15 +579,24 @@ public class Service : IService
         {
             throw new Exception("Wallet not found");
         }
+        
+        var paymentDepositeConfig = await _dbContext.SystemConfigs
+                                        .FirstOrDefaultAsync(x => x.ConfigKey == "PaymentDeposite")
+                                    ?? throw new Exception("PaymentDeposite config not found");
 
-        if (wallet.Balance - (booking.FinalPrice - (booking.FinalPrice * 0.3m)) < 0)
+        if (!decimal.TryParse(paymentDepositeConfig.ConfigValue, out var paymentDeposite))
+        {
+            throw new Exception("Invalid PaymentDeposite config value");
+        }
+
+        if (wallet.Balance - (booking.FinalPrice - (booking.FinalPrice * paymentDeposite)) < 0)
         {
             booking.Status = BookingStatus.Cancelled;
             msg = "Check-in Failed";
         }
         else
         {
-            var remainingAmount = booking.FinalPrice - (booking.FinalPrice * 0.3m);
+            var remainingAmount = booking.FinalPrice - (booking.FinalPrice * paymentDeposite);
             wallet.Balance -= remainingAmount;
             booking.Status = BookingStatus.InProgress;
             msg = "Check-in successful";
@@ -592,8 +608,18 @@ public class Service : IService
             //////////////////////////////////////////////////////
             customerProfile.TotalPoints -= booking.RedemAmount ?? 0;
             //////////////////////////////////////////////////////
+            
+            var bonusPointConfig = await _dbContext.SystemConfigs
+                                       .FirstOrDefaultAsync(x => x.ConfigKey == "BonusPoint")
+                                   ?? throw new Exception("BonusPoint config not found");
+
+            if (!int.TryParse(bonusPointConfig.ConfigValue, out var bonusPoint))
+            {
+                throw new Exception("Invalid BonusPoint config value");
+            }
+
             customerProfile.TotalWashes += 1;
-            customerProfile.TotalPoints += 10;
+            customerProfile.TotalPoints += bonusPoint;
             var currentTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level);
             var nextTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level + 1);
 
@@ -632,12 +658,12 @@ public class Service : IService
                 };
                 _dbContext.PointTransactions.Add(pointTransaction);
             }
-
+            
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromMinutes(15));
+                    await Task.Delay(TimeSpan.FromMinutes(SlotDurationMinutes));
                     using var scope = _serviceScopeFactory.CreateScope();
                     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                     var delayedBooking = await dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == booking.Id);

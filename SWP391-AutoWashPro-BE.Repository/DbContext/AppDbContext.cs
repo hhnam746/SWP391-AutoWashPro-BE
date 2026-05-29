@@ -512,7 +512,7 @@ public class AppDbContext : DbContext
             builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.BookingDate);
             builder.HasIndex(x => x.StartTime);
-            builder.HasIndex(x => new { x.BranchId, x.BookingDate, x.StartTime }).IsUnique();
+            builder.HasIndex(x => new { x.BranchId, x.BookingDate, x.StartTime });
 
             builder.HasOne(x => x.Customer)
                 .WithMany(x => x.Bookings)
