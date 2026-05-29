@@ -9,10 +9,6 @@ namespace SWP391_AutoWashPro_BE.Service.Booking;
 
 public class Service : IService
 {
-    private static readonly TimeSpan DefaultUtcOffset = TimeSpan.FromHours(7);
-    private const int WorkingStartHour = 8;
-    private const int WorkingEndHour = 17;
-    private const int SlotDurationMinutes = 15;
 
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContext;
@@ -25,6 +21,10 @@ public class Service : IService
         _serviceScopeFactory = serviceScopeFactory;
     }
 
+    private static readonly TimeSpan DefaultUtcOffset = TimeSpan.FromHours(7);
+    private  int WorkingStartHour = 0;
+    private  int WorkingEndHour = 0;
+    private  int SlotDurationMinutes = 0;
 
     public async Task<Response.GetBookingSlotsResponse> GetBookingSlots(Guid branchId, DateOnly date)
     {
@@ -43,13 +43,55 @@ public class Service : IService
                 x.Status != BookingStatus.Cancelled)
             .ToListAsync();
 
+        var workingStartHourConfig = await _dbContext.SystemConfigs
+            .FirstOrDefaultAsync(x => x.ConfigKey == "WorkingStartHour");
+
+        if (workingStartHourConfig == null)
+        {
+            throw new Exception("WorkingStartHour config not found");
+        }
+
+        if (!int.TryParse(workingStartHourConfig.ConfigValue, out var workingStartHour))
+        {
+            throw new Exception("Invalid WorkingStartHour config value");
+        }
+        ///////////////// ///////////////// ///////////////// /////////////////
+        WorkingStartHour = workingStartHour;
+        ///////////////// ///////////////// ///////////////// /////////////////
+
+        var workingEndHourConfig = await _dbContext.SystemConfigs
+            .FirstOrDefaultAsync(x => x.ConfigKey == "WorkingEndHour");
+
+        if (workingEndHourConfig == null)
+        {
+            throw new Exception("WorkingEndHour config not found");
+        }
+
+        if (!int.TryParse(workingEndHourConfig.ConfigValue, out var workingEndHour))
+        {
+            throw new Exception("Invalid WorkingEndHour config value");
+        }
+
+        ///////////////// ///////////////// ///////////////// /////////////////
+        WorkingEndHour = workingEndHour;
+        ///////////////// ///////////////// ///////////////// /////////////////
+       
+        var slotDurationConfig = await _dbContext.SystemConfigs
+                                     .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
+                                 ?? throw new Exception("SlotDurationMinutes config not found");
+
+        if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
+        {
+            throw new Exception("Invalid SlotDurationMinutes config value");
+        }
+        
         var slots = new List<Response.SlotStatus>();
 
         var currentTime = new DateTimeOffset(
             date.Year,
             date.Month,
             date.Day,
-            8,
+            WorkingStartHour,
             0,
             0,
             TimeSpan.FromHours(7));
@@ -58,14 +100,14 @@ public class Service : IService
             date.Year,
             date.Month,
             date.Day,
-            17,
+            WorkingEndHour,
             0,
             0,
-            TimeSpan.FromHours(7));
+            TimeSpan.FromHours(7));;
 
-        while (currentTime < endWorkTime)
+        while (currentTime.AddMinutes(SlotDurationMinutes) <= endWorkTime)
         {
-            var slotEndTime = currentTime.AddMinutes(15);
+            var slotEndTime = currentTime.AddMinutes(SlotDurationMinutes);
 
             var bookedSlot = bookings.FirstOrDefault(x =>
                 x.StartTime.UtcDateTime == currentTime.UtcDateTime &&
@@ -85,7 +127,7 @@ public class Service : IService
         {
             BranchId = branchId,
             Date = date,
-            SlotDurationMinutes = 15,
+            SlotDurationMinutes = SlotDurationMinutes,
             Data = slots
         };
 
@@ -116,8 +158,20 @@ public class Service : IService
         {
             throw new Exception("Vehicle already has active booking");
         }
+        
+        /////////////// Base Price Config /////////////
+        var basePriceConfig = await _dbContext.SystemConfigs
+            .FirstOrDefaultAsync(x => x.ConfigKey == "BasePrice");
 
-        var basePrice = 100000;
+        if (basePriceConfig == null)
+        {
+            throw new Exception("BasePrice config not found");
+        }
+
+        if (!decimal.TryParse(basePriceConfig.ConfigValue, out var basePrice))
+        {
+            throw new Exception("Invalid BasePrice config value");
+        }
 
         if (bookingRequest.StartTime <= DateTimeOffset.Now)
         {
@@ -149,8 +203,9 @@ public class Service : IService
         var utcStartTime = bookingRequest.StartTime.ToUniversalTime();
 
         var isBooked = _dbContext.Bookings.Any(x =>
-            x.BranchId == bookingRequest.BranchId && x.BookingDate == bookingRequest.BookingDate &&
-            x.StartTime == utcStartTime);
+            x.BranchId == bookingRequest.BranchId && x.BookingDate == bookingRequest.BookingDate 
+                                                  && x.StartTime == utcStartTime
+                                                  && x.Status != BookingStatus.Cancelled);
         if (isBooked)
         {
             throw new Exception("Slot already booked");
@@ -225,13 +280,22 @@ public class Service : IService
         {
             throw new Exception("Wallet not exists");
         }
+        
+        var paymentDepositeConfig = await _dbContext.SystemConfigs
+                                        .FirstOrDefaultAsync(x => x.ConfigKey == "PaymentDeposite")
+                                    ?? throw new Exception("PaymentDeposite config not found");
 
-        if (wallet.Balance - finalPrice * 0.3m < 0)
+        if (!decimal.TryParse(paymentDepositeConfig.ConfigValue, out var paymentDeposite))
+        {
+            throw new Exception("Invalid PaymentDeposite config value");
+        }
+
+        if (wallet.Balance - finalPrice * paymentDeposite < 0)
         {
             throw new Exception("Not enough balance");
         }
 
-        wallet.Balance -= finalPrice * 0.3m; // Cọc slot 
+        wallet.Balance -= finalPrice * paymentDeposite;
         var newId = Guid.NewGuid();
         var newBooking = new Repository.Entities.Booking()
         {
