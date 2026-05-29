@@ -54,8 +54,8 @@ public class Service : IService
 
     public async Task<string> CreateReward(Request.RewardRequest request)
     {
-        var exist = _dbContext.Rewards.Where(x => x.Name == request.Name);
-        if (exist != null)
+        var exist = await _dbContext.Rewards.AnyAsync(x => x.Name == request.Name);
+        if (exist)
         {
             throw new Exception("Reward already exists");
         }

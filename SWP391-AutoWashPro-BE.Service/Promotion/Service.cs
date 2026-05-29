@@ -52,8 +52,8 @@ public class Service: IService
 
     public async Task<string> CreatePromotion(Request.PromotionRequest request)
     {
-        var exists = _dbContext.Promotions.Where(x => x.Name == request.Name);
-        if (exists != null)
+        var exists = await _dbContext.Promotions.AnyAsync(x => x.Name == request.Name);
+        if (exists)
         {
             throw new Exception("Promotion already exists");
         }
