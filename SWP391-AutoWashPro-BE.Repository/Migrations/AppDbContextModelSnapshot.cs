@@ -116,8 +116,7 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
 
                     b.HasIndex("VoucherId");
 
-                    b.HasIndex("BranchId", "BookingDate", "StartTime")
-                        .IsUnique();
+                    b.HasIndex("BranchId", "BookingDate", "StartTime");
 
                     b.ToTable("booking", (string)null);
                 });
@@ -603,6 +602,56 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.HasIndex("UpdatedById");
 
                     b.ToTable("system_config", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("6e830ac7-1934-4392-b05a-b4f777302170"),
+                            ConfigKey = "WorkingStartHour",
+                            ConfigValue = "8",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
+                            Description = "Default working start time in Vietnam timezone UTC+7."
+                        },
+                        new
+                        {
+                            Id = new Guid("8d456f5d-26ba-45f1-a57f-d88234758685"),
+                            ConfigKey = "WorkingEndHour",
+                            ConfigValue = "17",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
+                            Description = "Default working end time in Vietnam timezone UTC+7."
+                        },
+                        new
+                        {
+                            Id = new Guid("490a0d6b-e4ca-4315-a387-b92b6f52c9bc"),
+                            ConfigKey = "SlotDurationMinutes",
+                            ConfigValue = "15",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
+                            Description = "Duration of each booking slot in minutes."
+                        },
+                        new
+                        {
+                            Id = new Guid("f96ce391-eb3a-4a8e-ad76-18c3f8da6668"),
+                            ConfigKey = "BasePrice",
+                            ConfigValue = "100000",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
+                            Description = "Default base price for service."
+                        },
+                        new
+                        {
+                            Id = new Guid("219a17c5-c218-4c0c-b0e0-6e95fd0c6b11"),
+                            ConfigKey = "PaymentDeposite",
+                            ConfigValue = "30",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
+                            Description = "Deposit percentage required for booking."
+                        },
+                        new
+                        {
+                            Id = new Guid("09f7cba0-c348-4654-90d6-bdd3b21385fa"),
+                            ConfigKey = "BonusPoint",
+                            ConfigValue = "10",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
+                            Description = "Bonus points earned after checkout completed."
+                        });
                 });
 
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Tier", b =>
