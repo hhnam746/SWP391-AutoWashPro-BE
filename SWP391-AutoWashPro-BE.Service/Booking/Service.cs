@@ -158,7 +158,39 @@ public class Service : IService
         {
             throw new Exception("Vehicle already has active booking");
         }
-        
+        var workingStartHourConfig = await _dbContext.SystemConfigs
+            .FirstOrDefaultAsync(x => x.ConfigKey == "WorkingStartHour");
+
+        if (workingStartHourConfig == null)
+        {
+            throw new Exception("WorkingStartHour config not found");
+        }
+
+        if (!int.TryParse(workingStartHourConfig.ConfigValue, out var workingStartHour))
+        {
+            throw new Exception("Invalid WorkingStartHour config value");
+        }
+        ///////////////// ///////////////// ///////////////// /////////////////
+        WorkingStartHour = workingStartHour;
+        ///////////////// ///////////////// ///////////////// /////////////////
+
+        var workingEndHourConfig = await _dbContext.SystemConfigs
+            .FirstOrDefaultAsync(x => x.ConfigKey == "WorkingEndHour");
+
+        if (workingEndHourConfig == null)
+        {
+            throw new Exception("WorkingEndHour config not found");
+        }
+
+        if (!int.TryParse(workingEndHourConfig.ConfigValue, out var workingEndHour))
+        {
+            throw new Exception("Invalid WorkingEndHour config value");
+        }
+
+        ///////////////// ///////////////// ///////////////// /////////////////
+        WorkingEndHour = workingEndHour;
+        ///////////////// ///////////////// ///////////////// /////////////////
+
         /////////////// Base Price Config /////////////
         var basePriceConfig = await _dbContext.SystemConfigs
             .FirstOrDefaultAsync(x => x.ConfigKey == "BasePrice");
@@ -187,7 +219,7 @@ public class Service : IService
         var slotDurationConfig = await _dbContext.SystemConfigs
                                      .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
                                  ?? throw new Exception("SlotDurationMinutes config not found");
-
+    
         if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
         {
             throw new Exception("Invalid SlotDurationMinutes config value");
@@ -299,12 +331,12 @@ public class Service : IService
             throw new Exception("Invalid PaymentDeposite config value");
         }
 
-        if (wallet.Balance - finalPrice * paymentDeposite < 0)
+        if (wallet.Balance - finalPrice * (paymentDeposite / 100) < 0)
         {
             throw new Exception("Not enough balance");
         }
 
-        wallet.Balance -= finalPrice * paymentDeposite;
+        wallet.Balance -= finalPrice * (paymentDeposite / 100);
         var newId = Guid.NewGuid();
         var newBooking = new Repository.Entities.Booking()
         {
@@ -598,14 +630,14 @@ public class Service : IService
             throw new Exception("Invalid PaymentDeposite config value");
         }
 
-        if (wallet.Balance - (booking.FinalPrice - (booking.FinalPrice * paymentDeposite)) < 0)
+        if (wallet.Balance - (booking.FinalPrice - (booking.FinalPrice * (paymentDeposite / 100))) < 0)
         {
             booking.Status = BookingStatus.Cancelled;
             msg = "Check-in Failed";
         }
         else
         {
-            var remainingAmount = booking.FinalPrice - (booking.FinalPrice * paymentDeposite);
+            var remainingAmount = booking.FinalPrice - (booking.FinalPrice * (paymentDeposite / 100));
             wallet.Balance -= remainingAmount;
             booking.Status = BookingStatus.InProgress;
             msg = "Check-in successful";
