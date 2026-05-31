@@ -363,7 +363,7 @@ public class AppDbContext : DbContext
                 {
                     Id = Guid.Parse("6e830ac7-1934-4392-b05a-b4f777302170"),
                     ConfigKey = "WorkingStartHour",
-                    ConfigValue = "2026-05-28 08:00:00.000 +0700",
+                    ConfigValue = "8",
                     Description = "Default working start time in Vietnam timezone UTC+7.",
                     CreatedAt = defaultConfigCreatedAt,
                 },
@@ -373,7 +373,7 @@ public class AppDbContext : DbContext
                 {
                     Id = Guid.Parse("8d456f5d-26ba-45f1-a57f-d88234758685"),
                     ConfigKey = "WorkingEndHour",
-                    ConfigValue = "2026-05-28 17:00:00.000 +0700",
+                    ConfigValue = "17",
                     Description = "Default working end time in Vietnam timezone UTC+7.",
                     CreatedAt = defaultConfigCreatedAt,
                 },
