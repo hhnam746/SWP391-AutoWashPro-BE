@@ -353,6 +353,74 @@ public class AppDbContext : DbContext
                 .WithMany(x => x.UpdatedSystemConfigs)
                 .HasForeignKey(x => x.UpdatedById)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            var defaultConfigCreatedAt = new DateTimeOffset(2026, 5, 28, 20, 13, 39, TimeSpan.FromHours(7)).AddMilliseconds(590);
+            List<SystemConfig> systemConfigs = new List<SystemConfig>()
+            {
+                // Default business configs (UTC+7)
+                //WorkingStartHour = 8 am
+                new()
+                {
+                    Id = Guid.Parse("6e830ac7-1934-4392-b05a-b4f777302170"),
+                    ConfigKey = "WorkingStartHour",
+                    ConfigValue = "2026-05-28 08:00:00.000 +0700",
+                    Description = "Default working start time in Vietnam timezone UTC+7.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+                
+                //WorkingEndHour = 17 pm
+                new()
+                {
+                    Id = Guid.Parse("8d456f5d-26ba-45f1-a57f-d88234758685"),
+                    ConfigKey = "WorkingEndHour",
+                    ConfigValue = "2026-05-28 17:00:00.000 +0700",
+                    Description = "Default working end time in Vietnam timezone UTC+7.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+                
+                //SlotDurationMinutes = 15
+                new()
+                {
+                    Id = Guid.Parse("490a0d6b-e4ca-4315-a387-b92b6f52c9bc"),
+                    ConfigKey = "SlotDurationMinutes",
+                    ConfigValue = "15",
+                    Description = "Duration of each booking slot in minutes.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+                
+                //BasePrice = 100000
+                new()
+                {
+                    Id = Guid.Parse("f96ce391-eb3a-4a8e-ad76-18c3f8da6668"),
+                    ConfigKey = "BasePrice",
+                    ConfigValue = "100000",
+                    Description = "Default base price for service.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+                
+                //PaymentDeposite = 30
+                new()
+                {
+                    Id = Guid.Parse("219a17c5-c218-4c0c-b0e0-6e95fd0c6b11"),
+                    ConfigKey = "PaymentDeposite",
+                    ConfigValue = "30",
+                    Description = "Deposit percentage required for booking.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+                
+                //BonusPoint = 10
+                new()
+                {
+                    Id = Guid.Parse("09f7cba0-c348-4654-90d6-bdd3b21385fa"),
+                    ConfigKey = "BonusPoint",
+                    ConfigValue = "10",
+                    Description = "Bonus points earned after checkout completed.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+            };
+            
+            builder.HasData(systemConfigs);
+
         });
 
         modelBuilder.Entity<Promotion>(builder =>
