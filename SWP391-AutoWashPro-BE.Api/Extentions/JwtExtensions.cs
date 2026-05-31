@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.JwtService;
+using SWP391_AutoWashPro_BE.Repository.Constants;
 namespace SWP391_AutoWashPro_BE.Api.Extensions;
 
 
@@ -13,7 +14,6 @@ public static class JwtExtensions
 {
     public const string AdminPolicy = "AdminPolicy";
     public const string UserPolicy = "UserPolicy";
-    public const string UserOrAdminPolicy = "UserOrAdminPolicy";
 
     public static void AddJwtServices(this IServiceCollection services, IConfiguration configuration)
     {
@@ -76,16 +76,13 @@ public static class JwtExtensions
         services.AddAuthorization(options =>
         {
             options.AddPolicy(AdminPolicy, policy =>
-                policy.RequireRole("Admin"));
+                policy.RequireRole(nameof(UserRole.Admin), AppRoles.Admin));
             // [Authorize(Policy = JwtExtensions.AdminPolicy)]
         
             options.AddPolicy(UserPolicy, policy =>
-                policy.RequireRole("User"));
+                policy.RequireRole(nameof(UserRole.Customer), AppRoles.Customer));
+                // policy.RequireRole("User"));
             // [Authorize(Policy = JwtExtensions.UserPolicy)]
-            
-            options.AddPolicy(UserOrAdminPolicy, policy =>
-                policy.RequireRole("User", "Admin"));
-            // [Authorize(Policy = JwtExtensions.UserOrAdminPolicy)]
         });
     }
 }
