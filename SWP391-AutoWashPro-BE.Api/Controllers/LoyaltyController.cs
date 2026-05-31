@@ -6,7 +6,6 @@ using SWP391_AutoWashPro_BE.Service.Models;
 
 namespace SWP391_AutoWashPro_BE.Api.Controllers;
 
-[Authorize(Policy = JwtExtensions.UserPolicy)]
 [ApiController]
 [Route("api/v1/loyalty")]
 public class LoyaltyController : ControllerBase
@@ -18,6 +17,7 @@ public class LoyaltyController : ControllerBase
         _loyaltyService = loyaltyService;
     }
 
+    [Authorize(Policy = JwtExtensions.UserPolicy)]
     [HttpGet("me")]
     public async Task<IActionResult> GetMyLoyalty()
     {
@@ -25,6 +25,7 @@ public class LoyaltyController : ControllerBase
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get loyalty overview successfully", HttpContext.TraceIdentifier));
     }
     
+    [Authorize(Policy = JwtExtensions.UserPolicy)]
     [HttpGet("point-transactions")]
     public async Task<IActionResult> GetPointTransactions([FromQuery] Request.GetPointTransactionsRequest request)
     {
