@@ -215,7 +215,16 @@ public class Service : IService
         {
             throw new Exception("BookingDate must match StartTime date.");
         }
-
+        
+        var slotDurationConfig = await _dbContext.SystemConfigs
+                                     .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
+                                 ?? throw new Exception("SlotDurationMinutes config not found");
+    
+        if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
+        {
+            throw new Exception("Invalid SlotDurationMinutes config value");
+        }
+        
         if (bookingRequest.StartTime.Minute % SlotDurationMinutes != 0 ||
             bookingRequest.StartTime.Second != 0 ||
             bookingRequest.StartTime.Millisecond != 0)
