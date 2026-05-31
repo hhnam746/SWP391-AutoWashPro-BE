@@ -739,6 +739,11 @@ public class Service : IService
                 Cccd = x.CustomerProfile.Cccd,
                 TotalPoints = x.CustomerProfile.TotalPoints,
                 TotalWashes = x.CustomerProfile.TotalWashes,
+                FaceImageUrls = x.UserFaceImages
+                    .OrderBy(i => i.CreatedAt)
+                    .Select(i => i.ImageUrl)
+                    .Take(3)
+                    .ToList(),
                 TierData = x.CustomerProfile.Tier! == null
                     ? null
                     : new Response.TierData()
@@ -819,6 +824,11 @@ public class Service : IService
                 Cccd = x.CustomerProfile.Cccd,
                 TotalPoints = x.CustomerProfile.TotalPoints,
                 TotalWashes = x.CustomerProfile.TotalWashes,
+                FaceImageUrls = x.UserFaceImages
+                    .OrderBy(i => i.CreatedAt)
+                    .Select(i => i.ImageUrl)
+                    .Take(3)
+                    .ToList(),
                 TierData = x.CustomerProfile.Tier! == null
                     ? null
                     : new Response.TierData()
@@ -875,6 +885,11 @@ public class Service : IService
                     Cccd = x.CustomerProfile.Cccd,
                     TotalPoints = x.CustomerProfile.TotalPoints,
                     TotalWashes = x.CustomerProfile.TotalWashes,
+                    FaceImageUrls = x.UserFaceImages
+                        .OrderBy(i => i.CreatedAt)
+                        .Select(i => i.ImageUrl)
+                        .Take(3)
+                        .ToList(),
                     TierData = x.CustomerProfile.Tier! == null
                         ? null
                         : new Response.TierData()
