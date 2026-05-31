@@ -539,8 +539,13 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
         if (customerProfile == null)
             throw new Exception("Customer profile not found");
-        var query = await _dbContext.Bookings.FirstOrDefaultAsync(x =>
-            x.CustomerId == customerProfile.Id && x.Id == bookingId);
+        var query = await _dbContext.Bookings
+            .Include(x => x.Branch)
+            .Include(x => x.Vehicle)
+            .Include(x => x.Voucher)
+            .FirstOrDefaultAsync(x =>
+                x.CustomerId == customerProfile.Id &&
+                x.Id == bookingId);
         if (query == null)
         {
             throw new Exception("Booking not found");
@@ -554,7 +559,7 @@ public class Service : IService
                 Code = query.Voucher.Code,
                 DiscountAmount = query.Voucher.DiscountValue
             };
-        var discountAmount = Voucher.DiscountAmount ?? 0;
+        var discountAmount = Voucher?.DiscountAmount ?? 0;
         var result = new Response.GetBookingDetailResponse
         {
             Id = query.Id,
