@@ -77,6 +77,7 @@ public class Response
         public string? Cccd { get; set; }
         public int TotalPoints { get; set; }
         public int TotalWashes { get; set; }
+        public List<string> FaceImageUrls { get; set; } = new();
         public TierData? TierData { get; set; }
     }
 
