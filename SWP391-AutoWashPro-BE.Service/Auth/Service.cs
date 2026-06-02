@@ -40,9 +40,17 @@ public class Service : IService
         {
             throw new ArgumentException("At least 3 face images are required.");
         }
+        
+        var normalizedEmail = request.Email.Trim();
+        var normalizedPhone = request.Phone.Trim();
+        var normalizedFirstName = request.FirstName.Trim();
+        var normalizedLastName = request.LastName.Trim();
+        var normalizedCccd = string.IsNullOrWhiteSpace(request.Cccd)
+            ? null
+            : request.Cccd.Trim();
 
         var existingUserQuery = _dbContext.Users
-            .Where(x => x.Email == request.Email);
+            .Where(x => x.Email == normalizedEmail);
         
         bool isExistUser = await existingUserQuery.AnyAsync();
         
@@ -51,29 +59,20 @@ public class Service : IService
             throw new ArgumentException("User exist with mail.");
         }
         
-        if (!IsValidEmail(request.Email))
+        if (!IsValidEmail(normalizedEmail))
         {
             throw new ArgumentException("Invalid email format.");
         }
         
-        if (!IsValidPhoneNumber(request.Phone))
+        if (!IsValidPhoneNumber(normalizedPhone))
         {
             throw new ArgumentException("Invalid phone number format.");
         }
-        
-        var user = new Repository.Entities.User()
+
+        if (normalizedCccd != null && !IsValidCccd(normalizedCccd))
         {
-            Email =  request.Email,
-            Phone = request.Phone,
-            PasswordHash = _securityService.Hash(request.Password),
-            isVerify = false,
-            Role = UserRole.Customer,
-            Status = AccountStatus.Active,
-            CreatedAt = DateTimeOffset.UtcNow,
-        };
-        
-        _dbContext.Users.Add(user);
-        await _dbContext.SaveChangesAsync();
+            throw new ArgumentException("Invalid CCCD format.");
+        }
 
         var defaultTier = await _dbContext.Tiers
             .FirstOrDefaultAsync(t => t.Name == "Silver");
@@ -116,45 +115,74 @@ public class Service : IService
                 }
             }
         }
-        
+
+        // Check duplicate CCCD
+        if (normalizedCccd != null)
+        {
+            var cccd = _dbContext.CustomerProfiles.Where(x => x.Cccd == normalizedCccd);
+
+            bool isCccd = await cccd.AnyAsync();
+            if (isCccd)
+            {
+              throw new Exception("CCCD has been used");
+            }
+        }
+      
+        var user = new Repository.Entities.User()
+        {
+          Email = normalizedEmail,
+          Phone = normalizedPhone,
+          PasswordHash = _securityService.Hash(request.Password),
+          isVerify = false,
+          Role = UserRole.Customer,
+          Status = AccountStatus.Active,
+          CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _dbContext.Users.Add(user);
+          
+
         var customerProfile = new Repository.Entities.CustomerProfile()
         {
-            UserId = user.Id,
-            TierId = defaultTier.Id,
-            FirstName = request.FirstName.Trim(),
-            LastName = request.LastName.Trim(),
-            Cccd = string.IsNullOrWhiteSpace(request.Cccd) ? null : request.Cccd.Trim(),
-            CreatedAt = DateTimeOffset.UtcNow,
+          UserId = user.Id,
+          TierId = defaultTier.Id,
+          FirstName = normalizedFirstName,
+          LastName = normalizedLastName,
+          Cccd = normalizedCccd,
+          CreatedAt = DateTimeOffset.UtcNow,
         };
 
         _dbContext.CustomerProfiles.Add(customerProfile);
-        await _dbContext.SaveChangesAsync();
+          
 
         var userWallet = new Repository.Entities.Wallet()
         {
-            CustomerId = customerProfile.Id,
-            Balance = 0,
-            CreatedAt = DateTimeOffset.UtcNow,
+          CustomerId = customerProfile.Id,
+          Balance = 0,
+          CreatedAt = DateTimeOffset.UtcNow,
         };
-        
+
         _dbContext.Add(userWallet);
-        await _dbContext.SaveChangesAsync();
         
+
         var faceImageUrls = new List<string>();
         foreach (var faceImage in request.FaceImages)
         {
-            faceImageUrls.Add(await _mediaService.UploadImageAsync(faceImage));
+          faceImageUrls.Add(await _mediaService.UploadImageAsync(faceImage));
         }
-        
+
         var userFaceImages = faceImageUrls.Select(imageUrl => new Repository.Entities.UserFaceImage()
         {
-            UserId = user.Id,
-            ImageUrl = imageUrl, 
-            CreatedAt = DateTimeOffset.UtcNow,
+          UserId = user.Id,
+          ImageUrl = imageUrl, 
+          CreatedAt = DateTimeOffset.UtcNow,
         });
-        
+
         _dbContext.UserFaceImages.AddRange(userFaceImages);
+        
+        //Save change tổng
         await _dbContext.SaveChangesAsync();
+      
         
         // Send welcome email
         try
@@ -468,6 +496,20 @@ public class Service : IService
             // Pattern: 10-15 digits, can include +, -, space, ()
             string pattern = @"^[0-9+\-\s()]{10,15}$";
             return Regex.IsMatch(phoneNumber, pattern);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool IsValidCccd(string cccd)
+    {
+        try
+        {
+            // Vietnam CCCD is commonly stored as exactly 12 digits.
+            const string pattern = @"^\d{12}$";
+            return Regex.IsMatch(cccd, pattern);
         }
         catch
         {
