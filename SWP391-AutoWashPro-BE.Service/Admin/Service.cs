@@ -4,16 +4,17 @@ using Microsoft.EntityFrameworkCore;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
+using SWP391_AutoWashPro_BE.Service.Base;
 
 namespace SWP391_AutoWashPro_BE.Service.Admin;
 
 public class Service : IService
 {
-    private const int DefaultSlotDurationMinutes = 15;
-    private const int WorkingStartHour = 8;
-    private const int WorkingEndHour = 17;
-    private const int PointsPerCompletedWash = 50;
     private static readonly TimeSpan DefaultUtcOffset = TimeSpan.FromHours(7);
+    private  int WorkingStartHour = 0;
+    private  int WorkingEndHour = 0;
+    private  int SlotDurationMinutes = 0;
+    private int PointsPerCompletedWash = 0;
 
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContext;
@@ -283,7 +284,7 @@ public class Service : IService
                 {
                     Id = x.Id,
                     StartTime = x.StartTime,
-                    Status = ToBookingStatusValue(x.Status),
+                    Status = x.Status.ToString(),
                     BranchName = x.BranchName,
                     LicensePlate = x.LicensePlate
                 })
@@ -593,7 +594,7 @@ public class Service : IService
         return new Response.CompleteBookingByAdminResponse
         {
             Id = booking.Id,
-            Status = ToBookingStatusValue(booking.Status),
+            Status = booking.Status.ToString(),
             CompletedAt = booking.CompletedAt.Value,
             PointsEarned = PointsPerCompletedWash,
             Message = "Booking completed and loyalty points applied"
@@ -655,7 +656,7 @@ public class Service : IService
         return new Response.CancelBookingByAdminResponse
         {
             Id = booking.Id,
-            Status = ToBookingStatusValue(booking.Status),
+            Status = booking.Status.ToString(),
             CancelledAt = booking.CancelledAt.Value,
             Message = "Booking cancelled"
         };
@@ -1015,6 +1016,13 @@ public class Service : IService
     public async Task<Base.Response.PageResult<Response.BookingResponse>> GetBookings(
         Request.GetBookingRequest request)
     {
+        var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
+
+        var user = await _dbContext.Users
+            .FirstOrDefaultAsync(x => x.Id == userIdGuid);
+
+        if (user == null)
+            throw new Exception("User not found");
         if (request == null)
         {
             throw new ArgumentException("Request is required.");
@@ -1033,6 +1041,13 @@ public class Service : IService
         if (request.PageSize <= 0)
         {
             throw new ArgumentException("PageSize must be greater than 0.");
+        }
+
+        if (request.FromDate.HasValue &&
+            request.ToDate.HasValue &&
+            request.FromDate.Value > request.ToDate.Value)
+        {
+            throw new ArgumentException("FromDate must be less than or equal to ToDate.");
         }
 
         if (request.BranchId.HasValue)
@@ -1060,6 +1075,18 @@ public class Service : IService
         {
             query = query.Where(x => x.BookingDate == request.Date.Value);
         }
+        else
+        {
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(x => x.BookingDate >= request.FromDate.Value);
+            }
+        
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(x => x.BookingDate <= request.ToDate.Value);
+            }
+        }
 
         if (request.Status.HasValue && request.Status.Value != BookingStatus.Available)
         {
@@ -1068,15 +1095,13 @@ public class Service : IService
 
         var totalItems = await query.CountAsync();
 
-        var items = await query
+        var bookingDetail = query
             .OrderByDescending(x => x.BookingDate)
             .ThenBy(x => x.StartTime)
-            .Skip((request.PageIndex - 1) * request.PageSize)
-            .Take(request.PageSize)
             .Select(x => new Response.BookingResponse
             {
                 Id = x.Id,
-                Status = ToBookingStatusValue(x.Status),
+                Status = x.Status.ToString(),
                 BookingDate = x.BookingDate,
                 StartTime = x.StartTime,
                 EndTime = x.EndTime,
@@ -1101,7 +1126,11 @@ public class Service : IService
                     Id = x.Branch.Id,
                     Name = x.Branch.Name
                 }
-            })
+            });
+
+        var items = await bookingDetail
+            .Skip((request.PageIndex - 1) * request.PageSize)
+            .Take(request.PageSize)
             .ToListAsync();
 
         return new Base.Response.PageResult<Response.BookingResponse>
@@ -1115,6 +1144,14 @@ public class Service : IService
 
     public async Task<Response.BookingSlotResponse> GetBookingSlots(Request.GetBookingSlotRequest request)
     {
+        var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
+
+        var user = await _dbContext.Users
+            .FirstOrDefaultAsync(x => x.Id == userIdGuid);
+
+        if (user == null)
+            throw new Exception("User not found");
+        
         if (request.BranchId == Guid.Empty)
         {
             throw new ArgumentException("BranchId is required.");
@@ -1161,29 +1198,90 @@ public class Service : IService
                 x.Customer.LastName
             })
             .ToListAsync();
+        
+        //lấy ra config từ system config
+        
+        var workingStartHourConfig = await _dbContext.SystemConfigs
+            .FirstOrDefaultAsync(x => x.ConfigKey == "WorkingStartHour");
 
-        var slotData = new List<Response.SlotDataResponse>();
-        var slotStart = BuildSlotTime(request.Date, WorkingStartHour, 0);
-        var workingEnd = BuildSlotTime(request.Date, WorkingEndHour, 0);
-
-        while (slotStart < workingEnd)
+        if (workingStartHourConfig == null)
         {
-            var slotEnd = slotStart.AddMinutes(DefaultSlotDurationMinutes);
+            throw new Exception("WorkingStartHour config not found");
+        }
+
+        if (!int.TryParse(workingStartHourConfig.ConfigValue, out var workingStartHour))
+        {
+            throw new Exception("Invalid WorkingStartHour config value");
+        }
+        ///////////////// ///////////////// ///////////////// /////////////////
+        WorkingStartHour = workingStartHour;
+        ///////////////// ///////////////// ///////////////// /////////////////
+        
+        var workingEndHourConfig = await _dbContext.SystemConfigs
+            .FirstOrDefaultAsync(x => x.ConfigKey == "WorkingEndHour");
+
+        if (workingEndHourConfig == null)
+        {
+            throw new Exception("WorkingEndHour config not found");
+        }
+
+        if (!int.TryParse(workingEndHourConfig.ConfigValue, out var workingEndHour))
+        {
+            throw new Exception("Invalid WorkingEndHour config value");
+        }
+
+        ///////////////// ///////////////// ///////////////// /////////////////
+        WorkingEndHour = workingEndHour;
+        ///////////////// ///////////////// ///////////////// /////////////////
+        
+        var slotDurationConfig = await _dbContext.SystemConfigs
+                                     .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
+                                 ?? throw new Exception("SlotDurationMinutes config not found");
+
+        if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
+        {
+            throw new Exception("Invalid SlotDurationMinutes config value");
+        }
+        
+        
+        var slotData = new List<Response.SlotDataResponse>();
+
+        var currentTime = new DateTimeOffset(
+            request.Date.Year,
+            request.Date.Month,
+            request.Date.Day,
+            WorkingStartHour,
+            0,
+            0,
+            TimeSpan.FromHours(7));
+
+        var endWorkTime = new DateTimeOffset(
+            request.Date.Year,
+            request.Date.Month,
+            request.Date.Day,
+            WorkingEndHour,
+            0,
+            0,
+            TimeSpan.FromHours(7));
+
+        while (currentTime.AddMinutes(SlotDurationMinutes) <= endWorkTime)
+        {
+            var slotEndTime = currentTime.AddMinutes(SlotDurationMinutes);
             var booking = bookedSlots.FirstOrDefault(x =>
-                x.StartTime.UtcDateTime == slotStart.UtcDateTime &&
-                x.EndTime.UtcDateTime == slotEnd.UtcDateTime);
+                x.StartTime.UtcDateTime == currentTime.UtcDateTime &&
+                x.EndTime.UtcDateTime == slotEndTime.UtcDateTime);
 
             if (booking != null)
             {
                 slotData.Add(new Response.SlotDataResponse
                 {
-                    StartTime = slotStart,
-                    EndTime = slotEnd,
+                    StartTime = currentTime,
+                    EndTime = slotEndTime,
                     Status = "booked",
                     Booking = new Response.SlotBookingResponse
                     {
                         Id = booking.Id,
-                        Status = ToBookingStatusValue(booking.Status),
+                        Status = booking.Status.ToString(),
                         LicensePlate = booking.LicensePlate,
                         CustomerName = $"{booking.FirstName} {booking.LastName}".Trim()
                     }
@@ -1193,14 +1291,14 @@ public class Service : IService
             {
                 slotData.Add(new Response.SlotDataResponse
                 {
-                    StartTime = slotStart,
-                    EndTime = slotEnd,
+                    StartTime = currentTime,
+                    EndTime = slotEndTime,
                     Status = "available",
                     Booking = null
                 });
             }
 
-            slotStart = slotEnd;
+            currentTime = slotEndTime;
         }
 
         var totalItems = slotData.Count;
@@ -1213,32 +1311,13 @@ public class Service : IService
         {
             BranchId = request.BranchId,
             Date = request.Date,
-            SlotDurationMinutes = DefaultSlotDurationMinutes,
+            SlotDurationMinutes = SlotDurationMinutes,
             TotalItems = totalItems,
             PageIndex = request.PageIndex,
             PageSize = request.PageSize,
             Data = pagedSlotData
         };
     }
-
-    private static DateTimeOffset BuildSlotTime(DateOnly date, int hour, int minute)
-    {
-        var localDateTime = date.ToDateTime(new TimeOnly(hour, minute));
-        return new DateTimeOffset(localDateTime, DefaultUtcOffset);
-    }
-
-    private static string ToBookingStatusValue(BookingStatus status)
-    {
-        return status switch
-        {
-            BookingStatus.Available => "available",
-            BookingStatus.Pending => "pending",
-            BookingStatus.Confirmed => "confirmed",
-            BookingStatus.CheckIn => "check_in",
-            BookingStatus.InProgress => "in_progress",
-            BookingStatus.Completed => "completed",
-            BookingStatus.Cancelled => "cancelled",
-            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
-        };
-    }
+    
+    
 }
