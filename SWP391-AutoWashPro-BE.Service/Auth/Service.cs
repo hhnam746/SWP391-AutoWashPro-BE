@@ -130,6 +130,7 @@ public class Service : IService
       
         var user = new Repository.Entities.User()
         {
+          Id = Guid.NewGuid(),
           Email = normalizedEmail,
           Phone = normalizedPhone,
           PasswordHash = _securityService.Hash(request.Password),
@@ -140,11 +141,11 @@ public class Service : IService
         };
 
         _dbContext.Users.Add(user);
-        await _dbContext.SaveChangesAsync();
           
 
         var customerProfile = new Repository.Entities.CustomerProfile()
         {
+          Id = Guid.NewGuid(),
           UserId = user.Id,
           TierId = defaultTier.Id,
           FirstName = normalizedFirstName,
@@ -154,22 +155,19 @@ public class Service : IService
         };
 
         _dbContext.CustomerProfiles.Add(customerProfile);
-        await _dbContext.SaveChangesAsync();
         
-          
-
+      
         var userWallet = new Repository.Entities.Wallet()
         {
+          Id = Guid.NewGuid(),
           CustomerId = customerProfile.Id,
           Balance = 0,
           CreatedAt = DateTimeOffset.UtcNow,
         };
 
         _dbContext.Wallets.Add(userWallet);
-        await _dbContext.SaveChangesAsync();
         
         
-
         var faceImageUrls = new List<string>();
         foreach (var faceImage in request.FaceImages)
         {
@@ -178,6 +176,7 @@ public class Service : IService
 
         var userFaceImages = faceImageUrls.Select(imageUrl => new Repository.Entities.UserFaceImage()
         {
+          Id = Guid.NewGuid(),
           UserId = user.Id,
           ImageUrl = imageUrl, 
           CreatedAt = DateTimeOffset.UtcNow,
