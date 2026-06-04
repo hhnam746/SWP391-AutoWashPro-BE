@@ -36,7 +36,7 @@ public class TierController: ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpPut("admin/update-tier")]
+    [HttpPut("admin/update-tier/{id}")]
     public async Task<IActionResult> UpdateTier(
         [FromRoute] Guid id,
         [FromBody] Request.TierRequest request)
@@ -46,7 +46,7 @@ public class TierController: ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpDelete("admin/delete-tier")]
+    [HttpDelete("admin/delete-tier/{id}")]
     public async Task<IActionResult> DeleteTier([FromRoute] Guid id)
     {
         var result = await _service.DeleteTier(id);
