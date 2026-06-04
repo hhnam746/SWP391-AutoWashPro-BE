@@ -140,6 +140,7 @@ public class Service : IService
         };
 
         _dbContext.Users.Add(user);
+        await _dbContext.SaveChangesAsync();
           
 
         var customerProfile = new Repository.Entities.CustomerProfile()
@@ -153,6 +154,8 @@ public class Service : IService
         };
 
         _dbContext.CustomerProfiles.Add(customerProfile);
+        await _dbContext.SaveChangesAsync();
+        
           
 
         var userWallet = new Repository.Entities.Wallet()
@@ -162,7 +165,9 @@ public class Service : IService
           CreatedAt = DateTimeOffset.UtcNow,
         };
 
-        _dbContext.Add(userWallet);
+        _dbContext.Wallets.Add(userWallet);
+        await _dbContext.SaveChangesAsync();
+        
         
 
         var faceImageUrls = new List<string>();
@@ -180,7 +185,6 @@ public class Service : IService
 
         _dbContext.UserFaceImages.AddRange(userFaceImages);
         
-        //Save change tổng
         await _dbContext.SaveChangesAsync();
       
         
