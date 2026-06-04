@@ -50,7 +50,6 @@ public class Service : IService
         {
             throw new Exception("WorkingStartHour config not found");
         }
-
         if (!int.TryParse(workingStartHourConfig.ConfigValue, out var workingStartHour))
         {
             throw new Exception("Invalid WorkingStartHour config value");
@@ -122,7 +121,6 @@ public class Service : IService
 
             currentTime = slotEndTime;
         }
-
         var result = new Response.GetBookingSlotsResponse
         {
             BranchId = branchId,
@@ -153,7 +151,6 @@ public class Service : IService
             x.VehicleId == bookingRequest.VehicleId &&
             x.Status != BookingStatus.Completed &&
             x.Status != BookingStatus.Cancelled);
-
         if (hasActiveBooking)
         {
             throw new Exception("Vehicle already has active booking");
