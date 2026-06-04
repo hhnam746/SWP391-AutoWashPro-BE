@@ -802,7 +802,7 @@ public class Service : IService
 
         var totalItems = await query.CountAsync();
 
-        query = query.OrderBy(x => x.CreatedAt);
+        query = query.OrderByDescending(x => x.CreatedAt);
 
         query = query
             .Skip((pageIndex - 1) * pageSize)
