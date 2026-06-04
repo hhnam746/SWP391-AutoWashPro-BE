@@ -36,7 +36,7 @@ public class RewardController: ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpPut("admin/update-reward")]
+    [HttpPut("admin/update-reward/{id}")]
     public async Task<IActionResult> UpdateReward(
         [FromRoute] Guid id,
         [FromBody] Request.RewardRequest request)
@@ -46,7 +46,7 @@ public class RewardController: ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpDelete("admin/delete-reward")]
+    [HttpDelete("admin/delete-reward/{id}")]
     public async Task<IActionResult> DeleteReward([FromRoute] Guid id)
     {
         var result = await _service.DeleteReward(id);
@@ -54,7 +54,7 @@ public class RewardController: ControllerBase
     }
 
   
-    [HttpPost("redeem-reward")]
+    [HttpPost("redeem-reward/{id}")]
     public async Task<IActionResult> RedeemReward(
         [FromRoute] Guid id,
         [FromQuery] Guid userId)
