@@ -50,7 +50,6 @@ public class Service : IService
         {
             throw new Exception("WorkingStartHour config not found");
         }
-
         if (!int.TryParse(workingStartHourConfig.ConfigValue, out var workingStartHour))
         {
             throw new Exception("Invalid WorkingStartHour config value");
@@ -122,7 +121,6 @@ public class Service : IService
 
             currentTime = slotEndTime;
         }
-
         var result = new Response.GetBookingSlotsResponse
         {
             BranchId = branchId,
@@ -149,15 +147,14 @@ public class Service : IService
         if (customerProfile == null)
             throw new Exception("Customer profile not found");
 
-        var hasActiveBooking = await _dbContext.Bookings.AnyAsync(x =>
-            x.VehicleId == bookingRequest.VehicleId &&
-            x.Status != BookingStatus.Completed &&
-            x.Status != BookingStatus.Cancelled);
-
-        if (hasActiveBooking)
-        {
-            throw new Exception("Vehicle already has active booking");
-        }
+        // var hasActiveBooking = await _dbContext.Bookings.AnyAsync(x =>
+        //     x.VehicleId == bookingRequest.VehicleId &&
+        //     x.Status != BookingStatus.Completed &&
+        //     x.Status != BookingStatus.Cancelled);
+        // if (hasActiveBooking)
+        // {
+        //     throw new Exception("Vehicle already has active booking");
+        // }
         var workingStartHourConfig = await _dbContext.SystemConfigs
             .FirstOrDefaultAsync(x => x.ConfigKey == "WorkingStartHour");
 
@@ -238,7 +235,7 @@ public class Service : IService
 
         if (localStartTimeOnly < workingStart || localStartTimeOnly >= workingEnd)
         {
-            throw new Exception("StartTime must be within working hours (08:00-17:00).");
+            throw new Exception($"StartTime must be within working hours ({workingStart}-{workingEnd}).");
         }
 
         var utcStartTime = bookingRequest.StartTime.ToUniversalTime();
@@ -491,8 +488,8 @@ public class Service : IService
             Id = x.Id,
             Status = x.Status,
             BookingDate = x.BookingDate,
-            StartTime = x.StartTime,
-            EndTime = x.EndTime,
+            StartTime = x.StartTime.ToOffset(TimeSpan.FromHours(7)),
+            EndTime = x.EndTime.ToOffset(TimeSpan.FromHours(7)),
             Branch = new Response.BookingBranchDetail
             {
                 Id = x.BranchId,
