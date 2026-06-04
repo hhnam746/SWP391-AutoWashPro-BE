@@ -48,30 +48,39 @@ public class Service : IService
         var normalizedCccd = string.IsNullOrWhiteSpace(request.Cccd)
             ? null
             : request.Cccd.Trim();
-
-        var existingUserQuery = _dbContext.Users
-            .Where(x => x.Email == normalizedEmail);
-        
-        bool isExistUser = await existingUserQuery.AnyAsync();
-        
-        if (isExistUser)
-        {
-            throw new ArgumentException("User exist with mail.");
-        }
-        
+      
         if (!IsValidEmail(normalizedEmail))
         {
-            throw new ArgumentException("Invalid email format.");
+          throw new ArgumentException("Invalid email format.");
         }
         
         if (!IsValidPhoneNumber(normalizedPhone))
         {
-            throw new ArgumentException("Invalid phone number format.");
+          throw new ArgumentException("Invalid phone number format.");
         }
 
         if (normalizedCccd != null && !IsValidCccd(normalizedCccd))
         {
-            throw new ArgumentException("Invalid CCCD format.");
+          throw new ArgumentException("Invalid CCCD format.");
+        }
+        
+        var existingUser = await _dbContext.Users
+          .AsNoTracking()
+          .FirstOrDefaultAsync(x =>
+            x.Email == normalizedEmail ||
+            x.Phone == normalizedPhone);
+
+        if (existingUser != null)
+        {
+          if (existingUser.Email == normalizedEmail)
+          {
+            throw new ArgumentException("Email is already used.");
+          }
+
+          if (existingUser.Phone == normalizedPhone)
+          {
+            throw new ArgumentException("Phone number is already used.");
+          }
         }
 
         var defaultTier = await _dbContext.Tiers
