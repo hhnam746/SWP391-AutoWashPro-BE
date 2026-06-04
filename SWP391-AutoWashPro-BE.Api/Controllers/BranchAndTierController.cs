@@ -63,7 +63,7 @@ public class BranchAndTierController : ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpPut("admin/update-branches")]
+    [HttpPut("admin/update-branches/{id}")]
     public async Task<IActionResult> UpdateBranch(
         [FromRoute] Guid id,
         [FromBody] Request.BranchRequest request)
@@ -73,7 +73,7 @@ public class BranchAndTierController : ControllerBase
     }
 
     [Authorize(Policy = JwtExtensions.AdminPolicy)]
-    [HttpDelete("admin/delete-branches")]
+    [HttpDelete("admin/delete-branches/{id}")]
     public async Task<IActionResult> DeleteBranch([FromRoute] Guid id)
     {
         var result = await _service.DeleteBranch(id);
