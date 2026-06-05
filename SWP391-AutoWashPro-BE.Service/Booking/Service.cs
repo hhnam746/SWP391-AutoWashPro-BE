@@ -488,8 +488,8 @@ public class Service : IService
             Id = x.Id,
             Status = x.Status,
             BookingDate = x.BookingDate,
-            StartTime = x.StartTime.ToOffset(TimeSpan.FromHours(7)),
-            EndTime = x.EndTime.ToOffset(TimeSpan.FromHours(7)),
+            StartTime = x.StartTime,
+            EndTime = x.EndTime,
             Branch = new Response.BookingBranchDetail
             {
                 Id = x.BranchId,
