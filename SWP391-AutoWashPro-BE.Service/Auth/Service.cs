@@ -41,14 +41,18 @@ public class Service : IService
             throw new ArgumentException("At least 3 face images are required.");
         }
         
+        if (string.IsNullOrWhiteSpace(request.Cccd))
+        {
+          throw new ArgumentException("CCCD is required.");
+        }
+        
         var normalizedEmail = request.Email.Trim();
         var normalizedPhone = request.Phone.Trim();
         var normalizedFirstName = request.FirstName.Trim();
         var normalizedLastName = request.LastName.Trim();
-        var normalizedCccd = string.IsNullOrWhiteSpace(request.Cccd)
-            ? null
-            : request.Cccd.Trim();
-      
+        var normalizedCccd = request.Cccd.Trim();
+        
+        
         if (!IsValidEmail(normalizedEmail))
         {
           throw new ArgumentException("Invalid email format.");
@@ -59,7 +63,7 @@ public class Service : IService
           throw new ArgumentException("Invalid phone number format.");
         }
 
-        if (normalizedCccd != null && !IsValidCccd(normalizedCccd))
+        if (!IsValidCccd(normalizedCccd))
         {
           throw new ArgumentException("Invalid CCCD format.");
         }
@@ -124,18 +128,17 @@ public class Service : IService
                 }
             }
         }
-
+        
         // Check duplicate CCCD
-        if (normalizedCccd != null)
+        bool isCccdUsed = await _dbContext.CustomerProfiles
+          .AsNoTracking()
+          .AnyAsync(x => x.Cccd == normalizedCccd);
+        
+        if (isCccdUsed)
         {
-            var cccd = _dbContext.CustomerProfiles.Where(x => x.Cccd == normalizedCccd);
-
-            bool isCccd = await cccd.AnyAsync();
-            if (isCccd)
-            {
-              throw new Exception("CCCD has been used");
-            }
+          throw new ArgumentException("CCCD has already been used.");
         }
+        
       
         var user = new Repository.Entities.User()
         {
