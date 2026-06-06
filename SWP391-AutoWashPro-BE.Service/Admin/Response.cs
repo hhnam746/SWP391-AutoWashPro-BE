@@ -53,6 +53,7 @@ public class Response
     {
         public Guid UserId { get; set; }
         public AccountStatus Status { get; set; }
+        public bool IsVerify { get; set; }
     }
 
     public class AllProfileResponse

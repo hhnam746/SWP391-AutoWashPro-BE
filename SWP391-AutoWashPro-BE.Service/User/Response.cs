@@ -32,4 +32,31 @@ public class Response
         public string Name { get; set; }
         public int Level { get; set; }
     }
+    
+
+    public class UserFaceImageResponse
+    {
+        public required string ImageUrl { get; set; }
+    }
+
+    public class GetMyStatus
+    {
+        public Guid Id { get; set; }
+
+        public required string Email { get; set; }
+
+        public required string Phone { get; set; }
+
+        public required string Role { get; set; }
+
+        public required string Status { get; set; }
+
+        public bool IsVerified { get; set; }
+        public string? RejectReason { get; set; }
+
+        public required ProfileData ProfileData { get; set; }
+
+        public List<UserFaceImageResponse> FaceImages { get; set; } = new();
+    }
+    
 }

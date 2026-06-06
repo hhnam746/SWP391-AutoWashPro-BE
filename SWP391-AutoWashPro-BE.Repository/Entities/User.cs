@@ -9,8 +9,9 @@ public class User : BaseEntity, IAuditableEntity
     public string Phone { get; set; } = null!;
     public string PasswordHash { get; set; } = null!;
     public UserRole Role { get; set; } = UserRole.Customer;
-    public AccountStatus Status { get; set; } = AccountStatus.Active;
+    public AccountStatus Status { get; set; }
     public bool isVerify { get; set; } = false;
+    public string? Reason { get; set; }
     public DateTimeOffset? LastLoginAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
