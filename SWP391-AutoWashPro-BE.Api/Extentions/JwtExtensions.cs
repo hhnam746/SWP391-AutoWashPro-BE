@@ -65,10 +65,10 @@ public static class JwtExtensions
                             return;
                         }
 
-                        if (status != AccountStatus.Active)
-                        {
-                            context.Fail("Account is not active.");
-                        }
+                        // if (status != AccountStatus.Active)
+                        // {
+                        //     context.Fail("Account is not active.");
+                        // }
                     }
                 };
             });

@@ -662,10 +662,16 @@ public class Service : IService
         };
     }
 
+    //Verify Account
 
-    public async Task<string> UpdateUserVerificationStatus(Guid userId)
+    public async Task<string> ApprovalIdentity(Guid userId)
     {
-        var targetUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        var targetUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId && 
+                                                                         !u.isVerify && 
+                                                                         u.Status == AccountStatus.Pending || 
+                                                                         u.Status == AccountStatus.Rejected);
+
+        Console.WriteLine($"{targetUser.Id} | {targetUser.Email} | {targetUser.isVerify} |  {targetUser.Status}");
         if (targetUser == null)
         {
             throw new KeyNotFoundException("User not found.");
@@ -676,9 +682,50 @@ public class Service : IService
             throw new InvalidOperationException("Only customer accounts can be verified.");
         }
 
-        if (targetUser.Status != AccountStatus.Active)
+        if (targetUser.Status != AccountStatus.Pending &&
+            targetUser.Status != AccountStatus.Rejected)
         {
-            throw new InvalidOperationException("Only active users can be verified.");
+            throw new InvalidOperationException("Only pending or rejected users can be verified.");
+        }
+
+        Console.WriteLine("Target: " + targetUser.isVerify);
+
+        targetUser.isVerify = true;
+        targetUser.Status =  AccountStatus.Active;
+        targetUser.UpdatedAt = DateTimeOffset.UtcNow;
+        
+        Console.WriteLine("Target: " + targetUser.isVerify);
+
+
+        await _dbContext.SaveChangesAsync();
+        
+        
+        return "Verify user successfully";
+    }
+
+    public async Task<string> RejectIdentity(Guid userId, Request.RejectIdentityDocument request)
+    {
+        var targetUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId && 
+                                                                         !u.isVerify && 
+                                                                         u.Status == AccountStatus.Pending);
+        if (targetUser == null)
+        {
+            throw new KeyNotFoundException("User not found.");
+        }
+
+        if (request.RejectReason is null)
+        {
+            throw new ArgumentException("Reason is required.");
+        }
+        
+        if (targetUser.Role != UserRole.Customer)
+        {
+            throw new InvalidOperationException("Only customer accounts can be verified.");
+        }
+
+        if (targetUser.Status != AccountStatus.Pending)
+        {
+            throw new InvalidOperationException("Only pending users can be verified.");
         }
 
         if (targetUser.isVerify)
@@ -686,11 +733,13 @@ public class Service : IService
             return "User is already verified.";
         }
 
-        targetUser.isVerify = true;
+        // targetUser.isVerify = true;
+        targetUser.Status =  AccountStatus.Rejected;
+        targetUser.Reason = request.RejectReason;
         targetUser.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _dbContext.SaveChangesAsync();
-        return "Verify user successfully";
+        return "Reject user successfully";
     }
 
     public async Task<Base.Response.PageResult<Response.AllProfileResponse>> GetAllUserProfile(
@@ -702,7 +751,7 @@ public class Service : IService
             .AsNoTracking()
             .Include(x => x.CustomerProfile)
             .ThenInclude(x => x!.Tier)
-            .Where(x => x.isVerify &&
+            .Where(x => x.isVerify && x.Status == AccountStatus.Active &&
                         x.Role == UserRole.Customer &&
                         x.CustomerProfile != null);
 
@@ -717,7 +766,7 @@ public class Service : IService
 
         var totalItems = await query.CountAsync();
 
-        query = query.OrderBy(x => x.CreatedAt);
+        query = query.OrderByDescending(x => x.CreatedAt);
 
         query = query
             .Skip((pageIndex - 1) * pageSize)
@@ -741,6 +790,7 @@ public class Service : IService
                 TotalPoints = x.CustomerProfile.TotalPoints,
                 TotalWashes = x.CustomerProfile.TotalWashes,
                 FaceImageUrls = x.UserFaceImages
+                    .Where(x => x.IsActive)
                     .OrderBy(i => i.CreatedAt)
                     .Select(i => i.ImageUrl)
                     .Take(3)
@@ -788,8 +838,9 @@ public class Service : IService
             .ThenInclude(x => x!.Tier)
             .Where(x => !x.isVerify &&
                         x.Role == UserRole.Customer &&
-                        x.Status == AccountStatus.Active &&
-                        x.CustomerProfile != null);
+                        x.CustomerProfile != null &&
+                        (x.Status == AccountStatus.Pending ||
+                         x.Status == AccountStatus.Rejected));
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -826,6 +877,7 @@ public class Service : IService
                 TotalPoints = x.CustomerProfile.TotalPoints,
                 TotalWashes = x.CustomerProfile.TotalWashes,
                 FaceImageUrls = x.UserFaceImages
+                    .Where(i => i.IsActive)
                     .OrderBy(i => i.CreatedAt)
                     .Select(i => i.ImageUrl)
                     .Take(3)
@@ -887,6 +939,7 @@ public class Service : IService
                     TotalPoints = x.CustomerProfile.TotalPoints,
                     TotalWashes = x.CustomerProfile.TotalWashes,
                     FaceImageUrls = x.UserFaceImages
+                        .Where(i => i.IsActive)
                         .OrderBy(i => i.CreatedAt)
                         .Select(i => i.ImageUrl)
                         .Take(3)
@@ -944,7 +997,8 @@ public class Service : IService
             .Select(x => new Response.GetUserStatusResponse
             {
                 UserId = x.Id,
-                Status = x.Status
+                Status = x.Status,
+                IsVerify = x.isVerify,
             })
             .FirstOrDefaultAsync();
 
