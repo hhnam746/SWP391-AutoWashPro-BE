@@ -88,4 +88,9 @@ public class Request
     {
         public string? Reason { get; set; }
     }
+
+    public class RejectIdentityDocument
+    {
+        public required string RejectReason { get; set; }
+    }
 }

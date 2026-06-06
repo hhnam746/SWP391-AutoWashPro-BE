@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
+
 namespace SWP391_AutoWashPro_BE.Service.User;
 
 public class Request
@@ -9,8 +12,22 @@ public class Request
         public string? Cccd { get; set; }
     }
 
-    public class UpdateProfileByPassword
+    public class ChangePasswordRequest
     {
-        public string? NewPassword { get; set; }
+        public string CurrentPassword { get; set; } = null!;
+        public string NewPassword { get; set; } = null!;
+        public string ConfirmPassword { get; set; } = null!;
     }
+    
+    public class VerificationResubmissionRequest
+    {
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        // public string? Cccd { get; set; }
+        
+        [MinLength(3, ErrorMessage = "At least 3 face images are required.")]
+        public List<IFormFile>? FaceImages { get; set; } = new();
+    }
+    
+    
 }

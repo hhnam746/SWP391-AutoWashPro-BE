@@ -95,11 +95,18 @@ public class AdminController : ControllerBase
     
     
     //Using admin to verify user
-    [HttpPatch("users/{id:guid}/verify")]
-    public async Task<IActionResult> UpdateUserVerificationStatus(Guid id)
+    [HttpPatch("users/{id:guid}/approval")]
+    public async Task<IActionResult> ApprovalIdentity(Guid id)
     {
-        var result = await _adminService.UpdateUserVerificationStatus(id);
-        return Ok(ApiResponseFactory.SuccessResponse(result, "Admin verification status updated", HttpContext.TraceIdentifier));
+        var result = await _adminService.ApprovalIdentity(id);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Admin approval account", HttpContext.TraceIdentifier));
+    }
+    
+    [HttpPatch("users/{id:guid}/reject")]
+    public async Task<IActionResult> RejectIdentity(Guid id, Request.RejectIdentityDocument request)
+    {
+        var result = await _adminService.RejectIdentity(id, request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Admin reject account", HttpContext.TraceIdentifier));
     }
 
     [HttpGet("users")]

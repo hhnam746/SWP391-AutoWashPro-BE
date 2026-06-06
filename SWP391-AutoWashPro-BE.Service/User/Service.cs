@@ -2,7 +2,9 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using SWP391_AutoWashPro_BE.Repository;
+using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
+using SWP391_AutoWashPro_BE.Service.Base;
 
 namespace SWP391_AutoWashPro_BE.Service.User;
 
@@ -11,12 +13,15 @@ public class Service : IService
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContext;
     private readonly Security.IService _securityService;
+    private readonly MediaService.IService _mediaService;
 
-    public Service(AppDbContext dbContext, IHttpContextAccessor httpContext, Security.IService securityService)
+    public Service(AppDbContext dbContext, IHttpContextAccessor httpContext, Security.IService securityService,
+        MediaService.IService mediaService)
     {
         _dbContext = dbContext;
         _httpContext = httpContext;
         _securityService = securityService;
+        _mediaService = mediaService;
     }
 
     public async Task<Response.ProfileResponse> GetProfile()
@@ -80,142 +85,292 @@ public class Service : IService
 
     public async Task<string> UpdateProfile(Request.UpdateProfileRequest request)
     {
-        if (request == null)
-        {
-            throw new ArgumentException("Request body is required.");
-        }
+        var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
-        var userId = _httpContext.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(userId) || !Guid.TryParse(userId, out var userIdGuid))
-        {
-            throw new UnauthorizedAccessException("You are not logged in or your session has expired.");
-        }
-
-        var existingUser = await _dbContext.Users
+        var user = await _dbContext.Users
             .Include(x => x.CustomerProfile)
-            .FirstOrDefaultAsync(x => x.Id == userIdGuid &&
-                                      x.isVerify &&
-                                      x.Status == AccountStatus.Active &&
-                                      x.Role == UserRole.Customer);
+            .FirstOrDefaultAsync(x =>
+                x.Id == userIdGuid &&
+                x.isVerify &&
+                x.Status == AccountStatus.Active &&
+                x.Role == UserRole.Customer);
 
-        if (existingUser == null)
+        if (user == null)
         {
             throw new KeyNotFoundException("User not found.");
         }
 
-        if (existingUser.CustomerProfile == null)
+        if (user.CustomerProfile == null)
         {
             throw new KeyNotFoundException("Customer profile not found.");
         }
 
-        var customerProfile = existingUser.CustomerProfile;
-
-        var hasFirstName = !string.IsNullOrWhiteSpace(request.FirstName);
-        var hasLastName = !string.IsNullOrWhiteSpace(request.LastName);
-        var hasCccd = request.Cccd != null;
-        var isUpdated = false;
-
-        if (!hasFirstName && !hasLastName && !hasCccd)
+        if (string.IsNullOrWhiteSpace(request.FirstName) &&
+            string.IsNullOrWhiteSpace(request.LastName) &&
+            request.Cccd == null)
         {
             throw new ArgumentException("At least one field must be provided for update.");
         }
 
-        if (hasFirstName)
+        var profile = user.CustomerProfile;
+        var updated = false;
+
+        if (!string.IsNullOrWhiteSpace(request.FirstName))
         {
-            var firstName = request.FirstName!.Trim();
-            if (!string.Equals(customerProfile.FirstName, firstName, StringComparison.Ordinal))
+            var firstName = request.FirstName.Trim();
+
+            if (profile.FirstName != firstName)
             {
-                customerProfile.FirstName = firstName;
-                isUpdated = true;
+                profile.FirstName = firstName;
+                updated = true;
             }
         }
 
-        if (hasLastName)
+        if (!string.IsNullOrWhiteSpace(request.LastName))
         {
-            var lastName = request.LastName!.Trim();
-            if (!string.Equals(customerProfile.LastName, lastName, StringComparison.Ordinal))
+            var lastName = request.LastName.Trim();
+
+            if (profile.LastName != lastName)
             {
-                customerProfile.LastName = lastName;
-                isUpdated = true;
+                profile.LastName = lastName;
+                updated = true;
             }
         }
 
-        if (hasCccd)
+        if (request.Cccd != null)
         {
-            var normalizedCccd = string.IsNullOrWhiteSpace(request.Cccd)
-                ? null
-                : request.Cccd.Trim();
-            var currentCccd = string.IsNullOrWhiteSpace(customerProfile.Cccd)
-                ? null
-                : customerProfile.Cccd.Trim();
-
-            if (!string.Equals(currentCccd, normalizedCccd, StringComparison.Ordinal))
+            if (string.IsNullOrWhiteSpace(request.Cccd))
             {
-                if (normalizedCccd != null)
+                throw new ArgumentException("CCCD cannot be empty.");
+            }
+
+            var cccd = request.Cccd.Trim();
+
+            if (profile.Cccd != cccd)
+            {
+                var cccdExists = await _dbContext.CustomerProfiles
+                    .AnyAsync(x => x.UserId != userIdGuid && x.Cccd == cccd);
+
+                if (cccdExists)
                 {
-                    var isDuplicateCccd = await _dbContext.CustomerProfiles
-                        .AnyAsync(x => x.UserId != userIdGuid && x.Cccd == normalizedCccd);
-
-                    if (isDuplicateCccd)
-                    {
-                        throw new ArgumentException("CCCD already exists.");
-                    }
+                    throw new ArgumentException("CCCD already exists.");
                 }
 
-                customerProfile.Cccd = normalizedCccd;
-                isUpdated = true;
+                profile.Cccd = cccd;
+                updated = true;
             }
         }
 
-        if (!isUpdated)
+        if (!updated)
         {
             return "No profile changes detected";
         }
 
-        customerProfile.UpdatedAt = DateTimeOffset.UtcNow;
+        profile.UpdatedAt = DateTimeOffset.UtcNow;
 
-        try
-        {
-            await _dbContext.SaveChangesAsync();
-        }
-        catch (DbUpdateException ex)
-            when (hasCccd &&
-                  ex.InnerException?.Message.Contains("IX_customer_profile_cccd", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            throw new ArgumentException("CCCD already exists.");
-        }
+        await _dbContext.SaveChangesAsync();
 
         return "Update customer profile successfully";
     }
 
-    public async Task<string> UpdateProfileByPassword(Request.UpdateProfileByPassword request)
+    public async Task<string> ChangePasswordRequest(Request.ChangePasswordRequest request)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.NewPassword))
+        var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
+
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+        {
+            throw new ArgumentException("Current password is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword))
         {
             throw new ArgumentException("New password is required.");
         }
 
-        var userId = _httpContext.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrWhiteSpace(userId) || !Guid.TryParse(userId, out var userIdGuid))
+        if (string.IsNullOrWhiteSpace(request.ConfirmPassword))
         {
-            throw new UnauthorizedAccessException("You are not logged in or your session has expired.");
+            throw new ArgumentException("Confirm password is required.");
         }
 
-        var existingUser = await _dbContext.Users
-            .FirstOrDefaultAsync(x => x.Id == userIdGuid &&
-                                      x.isVerify &&
-                                      x.Status == AccountStatus.Active &&
-                                      x.Role == UserRole.Customer);
+        if (request.NewPassword != request.ConfirmPassword)
+        {
+            throw new ArgumentException("New password and confirm password do not match.");
+        }
 
-        if (existingUser == null)
+        var user = await _dbContext.Users
+            .FirstOrDefaultAsync(x =>
+                x.Id == userIdGuid &&
+                x.isVerify &&
+                x.Status == AccountStatus.Active &&
+                x.Role == UserRole.Customer);
+
+        if (user == null)
         {
             throw new KeyNotFoundException("User not found.");
         }
 
-        existingUser.PasswordHash = _securityService.Hash(request.NewPassword.Trim());
-        existingUser.UpdatedAt = DateTimeOffset.UtcNow;
+        var currentPassword = request.CurrentPassword.Trim();
+        var newPassword = request.NewPassword.Trim();
+
+        if (!_securityService.Verify(currentPassword, user.PasswordHash))
+        {
+            throw new ArgumentException("Current password is incorrect.");
+        }
+
+        if (_securityService.Verify(newPassword, user.PasswordHash))
+        {
+            throw new ArgumentException("New password must be different from current password.");
+        }
+
+        user.PasswordHash = _securityService.Hash(newPassword);
+        user.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _dbContext.SaveChangesAsync();
-        return "Update new password successfully";
+
+        return "Change new password successfully";
+    }
+
+    public async Task<Response.GetMyStatus> GetMyStatus()
+    {
+        var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
+
+        var user = await _dbContext.Users
+            .AsNoTracking()
+            .Include(x => x.CustomerProfile)
+            .ThenInclude(x => x!.Tier)
+            .Include(x => x.UserFaceImages)
+            .FirstOrDefaultAsync(x => x.Id == userIdGuid);
+        if (user == null)
+        {
+            throw new ArgumentException("User not found.");
+        }
+
+        var response = new Response.GetMyStatus()
+        {
+            Id = user.Id,
+            Email = user.Email!,
+            Phone = user.Phone,
+            Role = user.Role.ToString(),
+            Status = user.Status.ToString(),
+            IsVerified = user.isVerify,
+            RejectReason = user.Reason,
+            ProfileData = new Response.ProfileData()
+            {
+                Id = user.CustomerProfile!.Id,
+                FirstName = user.CustomerProfile.FirstName,
+                LastName = user.CustomerProfile.LastName,
+                Cccd = user.CustomerProfile.Cccd,
+                TierData = user.CustomerProfile.Tier == null
+                    ? null
+                    : new Response.TierData()
+                    {
+                        Id = user.CustomerProfile.Tier.Id,
+                        Name = user.CustomerProfile.Tier.Name,
+                        Level = user.CustomerProfile.Tier.Level
+                    }
+            },
+            FaceImages = user.UserFaceImages
+                .Where(x => x.IsActive)
+                .Select(x => new Response.UserFaceImageResponse()
+                {
+                    ImageUrl = x.ImageUrl,
+                })
+                .ToList()
+        };
+
+        return response;
+    }
+
+
+    public async Task<string> ResubmitVerification(Request.VerificationResubmissionRequest request)
+    {
+        var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
+
+        var user = await _dbContext.Users
+            .Include(x => x.CustomerProfile)
+            .Include(x => x.UserFaceImages)
+            .FirstOrDefaultAsync(x => x.Id == userIdGuid);
+
+        if (user is null)
+            throw new ArgumentException("User not found.");
+
+        if (request.FaceImages is null || request.FaceImages.Count < 3)
+        {
+            throw new ArgumentException("At least 3 face images are required.");
+        }
+
+        if (user.Role != UserRole.Customer)
+            throw new Exception("You are not customer");
+
+        if (user.CustomerProfile == null)
+            throw new ArgumentException("Customer profile not found.");
+
+        if (!string.IsNullOrWhiteSpace(request.FirstName))
+        {
+            var normalizedFirstName = request.FirstName.Trim();
+            user.CustomerProfile.FirstName = normalizedFirstName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.LastName))
+        {
+            var normalizedLastName = request.LastName.Trim();
+            user.CustomerProfile.LastName = normalizedLastName;
+        }
+
+        // if (!string.IsNullOrWhiteSpace(request.Cccd))
+        // {
+        //     var normalizedCccd = request.Cccd.Trim();
+        //     user.CustomerProfile.Cccd = normalizedCccd;
+        // }
+
+
+        if (string.IsNullOrWhiteSpace(request.FirstName) &&
+            string.IsNullOrWhiteSpace(request.LastName) &&
+            // string.IsNullOrWhiteSpace(request.Cccd) &&
+            (request.FaceImages == null || !request.FaceImages.Any()))
+        {
+            throw new ArgumentException("At least one verification field must be provided.");
+        }
+
+
+        if (user.Status != AccountStatus.Rejected)
+        {
+            throw new InvalidOperationException("Only rejected users can resubmit verification.");
+        }
+
+        if (request.FaceImages != null && request.FaceImages.Any())
+        {
+            //xóa ảnh cũ
+            foreach (var oldImage in user.UserFaceImages.Where(x => x.IsActive))
+            {
+                oldImage.IsActive = false;
+                oldImage.UpdatedAt = DateTimeOffset.UtcNow;
+            }
+
+            //upload và thêm ảnh mới
+            foreach (var faceImage in request.FaceImages)
+            {
+                var imageUrl = await _mediaService.UploadImageAsync(faceImage);
+
+                _dbContext.UserFaceImages.Add(new UserFaceImage()
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = user.Id,
+                    ImageUrl = imageUrl,
+                    IsActive = true,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            }
+        }
+
+        user.Status = AccountStatus.Pending;
+        user.isVerify = false;
+        user.Reason = null;
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+
+        user.CustomerProfile.UpdatedAt = DateTimeOffset.UtcNow;
+        await _dbContext.SaveChangesAsync();
+
+        return "Re-submit Successfully";
     }
 }

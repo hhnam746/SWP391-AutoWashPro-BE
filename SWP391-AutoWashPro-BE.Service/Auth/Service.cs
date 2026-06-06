@@ -88,7 +88,8 @@ public class Service : IService
         }
 
         var defaultTier = await _dbContext.Tiers
-            .FirstOrDefaultAsync(t => t.Name == "Silver");
+          .OrderBy(t => t.Level)
+          .FirstOrDefaultAsync();
 
         if (defaultTier == null)
         {
@@ -119,7 +120,7 @@ public class Service : IService
                 // Another concurrent request may have inserted the default tier.
                 _dbContext.Entry(defaultTier).State = EntityState.Detached;
                 defaultTier = await _dbContext.Tiers
-                    .FirstOrDefaultAsync(t => t.Name == "Silver")
+                    .FirstOrDefaultAsync(t => t.Name == "Member")
                     ?? await _dbContext.Tiers.OrderBy(t => t.Level).FirstOrDefaultAsync();
 
                 if (defaultTier == null)
@@ -148,7 +149,7 @@ public class Service : IService
           PasswordHash = _securityService.Hash(request.Password),
           isVerify = false,
           Role = UserRole.Customer,
-          Status = AccountStatus.Active,
+          Status = AccountStatus.Pending,
           CreatedAt = DateTimeOffset.UtcNow,
         };
 
@@ -191,6 +192,7 @@ public class Service : IService
           Id = Guid.NewGuid(),
           UserId = user.Id,
           ImageUrl = imageUrl, 
+          IsActive = true,
           CreatedAt = DateTimeOffset.UtcNow,
         });
 
@@ -461,10 +463,12 @@ public class Service : IService
             throw new ForbiddenAccessException("Account is inactive");
         }
 
-        if (user.Status != AccountStatus.Active)
-        {
-            throw new ForbiddenAccessException("Account is not active");
-        }
+        // if (user.Status != AccountStatus.Active)
+        // {
+        //     throw new ForbiddenAccessException("Account is not active");
+        // }
+        
+        //account pending, reject được thông qua
 
         user.LastLoginAt = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync();

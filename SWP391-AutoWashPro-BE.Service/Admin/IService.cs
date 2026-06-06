@@ -7,7 +7,9 @@ public interface IService
     public Task<string> UpdateBranch(Guid id, Request.UpdateBranch request);
     public Task<string> DeleteBranch(Guid id);
     public Task<Response.DashboardResponse> GetDashboard(Request.GetDashboardRequest request);
-    public Task<string> UpdateUserVerificationStatus(Guid userId);
+    public Task<string> ApprovalIdentity(Guid userId);
+    public Task<string> RejectIdentity(Guid userId, Request.RejectIdentityDocument request);
+    
     public Task<Base.Response.PageResult<Response.AllProfileResponse>> GetAllUserProfile(
         string? searchTerm,
         int pageSize,

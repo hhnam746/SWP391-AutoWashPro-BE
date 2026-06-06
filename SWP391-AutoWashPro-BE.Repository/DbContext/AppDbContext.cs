@@ -33,7 +33,9 @@ public class AppDbContext : DbContext
 
     private static string ToDbAccountStatus(AccountStatus value) => value switch
     {
+        AccountStatus.Pending => "pending",
         AccountStatus.Active => "active",
+        AccountStatus.Rejected => "rejected",
         AccountStatus.Locked => "locked",
         AccountStatus.Inactive => "inactive",
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
@@ -41,7 +43,9 @@ public class AppDbContext : DbContext
 
     private static AccountStatus FromDbAccountStatus(string value) => value switch
     {
+        "pending" => AccountStatus.Pending,
         "active" => AccountStatus.Active,
+        "rejected" => AccountStatus.Rejected,
         "locked" => AccountStatus.Locked,
         "inactive" => AccountStatus.Inactive,
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
@@ -190,7 +194,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Phone).HasColumnName("phone").IsRequired();
             builder.Property(x => x.PasswordHash).HasColumnName("password_hash").IsRequired();
             builder.Property(x => x.Role).HasColumnName("role").HasConversion(UserRoleConverter).HasDefaultValue(UserRole.Customer).IsRequired();
-            builder.Property(x => x.Status).HasColumnName("status").HasConversion(AccountStatusConverter).HasDefaultValue(AccountStatus.Active).IsRequired();
+            builder.Property(x => x.Status).HasColumnName("status").HasConversion(AccountStatusConverter).HasDefaultValue(AccountStatus.Pending).IsRequired();
             builder.Property(x => x.isVerify).HasColumnName("is_verify").HasDefaultValue(false).IsRequired();
             builder.Property(x => x.LastLoginAt).HasColumnName("last_login_at");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
