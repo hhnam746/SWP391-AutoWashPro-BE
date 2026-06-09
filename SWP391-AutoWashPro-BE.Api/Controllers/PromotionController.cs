@@ -16,8 +16,7 @@ public class PromotionController: ControllerBase
     {
         _service = service;
     }
-
-    [Authorize(Policy = JwtExtensions.AdminPolicy)] 
+    
     [HttpGet("admin/promotions")]
     public async Task<IActionResult> GetPromotion(
         [FromQuery] string? searchTerm,
