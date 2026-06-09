@@ -418,7 +418,7 @@ public class AppDbContext : DbContext
                     CreatedAt = defaultConfigCreatedAt,
                 },
             };
-            
+
             builder.HasData(systemConfigs);
 
         });
