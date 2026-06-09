@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using SWP391_AutoWashPro_BE.Repository;
@@ -105,12 +106,12 @@ public class Service : IService
             throw new KeyNotFoundException("Customer profile not found.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.FirstName) &&
-            string.IsNullOrWhiteSpace(request.LastName) &&
-            request.Cccd == null)
-        {
-            throw new ArgumentException("At least one field must be provided for update.");
-        }
+        // if (string.IsNullOrWhiteSpace(request.FirstName) &&
+        //     string.IsNullOrWhiteSpace(request.LastName) &&
+        //     string.IsNullOrWhiteSpace(request.Phone))
+        // {
+        //     throw new ArgumentException("At least one field must be provided for update.");
+        // }
 
         var profile = user.CustomerProfile;
         var updated = false;
@@ -137,40 +138,44 @@ public class Service : IService
             }
         }
 
-        if (request.Cccd != null)
+        if (!string.IsNullOrWhiteSpace(request.Phone))
         {
-            if (string.IsNullOrWhiteSpace(request.Cccd))
+            var phone = request.Phone.Trim();
+
+            if (!IsValidPhoneNumber(phone))
             {
-                throw new ArgumentException("CCCD cannot be empty.");
+                throw new ArgumentException("Invalid phone number format.");
             }
 
-            var cccd = request.Cccd.Trim();
+            var isPhoneUsed = await _dbContext.Users
+                .AsNoTracking()
+                .AnyAsync(x => x.Phone == phone && x.Id != userIdGuid);
 
-            if (profile.Cccd != cccd)
+            if (isPhoneUsed)
             {
-                var cccdExists = await _dbContext.CustomerProfiles
-                    .AnyAsync(x => x.UserId != userIdGuid && x.Cccd == cccd);
+                throw new ArgumentException("Phone number is already in use.");
+            }
 
-                if (cccdExists)
-                {
-                    throw new ArgumentException("CCCD already exists.");
-                }
-
-                profile.Cccd = cccd;
+            if (user.Phone != phone)
+            {
+                user.Phone = phone;
                 updated = true;
             }
         }
 
         if (!updated)
         {
-            return "No profile changes detected";
+            return "No profile changes detected.";
         }
 
-        profile.UpdatedAt = DateTimeOffset.UtcNow;
+        var now = DateTimeOffset.UtcNow;
+
+        user.UpdatedAt = now;
+        profile.UpdatedAt = now;
 
         await _dbContext.SaveChangesAsync();
 
-        return "Update customer profile successfully";
+        return "Update customer profile successfully.";
     }
 
     public async Task<string> ChangePasswordRequest(Request.ChangePasswordRequest request)
@@ -372,5 +377,20 @@ public class Service : IService
         await _dbContext.SaveChangesAsync();
 
         return "Re-submit Successfully";
+    }
+    
+    private bool IsValidPhoneNumber(string phoneNumber)
+    {
+        try
+        {
+            // Regex pattern for phone number validation
+            // Pattern: 10-15 digits, can include +, -, space, ()
+            string pattern = @"^[0-9+\-\s()]{10,15}$";
+            return Regex.IsMatch(phoneNumber, pattern);
+        }
+        catch
+        {
+            return false;
+        }
     }
 }
