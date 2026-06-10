@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SWP391_AutoWashPro_BE.Repository;
+using SWP391_AutoWashPro_BE.Repository.Enums;
 
 namespace SWP391_AutoWashPro_BE.Service.Promotion;
 
@@ -57,6 +58,11 @@ public class Service: IService
         {
             throw new Exception("Promotion already exists");
         }
+        if (request.DiscountValue <= 0)
+            throw new Exception("Discount value must be greater than 0");
+
+        if (request.DiscountType == DiscountType.Percentage && request.DiscountValue >= 100)
+            throw new Exception("Percentage discount must be less than 100");
 
         var newPromotion = new Repository.Entities.Promotion()
         {
@@ -84,7 +90,7 @@ public class Service: IService
         {
             throw new Exception("Promotion not found");
         }
-
+        
         if (request.Name != null)
             promotion.Name = request.Name;
 
@@ -110,6 +116,13 @@ public class Service: IService
             promotion.IsActive = request.IsActive.Value;
 
         promotion.UpdatedAt = DateTimeOffset.UtcNow;
+        
+        if (promotion.DiscountValue <= 0)
+            throw new Exception("Discount value must be greater than 0");
+
+        if (promotion.DiscountType == DiscountType.Percentage && promotion.DiscountValue >= 100)
+            throw new Exception("Percentage discount must be less than 100");
+
 
         await _dbContext.SaveChangesAsync();
 
