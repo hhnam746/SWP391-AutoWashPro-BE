@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using SWP391_AutoWashPro_BE.Repository.Enums;
 
 namespace SWP391_AutoWashPro_BE.Service.Vehicles;
 
@@ -17,7 +18,8 @@ public class Request
         public string Brand { get; set; }
         public string Model { get; set; }
         public string Color { get; set; }
-        public required IFormFile LicensePlateImageUrl { get; set; }
+        public VehicleTypes VehicleType { get; set; }
+        public required List<IFormFile> VehicleImages { get; set; }
     }
 
     public class UpdateVehicleRequest
@@ -25,5 +27,6 @@ public class Request
         public string? Brand { get; set; }
         public string? Model { get; set; }
         public string? Color { get; set; }
+        public VehicleTypes VehicleType { get; set; }
     }
 }
