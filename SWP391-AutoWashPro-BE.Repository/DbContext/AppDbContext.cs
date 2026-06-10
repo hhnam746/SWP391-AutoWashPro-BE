@@ -168,6 +168,8 @@ public class AppDbContext : DbContext
     public DbSet<CustomerProfile> CustomerProfiles { get; set; }
     public DbSet<UserFaceImage> UserFaceImages { get; set; }
     public DbSet<Vehicle> Vehicles { get; set; }
+    public DbSet<VehicleImage> VehicleImages { get; set; }
+    public DbSet<VehicleType> VehicleTypes { get; set; }
     public DbSet<Tier> Tiers { get; set; }
     public DbSet<Branch> Branches { get; set; }
     public DbSet<SystemConfig> SystemConfigs { get; set; }
@@ -292,15 +294,77 @@ public class AppDbContext : DbContext
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
             builder.Property(x => x.DeletedAt).HasColumnName("deleted_at");
+            builder.Property(x => x.VehicleTypeId).HasColumnName("vehicle_type_id").IsRequired();
 
             builder.HasIndex(x => x.CustomerId);
             builder.HasIndex(x => x.LicensePlate).IsUnique();
             builder.HasIndex(x => x.IsActive);
+            builder.HasIndex(x => x.VehicleTypeId);
 
             builder.HasOne(x => x.Customer)
                 .WithMany(x => x.Vehicles)
                 .HasForeignKey(x => x.CustomerId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.VehicleType)
+                .WithMany(x => x.Vehicles)
+                .HasForeignKey(x => x.VehicleTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<VehicleImage>(builder =>
+        {
+            builder.ToTable("vehicle_image");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            builder.Property(x => x.VehicleId).HasColumnName("vehicle_id").IsRequired();
+            builder.Property(x => x.ImageUrl).HasColumnName("image_url").IsRequired();
+            builder.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true).IsRequired();
+            builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            builder.HasIndex(x => x.VehicleId);
+
+            builder.HasOne(x => x.Vehicle)
+                .WithMany(x => x.VehicleImages)
+                .HasForeignKey(x => x.VehicleId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<VehicleType>(builder =>
+        {
+            builder.ToTable("vehicle_type");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            builder.Property(x => x.TypeName).HasColumnName("type_name").HasConversion<string>().IsRequired();
+            builder.Property(x => x.VehicleSlot).HasColumnName("vehicle_slot").IsRequired();
+            builder.Property(x => x.SizeLevel).HasColumnName("size_level").IsRequired();
+            builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            builder.HasIndex(x => x.TypeName).IsUnique();
+            builder.HasIndex(x => x.SizeLevel);
+
+            builder.HasData(
+                new VehicleType
+                {
+                    Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                    TypeName = SWP391_AutoWashPro_BE.Repository.Enums.VehicleTypes.SUV,
+                    VehicleSlot = 12,
+                    SizeLevel = 2,
+                    CreatedAt = new DateTimeOffset(2026, 6, 9, 21, 0, 0, TimeSpan.FromHours(7))
+                },
+                new VehicleType
+                {
+                    Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                    TypeName = SWP391_AutoWashPro_BE.Repository.Enums.VehicleTypes.Sedan,
+                    VehicleSlot = 5,
+                    SizeLevel = 1,
+                    CreatedAt = new DateTimeOffset(2026, 6, 9, 21, 0, 0, TimeSpan.FromHours(7))
+                }
+            );
         });
 
         modelBuilder.Entity<Tier>(builder =>
