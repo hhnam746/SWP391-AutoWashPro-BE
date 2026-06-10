@@ -6,6 +6,7 @@ using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.Base;
+using SWP391_AutoWashPro_BE.Service.Models;
 
 namespace SWP391_AutoWashPro_BE.Service.User;
 
@@ -37,15 +38,14 @@ public class Service : IService
             .AsNoTracking()
             .Include(x => x.CustomerProfile)
             .ThenInclude(x => x!.Tier)
-            .FirstOrDefaultAsync(x => x.Id == userIdGuid &&
-                                      x.isVerify &&
-                                      x.Status == AccountStatus.Active &&
-                                      x.Role == UserRole.Customer);
+            .FirstOrDefaultAsync(x => x.Id == userIdGuid && x.Role == UserRole.Customer);
 
         if (existingUser == null)
         {
             throw new KeyNotFoundException("User not found.");
         }
+
+        EnsureActiveVerified(existingUser);
 
         if (existingUser.CustomerProfile == null)
         {
@@ -90,16 +90,14 @@ public class Service : IService
 
         var user = await _dbContext.Users
             .Include(x => x.CustomerProfile)
-            .FirstOrDefaultAsync(x =>
-                x.Id == userIdGuid &&
-                x.isVerify &&
-                x.Status == AccountStatus.Active &&
-                x.Role == UserRole.Customer);
+            .FirstOrDefaultAsync(x => x.Id == userIdGuid && x.Role == UserRole.Customer);
 
         if (user == null)
         {
             throw new KeyNotFoundException("User not found.");
         }
+
+        EnsureActiveVerified(user);
 
         if (user.CustomerProfile == null)
         {
@@ -203,16 +201,14 @@ public class Service : IService
         }
 
         var user = await _dbContext.Users
-            .FirstOrDefaultAsync(x =>
-                x.Id == userIdGuid &&
-                x.isVerify &&
-                x.Status == AccountStatus.Active &&
-                x.Role == UserRole.Customer);
+            .FirstOrDefaultAsync(x => x.Id == userIdGuid && x.Role == UserRole.Customer);
 
         if (user == null)
         {
             throw new KeyNotFoundException("User not found.");
         }
+
+        EnsureActiveVerified(user);
 
         var currentPassword = request.CurrentPassword.Trim();
         var newPassword = request.NewPassword.Trim();
@@ -391,6 +387,14 @@ public class Service : IService
         catch
         {
             return false;
+        }
+    }
+
+    private static void EnsureActiveVerified(Repository.Entities.User user)
+    {
+        if (!user.isVerify || user.Status != AccountStatus.Active)
+        {
+            throw new ForbiddenAccessException("Only active and verified customer accounts can access profile features.");
         }
     }
 }
