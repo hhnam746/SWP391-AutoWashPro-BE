@@ -16,5 +16,8 @@ public class Vehicle : BaseEntity, IAuditableEntity
     public DateTimeOffset? UpdatedAt { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
 
+    public Guid VehicleTypeId { get; set; }
+    public VehicleType? VehicleType { get; set; }
+    public ICollection<VehicleImage> VehicleImages { get; set; } = new List<VehicleImage>();
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
 }
