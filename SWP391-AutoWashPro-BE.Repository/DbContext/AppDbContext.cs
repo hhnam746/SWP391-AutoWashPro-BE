@@ -128,6 +128,8 @@ public class AppDbContext : DbContext
         NotificationType.TierUpgraded => "tier_upgraded",
         NotificationType.RewardRedeemed => "reward_redeemed",
         NotificationType.SystemAlert => "system_alert",
+        NotificationType.IdentityApproved => "identity_approved",
+        NotificationType.IdentityRejected => "identity_rejected",
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 
@@ -140,6 +142,8 @@ public class AppDbContext : DbContext
         "tier_upgraded" => NotificationType.TierUpgraded,
         "reward_redeemed" => NotificationType.RewardRedeemed,
         "system_alert" => NotificationType.SystemAlert,
+        "identity_approved" => NotificationType.IdentityApproved,
+        "identity_rejected" => NotificationType.IdentityRejected,
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 

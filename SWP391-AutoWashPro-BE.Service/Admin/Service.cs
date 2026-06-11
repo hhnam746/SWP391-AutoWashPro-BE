@@ -18,11 +18,13 @@ public class Service : IService
 
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContext;
+    private readonly Notification.IService _notificationService;
 
-    public Service(AppDbContext dbContext, IHttpContextAccessor httpContext)
+    public Service(AppDbContext dbContext, IHttpContextAccessor httpContext, Notification.IService notificationService)
     {
         _dbContext = dbContext;
         _httpContext = httpContext;
+        _notificationService = notificationService;
     }
 
     public async Task<List<Response.BranchResponse>> GetBranches(bool? isActive, string? keyword)
@@ -699,6 +701,14 @@ public class Service : IService
 
         await _dbContext.SaveChangesAsync();
         
+        //gọi lại SignalR
+        await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+        {
+            UserId = targetUser.Id,
+            Type = NotificationType.IdentityApproved,
+            Data = null,
+        });
+        
         
         return "Verify user successfully";
     }
@@ -739,6 +749,15 @@ public class Service : IService
         targetUser.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _dbContext.SaveChangesAsync();
+        
+        await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+        {
+            UserId = targetUser.Id,
+            Type = NotificationType.IdentityRejected,
+            Data = null,
+        });
+        
+        
         return "Reject user successfully";
     }
 
