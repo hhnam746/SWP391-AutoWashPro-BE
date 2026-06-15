@@ -10,5 +10,6 @@ public enum NotificationType
     RewardRedeemed,
     IdentityApproved,
     IdentityRejected,
+    PromotionAlert,
     SystemAlert
 }
