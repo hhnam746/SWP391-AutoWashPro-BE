@@ -13,6 +13,8 @@ public class Request
         public DateTimeOffset StartDate { get; set; }
         public DateTimeOffset EndDate { get; set; }
         public bool? IsGlobal { get; set; }
+        
+        public List<Guid> TierIds { get; set; } = new();
     }
     
     public class UpdatePromotionRequest
@@ -25,6 +27,8 @@ public class Request
         public DateTimeOffset? EndDate { get; set; }
         public bool? IsGlobal { get; set; }
         public bool? IsActive { get; set; }
+        
+        public List<Guid> TierIds { get; set; }
     }
     
     public class UpdatePromotionStatusRequest
