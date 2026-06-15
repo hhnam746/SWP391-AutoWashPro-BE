@@ -13,5 +13,6 @@ public class Request
         public int ValidDays { get; set; }
         public string? Description { get; set; }
         public bool IsActive { get; set; }
+        public List<Guid> TierIds { get; set; } = [];
     }
 }
