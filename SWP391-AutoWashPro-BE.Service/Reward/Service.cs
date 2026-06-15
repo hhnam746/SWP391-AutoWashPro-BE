@@ -60,6 +60,12 @@ public class Service : IService
             throw new Exception("Reward already exists");
         }
 
+        if (request.TierIds == null || !request.TierIds.Any())
+        {
+            throw new Exception("Please select at least one tier");
+        }
+      
+
         var newReward = new Repository.Entities.Reward()
         {
             Name = request.Name,
@@ -71,6 +77,18 @@ public class Service : IService
             IsActive = true,
         };
         _dbContext.Add(newReward);
+        foreach (var tierId in request.TierIds)
+        {
+            var rewardTier = new RewardTier()
+            {
+                RewardId = newReward.Id,
+                TierId = tierId,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            _dbContext.RewardTiers.Add(rewardTier);
+        }
+
         await _dbContext.SaveChangesAsync();
 
         return "Reward created successfully";
@@ -85,6 +103,9 @@ public class Service : IService
         {
             throw new Exception("Reward not found");
         }
+        
+        if (request.TierIds == null || !request.TierIds.Any())
+            throw new Exception("Please select at least one tier");
 
         reward.Name = request.Name;
         reward.RewardType = request.RewardType;
@@ -95,6 +116,22 @@ public class Service : IService
         reward.IsActive = request.IsActive;
         reward.UpdatedAt = DateTimeOffset.UtcNow;
 
+        var oldRewardTiers = await _dbContext.RewardTiers
+            .Where(x => x.RewardId == reward.Id)
+            .ToListAsync();
+
+        _dbContext.RewardTiers.RemoveRange(oldRewardTiers);
+
+        foreach (var tierId in request.TierIds)
+        {
+            _dbContext.RewardTiers.Add(new RewardTier
+            {
+                RewardId = reward.Id,
+                TierId = tierId,
+                CreatedAt = DateTimeOffset.UtcNow
+            });
+        }
+        
         await _dbContext.SaveChangesAsync();
         return "Reward updated successfully";
     }
