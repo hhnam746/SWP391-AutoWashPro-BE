@@ -9,22 +9,25 @@ namespace SWP391_AutoWashPro_BE.Service.Booking;
 
 public class Service : IService
 {
-
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContext;
     private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly Notification.IService _notificationService;
 
-    public Service(AppDbContext dbContext, IHttpContextAccessor httpContext, IServiceScopeFactory serviceScopeFactory)
+    public Service(AppDbContext dbContext, IHttpContextAccessor httpContext, IServiceScopeFactory serviceScopeFactory,
+        Notification.IService notificationService)
     {
         _dbContext = dbContext;
         _httpContext = httpContext;
         _serviceScopeFactory = serviceScopeFactory;
+        _notificationService = notificationService;
     }
 
+
     private static readonly TimeSpan DefaultUtcOffset = TimeSpan.FromHours(7);
-    private  int WorkingStartHour = 0;
-    private  int WorkingEndHour = 0;
-    private  int SlotDurationMinutes = 0;
+    private int WorkingStartHour = 0;
+    private int WorkingEndHour = 0;
+    private int SlotDurationMinutes = 0;
 
     public async Task<Response.GetBookingSlotsResponse> GetBookingSlots(Guid branchId, DateOnly date)
     {
@@ -50,10 +53,12 @@ public class Service : IService
         {
             throw new Exception("WorkingStartHour config not found");
         }
+
         if (!int.TryParse(workingStartHourConfig.ConfigValue, out var workingStartHour))
         {
             throw new Exception("Invalid WorkingStartHour config value");
         }
+
         ///////////////// ///////////////// ///////////////// /////////////////
         WorkingStartHour = workingStartHour;
         ///////////////// ///////////////// ///////////////// /////////////////
@@ -74,7 +79,7 @@ public class Service : IService
         ///////////////// ///////////////// ///////////////// /////////////////
         WorkingEndHour = workingEndHour;
         ///////////////// ///////////////// ///////////////// /////////////////
-       
+
         var slotDurationConfig = await _dbContext.SystemConfigs
                                      .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
                                  ?? throw new Exception("SlotDurationMinutes config not found");
@@ -83,7 +88,7 @@ public class Service : IService
         {
             throw new Exception("Invalid SlotDurationMinutes config value");
         }
-        
+
         var slots = new List<Response.SlotStatus>();
 
         var currentTime = new DateTimeOffset(
@@ -102,7 +107,8 @@ public class Service : IService
             WorkingEndHour,
             0,
             0,
-            TimeSpan.FromHours(7));;
+            TimeSpan.FromHours(7));
+        ;
 
         while (currentTime.AddMinutes(SlotDurationMinutes) <= endWorkTime)
         {
@@ -121,6 +127,7 @@ public class Service : IService
 
             currentTime = slotEndTime;
         }
+
         var result = new Response.GetBookingSlotsResponse
         {
             BranchId = branchId,
@@ -167,6 +174,7 @@ public class Service : IService
         {
             throw new Exception("Invalid WorkingStartHour config value");
         }
+
         ///////////////// ///////////////// ///////////////// /////////////////
         WorkingStartHour = workingStartHour;
         ///////////////// ///////////////// ///////////////// /////////////////
@@ -202,6 +210,53 @@ public class Service : IService
             throw new Exception("Invalid BasePrice config value");
         }
 
+        ///////////////////////////////// Sedan /////////////////////////////////////////////// 
+        var SedanBaseConfig = await _dbContext.SystemConfigs
+            .FirstOrDefaultAsync(x => x.ConfigKey == "SedanBasePrice");
+
+
+        if (SedanBaseConfig == null)
+        {
+            throw new Exception("SedanBasePrice config not found");
+        }
+
+        if (!decimal.TryParse(SedanBaseConfig.ConfigValue, out var SedanBasePrice))
+        {
+            throw new Exception("Invalid SedanBasePrice config value");
+        }
+
+
+        ///////////////////////////////// SUV ///////////////////////////////////////////////
+        var SuvBaseConfig = await _dbContext.SystemConfigs
+            .FirstOrDefaultAsync(x => x.ConfigKey == "SuvBasePrice");
+
+        if (SuvBaseConfig == null)
+        {
+            throw new Exception("SuvBasePrice config not found");
+        }
+
+        if (!decimal.TryParse(SuvBaseConfig.ConfigValue, out var SuvBasePrice))
+        {
+            throw new Exception("Invalid SuvBasePrice config value");
+        }
+
+        var vehicle = await _dbContext.Vehicles
+            .Include(x => x.VehicleType)
+            .FirstOrDefaultAsync(x => x.Id == bookingRequest.VehicleId);
+        if (vehicle == null)
+        {
+            throw new Exception("Vehicle not found");
+        }
+
+        if (vehicle.VehicleType.TypeName == VehicleTypes.Sedan)
+        {
+            basePrice += SedanBasePrice;
+        }
+        else if (vehicle.VehicleType.TypeName == VehicleTypes.SUV)
+        {
+            basePrice += SuvBasePrice;
+        }
+
         if (bookingRequest.StartTime <= DateTimeOffset.Now)
         {
             throw new Exception("Cannot book past time");
@@ -212,16 +267,16 @@ public class Service : IService
         {
             throw new Exception("BookingDate must match StartTime date.");
         }
-        
+
         var slotDurationConfig = await _dbContext.SystemConfigs
                                      .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
                                  ?? throw new Exception("SlotDurationMinutes config not found");
-    
+
         if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
         {
             throw new Exception("Invalid SlotDurationMinutes config value");
         }
-        
+
         if (bookingRequest.StartTime.Minute % SlotDurationMinutes != 0 ||
             bookingRequest.StartTime.Second != 0 ||
             bookingRequest.StartTime.Millisecond != 0)
@@ -241,7 +296,7 @@ public class Service : IService
         var utcStartTime = bookingRequest.StartTime.ToUniversalTime();
 
         var isBooked = _dbContext.Bookings.Any(x =>
-            x.BranchId == bookingRequest.BranchId && x.BookingDate == bookingRequest.BookingDate 
+            x.BranchId == bookingRequest.BranchId && x.BookingDate == bookingRequest.BookingDate
                                                   && x.StartTime == utcStartTime
                                                   && x.Status != BookingStatus.Cancelled);
         if (isBooked)
@@ -318,7 +373,7 @@ public class Service : IService
         {
             throw new Exception("Wallet not exists");
         }
-        
+
         var paymentDepositeConfig = await _dbContext.SystemConfigs
                                         .FirstOrDefaultAsync(x => x.ConfigKey == "PaymentDeposite")
                                     ?? throw new Exception("PaymentDeposite config not found");
@@ -418,7 +473,12 @@ public class Service : IService
                             };
 
                             dbContext.Notifications.Add(reminderNotification);
-
+                            // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+                            // {
+                            //     UserId = userIdGuid,
+                            //     Type = NotificationType.BookingCreated,
+                            //     Data = $"Booking Success! Your booking at {branch?.Name ?? "our branch"} starts at {reminderBooking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy}.",
+                            // });
                             await dbContext.SaveChangesAsync();
                         }
                     }
@@ -429,6 +489,76 @@ public class Service : IService
                 Console.WriteLine("======= Reminder Error " + e.Message + " ==========");
             }
         });
+        ///////////////////////////////// Thên cronjob cancel tự động
+        // ================================= Auto Cancel Cronjob =================================
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Thời điểm auto cancel = StartTime + 10 phút
+                var autoCancelTime = utcStartTime.AddMinutes(10);
+                var delayTime = autoCancelTime - DateTimeOffset.UtcNow;
+
+                if (delayTime > TimeSpan.Zero)
+                {
+                    await Task.Delay(delayTime);
+                }
+
+                using var scope = _serviceScopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var booking = await dbContext.Bookings
+                    .FirstOrDefaultAsync(x => x.Id == newId);
+
+                // Chỉ cancel nếu vẫn còn Confirmed (chưa CheckIn, chưa Cancel,...)
+                if (booking != null && booking.Status == BookingStatus.Confirmed)
+                {
+                    booking.Status = BookingStatus.Cancelled;
+
+                    // // Hoàn tiền deposit về wallet
+                    // var customerWallet = await dbContext.Wallets
+                    //     .FirstOrDefaultAsync(x => x.CustomerId == booking.CustomerId);
+                    //
+                    // if (customerWallet != null)
+                    // {
+                    //     var depositRefund = booking.FinalPrice * (paymentDeposite / 100);
+                    //     customerWallet.Balance += depositRefund;
+                    // }
+
+                    // Gửi notification cho customer
+                    var customer = await dbContext.CustomerProfiles
+                        .FirstOrDefaultAsync(x => x.Id == booking.CustomerId);
+
+                    if (customer != null)
+                    {
+                        var branch = await dbContext.Branches
+                            .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
+
+                        var cancelNotification = new Repository.Entities.Notification()
+                        {
+                            Id = Guid.NewGuid(),
+                            UserId = customer.UserId,
+                            Type = NotificationType.BookingCancelled,
+                            Title = "Booking Auto-Cancelled",
+                            Content = $"Your booking at {branch?.Name ?? "our branch"} on " +
+                                      $"{booking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy} " +
+                                      $"has been automatically cancelled due to no check-in.",
+                            IsRead = false,
+                            CreatedAt = DateTimeOffset.UtcNow,
+                        };
+
+                        dbContext.Notifications.Add(cancelNotification);
+                    }
+
+                    await dbContext.SaveChangesAsync();
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("======= Auto Cancel Error " + e.Message + " ==========");
+            }
+        });
+// ================================= End Auto Cancel Cronjob =================================
         var result = new Response.CreateBookingResponse
         {
             Id = newId,
@@ -450,6 +580,7 @@ public class Service : IService
             DiscountAmount = discountAmount,
             FinalPrice = finalPrice,
         };
+
         return result;
     }
 
@@ -607,6 +738,7 @@ public class Service : IService
         {
             throw new Exception("Booking not found or has been check-in");
         }
+
         var slotDurationConfig = await _dbContext.SystemConfigs
                                      .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
                                  ?? throw new Exception("SlotDurationMinutes config not found");
@@ -615,6 +747,7 @@ public class Service : IService
         {
             throw new Exception("Invalid SlotDurationMinutes config value");
         }
+
         var msg = "";
         var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
         var voucher = await _dbContext.Vouchers.FirstOrDefaultAsync(x => x.Id == booking.VoucherId);
@@ -622,7 +755,7 @@ public class Service : IService
         {
             throw new Exception("Wallet not found");
         }
-        
+
         var paymentDepositeConfig = await _dbContext.SystemConfigs
                                         .FirstOrDefaultAsync(x => x.ConfigKey == "PaymentDeposite")
                                     ?? throw new Exception("PaymentDeposite config not found");
@@ -651,7 +784,7 @@ public class Service : IService
             //////////////////////////////////////////////////////
             customerProfile.TotalPoints -= booking.RedemAmount ?? 0;
             //////////////////////////////////////////////////////
-            
+
             var bonusPointConfig = await _dbContext.SystemConfigs
                                        .FirstOrDefaultAsync(x => x.ConfigKey == "BonusPoint")
                                    ?? throw new Exception("BonusPoint config not found");
@@ -682,6 +815,12 @@ public class Service : IService
                     IsRead = false,
                     CreatedAt = DateTimeOffset.UtcNow,
                 };
+                await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+                {
+                    UserId = userIdGuid,
+                    Type = NotificationType.TierUpgraded,
+                    Data = $"Congratulations! Your tier has been upgraded from {currentTier.Name} to {nextTier.Name}."
+                });
                 _dbContext.Notifications.Add(notification);
             }
 
@@ -701,7 +840,7 @@ public class Service : IService
                 };
                 _dbContext.PointTransactions.Add(pointTransaction);
             }
-            
+
             _ = Task.Run(async () =>
             {
                 try
@@ -820,6 +959,14 @@ public class Service : IService
             IsRead = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
+        await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+        {
+            UserId = userIdGuid,
+            Type = NotificationType.BookingCreated,
+            Data = $"Your booking at {branch?.Name ?? "our branch"} " +
+                   $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
+                   $"has been cancelled successfully.",
+        });
 
         _dbContext.Notifications.Add(notification);
 
