@@ -7,14 +7,29 @@ namespace SWP391_AutoWashPro_BE.Repository;
 
 public class AppDbContext : DbContext
 {
-    private static readonly ValueConverter<UserRole, string> UserRoleConverter = new(v => ToDbUserRole(v), v => FromDbUserRole(v));
-    private static readonly ValueConverter<AccountStatus, string> AccountStatusConverter = new(v => ToDbAccountStatus(v), v => FromDbAccountStatus(v));
-    private static readonly ValueConverter<BookingStatus, string> BookingStatusConverter = new(v => ToDbBookingStatus(v), v => FromDbBookingStatus(v));
-    private static readonly ValueConverter<DiscountType, string> DiscountTypeConverter = new(v => ToDbDiscountType(v), v => FromDbDiscountType(v));
-    private static readonly ValueConverter<RewardType, string> RewardTypeConverter = new(v => ToDbRewardType(v), v => FromDbRewardType(v));
-    private static readonly ValueConverter<VoucherStatus, string> VoucherStatusConverter = new(v => ToDbVoucherStatus(v), v => FromDbVoucherStatus(v));
-    private static readonly ValueConverter<NotificationType, string> NotificationTypeConverter = new(v => ToDbNotificationType(v), v => FromDbNotificationType(v));
-    private static readonly ValueConverter<PointTransactionType, string> PointTransactionTypeConverter = new(v => ToDbPointTransactionType(v), v => FromDbPointTransactionType(v));
+    private static readonly ValueConverter<UserRole, string> UserRoleConverter =
+        new(v => ToDbUserRole(v), v => FromDbUserRole(v));
+
+    private static readonly ValueConverter<AccountStatus, string> AccountStatusConverter =
+        new(v => ToDbAccountStatus(v), v => FromDbAccountStatus(v));
+
+    private static readonly ValueConverter<BookingStatus, string> BookingStatusConverter =
+        new(v => ToDbBookingStatus(v), v => FromDbBookingStatus(v));
+
+    private static readonly ValueConverter<DiscountType, string> DiscountTypeConverter =
+        new(v => ToDbDiscountType(v), v => FromDbDiscountType(v));
+
+    private static readonly ValueConverter<RewardType, string> RewardTypeConverter =
+        new(v => ToDbRewardType(v), v => FromDbRewardType(v));
+
+    private static readonly ValueConverter<VoucherStatus, string> VoucherStatusConverter =
+        new(v => ToDbVoucherStatus(v), v => FromDbVoucherStatus(v));
+
+    private static readonly ValueConverter<NotificationType, string> NotificationTypeConverter =
+        new(v => ToDbNotificationType(v), v => FromDbNotificationType(v));
+
+    private static readonly ValueConverter<PointTransactionType, string> PointTransactionTypeConverter =
+        new(v => ToDbPointTransactionType(v), v => FromDbPointTransactionType(v));
 
 
     private static string ToDbUserRole(UserRole value) => value switch
@@ -199,8 +214,10 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Email).HasColumnName("email");
             builder.Property(x => x.Phone).HasColumnName("phone").IsRequired();
             builder.Property(x => x.PasswordHash).HasColumnName("password_hash").IsRequired();
-            builder.Property(x => x.Role).HasColumnName("role").HasConversion(UserRoleConverter).HasDefaultValue(UserRole.Customer).IsRequired();
-            builder.Property(x => x.Status).HasColumnName("status").HasConversion(AccountStatusConverter).HasDefaultValue(AccountStatus.Pending).IsRequired();
+            builder.Property(x => x.Role).HasColumnName("role").HasConversion(UserRoleConverter)
+                .HasDefaultValue(UserRole.Customer).IsRequired();
+            builder.Property(x => x.Status).HasColumnName("status").HasConversion(AccountStatusConverter)
+                .HasDefaultValue(AccountStatus.Pending).IsRequired();
             builder.Property(x => x.isVerify).HasColumnName("is_verify").HasDefaultValue(false).IsRequired();
             builder.Property(x => x.LastLoginAt).HasColumnName("last_login_at");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
@@ -219,7 +236,8 @@ public class AppDbContext : DbContext
 
             builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
             builder.Property(x => x.CustomerId).HasColumnName("customer_id").IsRequired();
-            builder.Property(x => x.Balance).HasColumnName("balance").HasColumnType("numeric(12,2)").HasDefaultValue(0m).IsRequired();
+            builder.Property(x => x.Balance).HasColumnName("balance").HasColumnType("numeric(12,2)").HasDefaultValue(0m)
+                .IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
@@ -380,7 +398,8 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Name).HasColumnName("name").IsRequired();
             builder.Property(x => x.Level).HasColumnName("level").IsRequired();
             builder.Property(x => x.RequiredWashes).HasColumnName("required_washes").HasDefaultValue(0).IsRequired();
-            builder.Property(x => x.PriorityBookingDays).HasColumnName("priority_booking_days").HasDefaultValue(0).IsRequired();
+            builder.Property(x => x.PriorityBookingDays).HasColumnName("priority_booking_days").HasDefaultValue(0)
+                .IsRequired();
             builder.Property(x => x.Description).HasColumnName("description").HasColumnType("text");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
@@ -426,7 +445,8 @@ public class AppDbContext : DbContext
                 .HasForeignKey(x => x.UpdatedById)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            var defaultConfigCreatedAt = new DateTimeOffset(2026, 5, 28, 20, 13, 39, TimeSpan.FromHours(7)).AddMilliseconds(590);
+            var defaultConfigCreatedAt =
+                new DateTimeOffset(2026, 5, 28, 20, 13, 39, TimeSpan.FromHours(7)).AddMilliseconds(590);
             List<SystemConfig> systemConfigs = new List<SystemConfig>()
             {
                 // Default business configs (UTC+7)
@@ -439,7 +459,7 @@ public class AppDbContext : DbContext
                     Description = "Default working start time in Vietnam timezone UTC+7.",
                     CreatedAt = defaultConfigCreatedAt,
                 },
-                
+
                 //WorkingEndHour = 17 pm
                 new()
                 {
@@ -449,7 +469,7 @@ public class AppDbContext : DbContext
                     Description = "Default working end time in Vietnam timezone UTC+7.",
                     CreatedAt = defaultConfigCreatedAt,
                 },
-                
+
                 //SlotDurationMinutes = 15
                 new()
                 {
@@ -459,7 +479,7 @@ public class AppDbContext : DbContext
                     Description = "Duration of each booking slot in minutes.",
                     CreatedAt = defaultConfigCreatedAt,
                 },
-                
+
                 //BasePrice = 100000
                 new()
                 {
@@ -468,8 +488,26 @@ public class AppDbContext : DbContext
                     ConfigValue = "100000",
                     Description = "Default base price for service.",
                     CreatedAt = defaultConfigCreatedAt,
+                }, //SuvBasePrice = 30000
+                new()
+                {
+                    Id = Guid.Parse("8b2e6d2b-0c74-47a0-9c5f-9d83029de001"),
+                    ConfigKey = "SuvBasePrice",
+                    ConfigValue = "30000",
+                    Description = "Additional base price for SUV vehicles.",
+                    CreatedAt = defaultConfigCreatedAt,
                 },
-                
+
+                //SedanBasePrice = 0
+                new()
+                {
+                    Id = Guid.Parse("f1a24c4e-1978-4db9-8d6a-2cb7a3f7f002"),
+                    ConfigKey = "SedanBasePrice",
+                    ConfigValue = "0",
+                    Description = "Additional base price for Sedan vehicles.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+
                 //PaymentDeposite = 30
                 new()
                 {
@@ -479,7 +517,7 @@ public class AppDbContext : DbContext
                     Description = "Deposit percentage required for booking.",
                     CreatedAt = defaultConfigCreatedAt,
                 },
-                
+
                 //BonusPoint = 10
                 new()
                 {
@@ -492,7 +530,6 @@ public class AppDbContext : DbContext
             };
 
             builder.HasData(systemConfigs);
-
         });
 
         modelBuilder.Entity<Promotion>(builder =>
@@ -503,8 +540,10 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
             builder.Property(x => x.Name).HasColumnName("name").IsRequired();
             builder.Property(x => x.Description).HasColumnName("description").HasColumnType("text");
-            builder.Property(x => x.DiscountType).HasColumnName("discount_type").HasConversion(DiscountTypeConverter).IsRequired();
-            builder.Property(x => x.DiscountValue).HasColumnName("discount_value").HasColumnType("numeric(12,2)").IsRequired();
+            builder.Property(x => x.DiscountType).HasColumnName("discount_type").HasConversion(DiscountTypeConverter)
+                .IsRequired();
+            builder.Property(x => x.DiscountValue).HasColumnName("discount_value").HasColumnType("numeric(12,2)")
+                .IsRequired();
             builder.Property(x => x.StartDate).HasColumnName("start_date").IsRequired();
             builder.Property(x => x.EndDate).HasColumnName("end_date").IsRequired();
             builder.Property(x => x.IsGlobal).HasColumnName("is_global").HasDefaultValue(false);
@@ -548,9 +587,11 @@ public class AppDbContext : DbContext
 
             builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
             builder.Property(x => x.Name).HasColumnName("name").IsRequired();
-            builder.Property(x => x.RewardType).HasColumnName("reward_type").HasConversion(RewardTypeConverter).IsRequired();
+            builder.Property(x => x.RewardType).HasColumnName("reward_type").HasConversion(RewardTypeConverter)
+                .IsRequired();
             builder.Property(x => x.PointsRequired).HasColumnName("points_required").IsRequired();
-            builder.Property(x => x.QuantityAvailable).HasColumnName("quantity_available").HasDefaultValue(-1).IsRequired();
+            builder.Property(x => x.QuantityAvailable).HasColumnName("quantity_available").HasDefaultValue(-1)
+                .IsRequired();
             builder.Property(x => x.ValidDays).HasColumnName("valid_days").HasDefaultValue(30).IsRequired();
             builder.Property(x => x.Description).HasColumnName("description").HasColumnType("text");
             builder.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true).IsRequired();
@@ -595,9 +636,12 @@ public class AppDbContext : DbContext
             builder.Property(x => x.RewardId).HasColumnName("reward_id");
             builder.Property(x => x.PromotionId).HasColumnName("promotion_id");
             builder.Property(x => x.Code).HasColumnName("code").IsRequired();
-            builder.Property(x => x.Status).HasColumnName("status").HasConversion(VoucherStatusConverter).HasDefaultValue(VoucherStatus.Active).IsRequired();
-            builder.Property(x => x.DiscountType).HasColumnName("discount_type").HasConversion(DiscountTypeConverter).IsRequired();
-            builder.Property(x => x.DiscountValue).HasColumnName("discount_value").HasColumnType("numeric(12,2)").IsRequired();
+            builder.Property(x => x.Status).HasColumnName("status").HasConversion(VoucherStatusConverter)
+                .HasDefaultValue(VoucherStatus.Active).IsRequired();
+            builder.Property(x => x.DiscountType).HasColumnName("discount_type").HasConversion(DiscountTypeConverter)
+                .IsRequired();
+            builder.Property(x => x.DiscountValue).HasColumnName("discount_value").HasColumnType("numeric(12,2)")
+                .IsRequired();
             builder.Property(x => x.ExpiresAt).HasColumnName("expires_at").IsRequired();
             builder.Property(x => x.UsedAt).HasColumnName("used_at");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
@@ -637,10 +681,13 @@ public class AppDbContext : DbContext
             builder.Property(x => x.BookingDate).HasColumnName("booking_date").HasColumnType("date").IsRequired();
             builder.Property(x => x.StartTime).HasColumnName("start_time").IsRequired();
             builder.Property(x => x.EndTime).HasColumnName("end_time").IsRequired();
-            builder.Property(x => x.Status).HasColumnName("status").HasConversion(BookingStatusConverter).HasDefaultValue(BookingStatus.Pending).IsRequired();
+            builder.Property(x => x.Status).HasColumnName("status").HasConversion(BookingStatusConverter)
+                .HasDefaultValue(BookingStatus.Pending).IsRequired();
             builder.Property(x => x.BasePrice).HasColumnName("base_price").HasColumnType("numeric(12,2)").IsRequired();
-            builder.Property(x => x.DiscountAmount).HasColumnName("discount_amount").HasColumnType("numeric(12,2)").HasDefaultValue(0m).IsRequired();
-            builder.Property(x => x.FinalPrice).HasColumnName("final_price").HasColumnType("numeric(12,2)").IsRequired();
+            builder.Property(x => x.DiscountAmount).HasColumnName("discount_amount").HasColumnType("numeric(12,2)")
+                .HasDefaultValue(0m).IsRequired();
+            builder.Property(x => x.FinalPrice).HasColumnName("final_price").HasColumnType("numeric(12,2)")
+                .IsRequired();
             builder.Property(x => x.CancelledAt).HasColumnName("cancelled_at");
             builder.Property(x => x.CompletedAt).HasColumnName("completed_at");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
@@ -685,7 +732,8 @@ public class AppDbContext : DbContext
             builder.Property(x => x.BookingId).HasColumnName("booking_id");
             builder.Property(x => x.RewardId).HasColumnName("reward_id");
             builder.Property(x => x.Points).HasColumnName("points").IsRequired();
-            builder.Property(x => x.TransactionType).HasColumnName("transaction_type").HasConversion(PointTransactionTypeConverter).IsRequired();
+            builder.Property(x => x.TransactionType).HasColumnName("transaction_type")
+                .HasConversion(PointTransactionTypeConverter).IsRequired();
             builder.Property(x => x.Description).HasColumnName("description").HasColumnType("text");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
