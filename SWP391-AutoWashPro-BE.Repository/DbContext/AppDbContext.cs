@@ -130,6 +130,7 @@ public class AppDbContext : DbContext
         NotificationType.SystemAlert => "system_alert",
         NotificationType.IdentityApproved => "identity_approved",
         NotificationType.IdentityRejected => "identity_rejected",
+        NotificationType.PromotionAlert => "promotion_alert",
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 
@@ -144,6 +145,7 @@ public class AppDbContext : DbContext
         "system_alert" => NotificationType.SystemAlert,
         "identity_approved" => NotificationType.IdentityApproved,
         "identity_rejected" => NotificationType.IdentityRejected,
+        "promotion_alert" => NotificationType.PromotionAlert,
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 
