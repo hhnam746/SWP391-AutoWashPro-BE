@@ -12,7 +12,7 @@ using SWP391_AutoWashPro_BE.Repository;
 namespace SWP391_AutoWashPro_BE.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260615054601_UpdateDatabase")]
+    [Migration("20260616003022_UpdateDatabase")]
     partial class UpdateDatabase
     {
         /// <inheritdoc />
@@ -638,6 +638,22 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                             ConfigValue = "100000",
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
                             Description = "Default base price for service."
+                        },
+                        new
+                        {
+                            Id = new Guid("8b2e6d2b-0c74-47a0-9c5f-9d83029de001"),
+                            ConfigKey = "SuvBasePrice",
+                            ConfigValue = "30000",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
+                            Description = "Additional base price for SUV vehicles."
+                        },
+                        new
+                        {
+                            Id = new Guid("f1a24c4e-1978-4db9-8d6a-2cb7a3f7f002"),
+                            ConfigKey = "SedanBasePrice",
+                            ConfigValue = "0",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
+                            Description = "Additional base price for Sedan vehicles."
                         },
                         new
                         {
