@@ -8,9 +8,13 @@ namespace SWP391_AutoWashPro_BE.Service.Promotion;
 public class Service: IService
 {
     private readonly AppDbContext _dbContext;
-    public Service(AppDbContext context)
+    private readonly Notification.IService _notificationService;
+
+    
+    public Service(AppDbContext context, Notification.IService notificationService)
     {
         _dbContext = context;
+        _notificationService = notificationService;
     }
 
 
@@ -96,8 +100,28 @@ public class Service: IService
                 });
             }
         }
+        
         await _dbContext.SaveChangesAsync();
-
+        
+        //Add thông báo realtime signalR
+        var query = _dbContext.Users.Where(x =>
+                                                                x.isVerify == true && 
+                                                                x.Status == AccountStatus.Active && 
+                                                                x.Role == UserRole.Customer);
+        
+        var customerIds = await query.Select(x => x.Id).ToListAsync();
+        
+        
+        foreach (var customerId in customerIds)
+        {
+            await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+            {
+                UserId = customerId,
+                Type = NotificationType.SystemAlert,
+                Data = $"New promotion available: {newPromotion.Name}. Valid until {newPromotion.EndDate:dd/MM/yyyy}."
+            });
+        }
+        
         return "Promotion created successfully";
     }
 

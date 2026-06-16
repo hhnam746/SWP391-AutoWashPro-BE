@@ -8,10 +8,12 @@ namespace SWP391_AutoWashPro_BE.Service.Reward;
 public class Service : IService
 {
     private readonly AppDbContext _dbContext;
+    private readonly Notification.IService _notificationService;
 
-    public Service(AppDbContext dbContext)
+    public Service(AppDbContext dbContext, Notification.IService notificationService)
     {
         _dbContext = dbContext;
+        _notificationService = notificationService;
     }
 
     public async Task<Base.Response.PageResult<Response.RewardResponse>> GetAllReward(string? searchTerm, int pageSize,
@@ -233,7 +235,15 @@ public class Service : IService
         _dbContext.Notifications.Add(notification);
 
         await _dbContext.SaveChangesAsync();
-
+        
+        
+        await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+        {
+            UserId = userId,
+            Type = NotificationType.RewardRedeemed,
+            Data = $"You have successfully redeemed {reward.Name}. Your voucher code is {voucher.Code}."
+        });
+        
         return "Reward redeemed successfully";
     }
 }
