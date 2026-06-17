@@ -12,8 +12,8 @@ using SWP391_AutoWashPro_BE.Repository;
 namespace SWP391_AutoWashPro_BE.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260616003022_UpdateDatabase")]
-    partial class UpdateDatabase
+    [Migration("20260529171128_BookingSlotPartialUniqueIndex")]
+    partial class BookingSlotPartialUniqueIndex
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -605,72 +605,6 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.HasIndex("UpdatedById");
 
                     b.ToTable("system_config", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("6e830ac7-1934-4392-b05a-b4f777302170"),
-                            ConfigKey = "WorkingStartHour",
-                            ConfigValue = "8",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
-                            Description = "Default working start time in Vietnam timezone UTC+7."
-                        },
-                        new
-                        {
-                            Id = new Guid("8d456f5d-26ba-45f1-a57f-d88234758685"),
-                            ConfigKey = "WorkingEndHour",
-                            ConfigValue = "17",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
-                            Description = "Default working end time in Vietnam timezone UTC+7."
-                        },
-                        new
-                        {
-                            Id = new Guid("490a0d6b-e4ca-4315-a387-b92b6f52c9bc"),
-                            ConfigKey = "SlotDurationMinutes",
-                            ConfigValue = "15",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
-                            Description = "Duration of each booking slot in minutes."
-                        },
-                        new
-                        {
-                            Id = new Guid("f96ce391-eb3a-4a8e-ad76-18c3f8da6668"),
-                            ConfigKey = "BasePrice",
-                            ConfigValue = "100000",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
-                            Description = "Default base price for service."
-                        },
-                        new
-                        {
-                            Id = new Guid("8b2e6d2b-0c74-47a0-9c5f-9d83029de001"),
-                            ConfigKey = "SuvBasePrice",
-                            ConfigValue = "30000",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
-                            Description = "Additional base price for SUV vehicles."
-                        },
-                        new
-                        {
-                            Id = new Guid("f1a24c4e-1978-4db9-8d6a-2cb7a3f7f002"),
-                            ConfigKey = "SedanBasePrice",
-                            ConfigValue = "0",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
-                            Description = "Additional base price for Sedan vehicles."
-                        },
-                        new
-                        {
-                            Id = new Guid("219a17c5-c218-4c0c-b0e0-6e95fd0c6b11"),
-                            ConfigKey = "PaymentDeposite",
-                            ConfigValue = "30",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
-                            Description = "Deposit percentage required for booking."
-                        },
-                        new
-                        {
-                            Id = new Guid("09f7cba0-c348-4654-90d6-bdd3b21385fa"),
-                            ConfigKey = "BonusPoint",
-                            ConfigValue = "10",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
-                            Description = "Bonus points earned after checkout completed."
-                        });
                 });
 
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Tier", b =>
@@ -762,9 +696,6 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnType("text")
                         .HasColumnName("phone");
 
-                    b.Property<string>("Reason")
-                        .HasColumnType("text");
-
                     b.Property<string>("Role")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -776,7 +707,7 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasColumnType("text")
-                        .HasDefaultValue("pending")
+                        .HasDefaultValue("active")
                         .HasColumnName("status");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
@@ -893,10 +824,6 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid>("VehicleTypeId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("vehicle_type_id");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerId");
@@ -906,108 +833,7 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.HasIndex("LicensePlate")
                         .IsUnique();
 
-                    b.HasIndex("VehicleTypeId");
-
                     b.ToTable("vehicle", (string)null);
-                });
-
-            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.VehicleImage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("image_url");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true)
-                        .HasColumnName("is_active");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid>("VehicleId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("vehicle_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VehicleId");
-
-                    b.ToTable("vehicle_image", (string)null);
-                });
-
-            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.VehicleType", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("gen_random_uuid()");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<int>("SizeLevel")
-                        .HasColumnType("integer")
-                        .HasColumnName("size_level");
-
-                    b.Property<string>("TypeName")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("type_name");
-
-                    b.Property<DateTimeOffset?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<int>("VehicleSlot")
-                        .HasColumnType("integer")
-                        .HasColumnName("vehicle_slot");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SizeLevel");
-
-                    b.HasIndex("TypeName")
-                        .IsUnique();
-
-                    b.ToTable("vehicle_type", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 9, 21, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
-                            SizeLevel = 2,
-                            TypeName = "SUV",
-                            VehicleSlot = 12
-                        },
-                        new
-                        {
-                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 6, 9, 21, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
-                            SizeLevel = 1,
-                            TypeName = "Sedan",
-                            VehicleSlot = 5
-                        });
                 });
 
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Voucher", b =>
@@ -1279,26 +1105,7 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.VehicleType", "VehicleType")
-                        .WithMany("Vehicles")
-                        .HasForeignKey("VehicleTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("Customer");
-
-                    b.Navigation("VehicleType");
-                });
-
-            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.VehicleImage", b =>
-                {
-                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.Vehicle", "Vehicle")
-                        .WithMany("VehicleImages")
-                        .HasForeignKey("VehicleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Vehicle");
                 });
 
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Voucher", b =>
@@ -1399,13 +1206,6 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Vehicle", b =>
                 {
                     b.Navigation("Bookings");
-
-                    b.Navigation("VehicleImages");
-                });
-
-            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.VehicleType", b =>
-                {
-                    b.Navigation("Vehicles");
                 });
 
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Voucher", b =>
