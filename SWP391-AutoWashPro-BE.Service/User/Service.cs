@@ -185,6 +185,14 @@ public class Service : IService
             throw new ArgumentException("Current password is required.");
         }
 
+        //kiểm tra password mạnh hay yếu
+        if (!IsValidPassword(request.NewPassword.Trim()))
+        {
+            throw new ArgumentException("New password must be at least 8 characters long, " +
+                                        "contain at least one uppercase letter," +
+                                        " one lowercase letter, one number, and\n  one special character.");
+        }
+        
         if (string.IsNullOrWhiteSpace(request.NewPassword))
         {
             throw new ArgumentException("New password is required.");
@@ -395,6 +403,27 @@ public class Service : IService
         if (!user.isVerify || user.Status != AccountStatus.Active)
         {
             throw new ForbiddenAccessException("Only active and verified customer accounts can access profile features.");
+        }
+    }
+    
+    private bool IsValidPassword(string password)
+    {
+        try
+        {
+            // Regex giải thích:
+            // ^ = bắt đầu chuỗi
+            // (?=.*[a-z]) = chứa ít nhất 1 chữ thường
+            // (?=.*[A-Z]) = chứa ít nhất 1 chữ hoa
+            // (?=.*\d) = chứa ít nhất 1 số
+            // (?=.*[@$!%*?&]) = chứa ít nhất 1 ký tự đặc biệt
+            // [A-Za-z\d@$!%*?&]{8,} = độ dài tối thiểu 8 ký tự, chỉ gồm các ký tự này
+            // $ = kết thúc chuỗi
+            const string pattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$";
+            return Regex.IsMatch(password, pattern);
+        }
+        catch
+        {
+            return false;
         }
     }
 }
