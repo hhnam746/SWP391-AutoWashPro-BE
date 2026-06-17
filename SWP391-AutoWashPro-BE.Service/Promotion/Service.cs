@@ -1,14 +1,20 @@
 using Microsoft.EntityFrameworkCore;
 using SWP391_AutoWashPro_BE.Repository;
+using SWP391_AutoWashPro_BE.Repository.Entities;
+using SWP391_AutoWashPro_BE.Repository.Enums;
 
 namespace SWP391_AutoWashPro_BE.Service.Promotion;
 
 public class Service: IService
 {
     private readonly AppDbContext _dbContext;
-    public Service(AppDbContext context)
+    private readonly Notification.IService _notificationService;
+
+    
+    public Service(AppDbContext context, Notification.IService notificationService)
     {
         _dbContext = context;
+        _notificationService = notificationService;
     }
 
 
@@ -57,6 +63,16 @@ public class Service: IService
         {
             throw new Exception("Promotion already exists");
         }
+        if (request.IsGlobal == false &&
+            (request.TierIds == null || !request.TierIds.Any()))
+        {
+            throw new Exception("Please select at least one tier");
+        }
+        if (request.DiscountValue <= 0)
+            throw new Exception("Discount value must be greater than 0");
+
+        if (request.DiscountType == DiscountType.Percentage && request.DiscountValue >= 100)
+            throw new Exception("Percentage discount must be less than 100");
 
         var newPromotion = new Repository.Entities.Promotion()
         {
@@ -70,8 +86,42 @@ public class Service: IService
             IsActive = true,
         };
         await _dbContext.Promotions.AddAsync(newPromotion);
-        await _dbContext.SaveChangesAsync();
+        
 
+        if (request.IsGlobal == false)
+        {
+            foreach (var tierId in request.TierIds)
+            {
+               await  _dbContext.PromotionTiers.AddAsync(new PromotionTier()
+                {
+                    PromotionId = newPromotion.Id,
+                    TierId = tierId,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            }
+        }
+        
+        await _dbContext.SaveChangesAsync();
+        
+        //Add thông báo realtime signalR
+        var query = _dbContext.Users.Where(x =>
+                                                                x.isVerify == true && 
+                                                                x.Status == AccountStatus.Active && 
+                                                                x.Role == UserRole.Customer);
+        
+        var customerIds = await query.Select(x => x.Id).ToListAsync();
+        
+        
+        foreach (var customerId in customerIds)
+        {
+            await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+            {
+                UserId = customerId,
+                Type = NotificationType.SystemAlert,
+                Data = $"New promotion available: {newPromotion.Name}. Valid until {newPromotion.EndDate:dd/MM/yyyy}."
+            });
+        }
+        
         return "Promotion created successfully";
     }
 
@@ -84,7 +134,7 @@ public class Service: IService
         {
             throw new Exception("Promotion not found");
         }
-
+        
         if (request.Name != null)
             promotion.Name = request.Name;
 
@@ -110,6 +160,35 @@ public class Service: IService
             promotion.IsActive = request.IsActive.Value;
 
         promotion.UpdatedAt = DateTimeOffset.UtcNow;
+        
+        if (promotion.DiscountValue <= 0)
+            throw new Exception("Discount value must be greater than 0");
+
+        if (promotion.DiscountType == DiscountType.Percentage && promotion.DiscountValue >= 100)
+            throw new Exception("Percentage discount must be less than 100");
+        if (promotion.IsGlobal == false && request.TierIds != null && !request.TierIds.Any())
+            throw new Exception("Please select at least one tier");
+        if (request.TierIds != null)
+        {
+            var oldPromotionTiers = await _dbContext.PromotionTiers
+                .Where(x => x.PromotionId == promotion.Id)
+                .ToListAsync();
+
+            _dbContext.PromotionTiers.RemoveRange(oldPromotionTiers);
+
+            if (promotion.IsGlobal == false)
+            {
+                foreach (var tierId in request.TierIds)
+                {
+                    _dbContext.PromotionTiers.Add(new PromotionTier
+                    {
+                        PromotionId = promotion.Id,
+                        TierId = tierId,
+                        CreatedAt = DateTimeOffset.UtcNow
+                    });
+                }
+            }
+        }
 
         await _dbContext.SaveChangesAsync();
 

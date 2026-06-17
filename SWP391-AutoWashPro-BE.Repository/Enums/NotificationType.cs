@@ -8,5 +8,7 @@ public enum NotificationType
     BookingCompleted,
     TierUpgraded,
     RewardRedeemed,
+    IdentityApproved,
+    IdentityRejected,
     SystemAlert
 }

@@ -22,7 +22,9 @@ public class Service : IService
     private readonly JwtService.IService _jwtService;
     private readonly Security.IService _securityService;
 
-    public Service(AppDbContext dbContext, MediaService.IService mediaService, MailService.IService mailService, ILogger<Service> logger, JwtService.IService jwtService, IConfiguration configuration, Security.IService service)
+    public Service(AppDbContext dbContext, MediaService.IService mediaService, MailService.IService mailService,
+        ILogger<Service> logger, JwtService.IService jwtService, IConfiguration configuration,
+        Security.IService service)
     {
         _dbContext = dbContext;
         _mediaService = mediaService;
@@ -40,56 +42,63 @@ public class Service : IService
         {
             throw new ArgumentException("At least 3 face images are required.");
         }
-        
+
         if (string.IsNullOrWhiteSpace(request.Cccd))
         {
-          throw new ArgumentException("CCCD is required.");
+            throw new ArgumentException("CCCD is required.");
         }
-        
+
         var normalizedEmail = request.Email.Trim();
         var normalizedPhone = request.Phone.Trim();
         var normalizedFirstName = request.FirstName.Trim();
         var normalizedLastName = request.LastName.Trim();
         var normalizedCccd = request.Cccd.Trim();
-        
-        
+        var normalizedPassWord = request.Password.Trim();
+
         if (!IsValidEmail(normalizedEmail))
         {
-          throw new ArgumentException("Invalid email format.");
+            throw new ArgumentException("Invalid email format.");
         }
-        
+
         if (!IsValidPhoneNumber(normalizedPhone))
         {
-          throw new ArgumentException("Invalid phone number format.");
+            throw new ArgumentException("Invalid phone number format.");
         }
 
         if (!IsValidCccd(normalizedCccd))
         {
-          throw new ArgumentException("Invalid CCCD format.");
+            throw new ArgumentException("Invalid CCCD format.");
         }
-        
+
+        if (!IsValidPassword(normalizedPassWord))
+        {
+            throw new ArgumentException("Password must be at least 8 characters long, " +
+                                        "contain at least one uppercase letter," +
+                                        " one lowercase letter, one number, and\n  one special character.");
+        }
+
         var existingUser = await _dbContext.Users
-          .AsNoTracking()
-          .FirstOrDefaultAsync(x =>
-            x.Email == normalizedEmail ||
-            x.Phone == normalizedPhone);
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x =>
+                x.Email == normalizedEmail ||
+                x.Phone == normalizedPhone);
 
         if (existingUser != null)
         {
-          if (existingUser.Email == normalizedEmail)
-          {
-            throw new ArgumentException("Email is already used.");
-          }
+            if (existingUser.Email == normalizedEmail)
+            {
+                throw new ArgumentException("Email is already used.");
+            }
 
-          if (existingUser.Phone == normalizedPhone)
-          {
-            throw new ArgumentException("Phone number is already used.");
-          }
+            if (existingUser.Phone == normalizedPhone)
+            {
+                throw new ArgumentException("Phone number is already used.");
+            }
         }
 
         var defaultTier = await _dbContext.Tiers
-          .OrderBy(t => t.Level)
-          .FirstOrDefaultAsync();
+            .OrderBy(t => t.Level)
+            .FirstOrDefaultAsync();
 
         if (defaultTier == null)
         {
@@ -120,8 +129,8 @@ public class Service : IService
                 // Another concurrent request may have inserted the default tier.
                 _dbContext.Entry(defaultTier).State = EntityState.Detached;
                 defaultTier = await _dbContext.Tiers
-                    .FirstOrDefaultAsync(t => t.Name == "Member")
-                    ?? await _dbContext.Tiers.OrderBy(t => t.Level).FirstOrDefaultAsync();
+                                  .FirstOrDefaultAsync(t => t.Name == "Member")
+                              ?? await _dbContext.Tiers.OrderBy(t => t.Level).FirstOrDefaultAsync();
 
                 if (defaultTier == null)
                 {
@@ -129,86 +138,86 @@ public class Service : IService
                 }
             }
         }
-        
+
         // Check duplicate CCCD
         bool isCccdUsed = await _dbContext.CustomerProfiles
-          .AsNoTracking()
-          .AnyAsync(x => x.Cccd == normalizedCccd);
-        
+            .AsNoTracking()
+            .AnyAsync(x => x.Cccd == normalizedCccd);
+
         if (isCccdUsed)
         {
-          throw new ArgumentException("CCCD has already been used.");
+            throw new ArgumentException("CCCD has already been used.");
         }
-        
-      
+
+
         var user = new Repository.Entities.User()
         {
-          Id = Guid.NewGuid(),
-          Email = normalizedEmail,
-          Phone = normalizedPhone,
-          PasswordHash = _securityService.Hash(request.Password),
-          isVerify = false,
-          Role = UserRole.Customer,
-          Status = AccountStatus.Pending,
-          CreatedAt = DateTimeOffset.UtcNow,
+            Id = Guid.NewGuid(),
+            Email = normalizedEmail,
+            Phone = normalizedPhone,
+            PasswordHash = _securityService.Hash(request.Password),
+            isVerify = false,
+            Role = UserRole.Customer,
+            Status = AccountStatus.Pending,
+            CreatedAt = DateTimeOffset.UtcNow,
         };
 
         _dbContext.Users.Add(user);
-          
+
 
         var customerProfile = new Repository.Entities.CustomerProfile()
         {
-          Id = Guid.NewGuid(),
-          UserId = user.Id,
-          TierId = defaultTier.Id,
-          FirstName = normalizedFirstName,
-          LastName = normalizedLastName,
-          Cccd = normalizedCccd,
-          CreatedAt = DateTimeOffset.UtcNow,
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            TierId = defaultTier.Id,
+            FirstName = normalizedFirstName,
+            LastName = normalizedLastName,
+            Cccd = normalizedCccd,
+            CreatedAt = DateTimeOffset.UtcNow,
         };
 
         _dbContext.CustomerProfiles.Add(customerProfile);
-        
-      
+
+
         var userWallet = new Repository.Entities.Wallet()
         {
-          Id = Guid.NewGuid(),
-          CustomerId = customerProfile.Id,
-          Balance = 0,
-          CreatedAt = DateTimeOffset.UtcNow,
+            Id = Guid.NewGuid(),
+            CustomerId = customerProfile.Id,
+            Balance = 0,
+            CreatedAt = DateTimeOffset.UtcNow,
         };
 
         _dbContext.Wallets.Add(userWallet);
-        
-        
+
+
         var faceImageUrls = new List<string>();
         foreach (var faceImage in request.FaceImages)
         {
-          faceImageUrls.Add(await _mediaService.UploadImageAsync(faceImage));
+            faceImageUrls.Add(await _mediaService.UploadImageAsync(faceImage));
         }
 
         var userFaceImages = faceImageUrls.Select(imageUrl => new Repository.Entities.UserFaceImage()
         {
-          Id = Guid.NewGuid(),
-          UserId = user.Id,
-          ImageUrl = imageUrl, 
-          IsActive = true,
-          CreatedAt = DateTimeOffset.UtcNow,
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            ImageUrl = imageUrl,
+            IsActive = true,
+            CreatedAt = DateTimeOffset.UtcNow,
         });
 
         _dbContext.UserFaceImages.AddRange(userFaceImages);
-        
+
         await _dbContext.SaveChangesAsync();
-      
-        
+
+
         // Send welcome email
         try
         {
-          var mailContent = new MailContent()
-          {
-            To = request.Email,
-            Subject = "Welcome to AutoWash Pro",
-            Body = $@"
+            var mailContent = new MailContent()
+            {
+                To = request.Email,
+                Subject = "Welcome to AutoWash Pro",
+                Body = $@"
 <!DOCTYPE html>
 <html lang=""en"">
 <head>
@@ -426,17 +435,17 @@ public class Service : IService
 </body>
 </html>
 "
-          };
-          await _mailService.SendMail(mailContent);
+            };
+            await _mailService.SendMail(mailContent);
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
-          _logger.LogError(ex, "Failed to send welcome email to {Email}", request.Email);
+            _logger.LogError(ex, "Failed to send welcome email to {Email}", request.Email);
         }
-        
+
         return "User registered successfully!";
     }
-    
+
 
     public async Task<Response.LoginResponse> Login(Request.LoginRequest request)
     {
@@ -467,7 +476,7 @@ public class Service : IService
         // {
         //     throw new ForbiddenAccessException("Account is not active");
         // }
-        
+
         //account pending, reject được thông qua
 
         user.LastLoginAt = DateTimeOffset.UtcNow;
@@ -479,8 +488,8 @@ public class Service : IService
             new(ClaimTypes.Email, user.Email ?? string.Empty),
             new("Role", user.Role.ToString()),
             new(ClaimTypes.Role, user.Role.ToString()),
-            new Claim(ClaimTypes.Expired, 
-              DateTimeOffset.UtcNow.AddMinutes(_jwtOption.ExpireMinutes).ToString()),
+            new Claim(ClaimTypes.Expired,
+                DateTimeOffset.UtcNow.AddMinutes(_jwtOption.ExpireMinutes).ToString()),
         };
 
         var accessToken = _jwtService.GenerateAccessToken(claims);
@@ -506,7 +515,7 @@ public class Service : IService
             return false;
         }
     }
-    
+
     private bool IsValidPhoneNumber(string phoneNumber)
     {
         try
@@ -529,6 +538,27 @@ public class Service : IService
             // Vietnam CCCD is commonly stored as exactly 12 digits.
             const string pattern = @"^\d{12}$";
             return Regex.IsMatch(cccd, pattern);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private bool IsValidPassword(string password)
+    {
+        try
+        {
+            // Regex giải thích:
+            // ^ = bắt đầu chuỗi
+            // (?=.*[a-z]) = chứa ít nhất 1 chữ thường
+            // (?=.*[A-Z]) = chứa ít nhất 1 chữ hoa
+            // (?=.*\d) = chứa ít nhất 1 số
+            // (?=.*[@$!%*?&]) = chứa ít nhất 1 ký tự đặc biệt
+            // [A-Za-z\d@$!%*?&]{8,} = độ dài tối thiểu 8 ký tự, chỉ gồm các ký tự này
+            // $ = kết thúc chuỗi
+            const string pattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$";
+            return Regex.IsMatch(password, pattern);
         }
         catch
         {

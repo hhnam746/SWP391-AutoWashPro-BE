@@ -24,6 +24,7 @@ using PromotionService = SWP391_AutoWashPro_BE.Service.Promotion;
 using RewardService = SWP391_AutoWashPro_BE.Service.Reward;
 using VoucherService = SWP391_AutoWashPro_BE.Service.Voucher;
 using DiscordService = SWP391_AutoWashPro_BE.Service.DiscordService;
+using NotificationHub = SWP391_AutoWashPro_BE.Service.Hubs.NotificationHub;
 
 
 Env.Load();
@@ -52,6 +53,23 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddJwtServices(builder.Configuration);
 builder.Services.AddSwaggerServices();
+builder.Services.AddSignalR();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:5173",  // port của FE và BE
+                    "http://localhost:5174", //local demo SignalR
+                    "http://localhost:3000"  //local demo FE
+                    )
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials(); 
+        });
+});
+
 
 builder.Services.AddScoped<JwtService.IService, JwtService.Service>();
 builder.Services.AddScoped<MediaService.IService, CloudinaryService.Service>();
@@ -93,9 +111,12 @@ app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 app.UseSwaggerAPI();
 
+app.UseCors("AllowFrontend");
+
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapHub<NotificationHub>("/notificationHub");
 app.MapControllers();
 
 app.Run();

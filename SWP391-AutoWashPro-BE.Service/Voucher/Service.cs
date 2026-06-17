@@ -19,7 +19,8 @@ public class Service: IService
         if (customer == null)
             throw new Exception("Customer not found");
 
-        var query = _dbContext.Vouchers.Where(y => true);
+        var query = _dbContext.Vouchers
+            .Where(x => x.CustomerId == customer.Id);
 
         query = query.OrderBy(x => x.Id);
         query = query.Skip((pageIndex - 1) * pageSize).Take(pageSize);
