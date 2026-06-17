@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using SWP391_AutoWashPro_BE.Repository.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace SWP391_AutoWashPro_BE.Service.Vehicles;
 
@@ -19,6 +20,7 @@ public class Request
         public string Model { get; set; }
         public string Color { get; set; }
         public VehicleTypes VehicleType { get; set; }
+        [MinLength(3, ErrorMessage = "At least 3 face images are required.")]
         public required List<IFormFile> VehicleImages { get; set; }
     }
 
