@@ -76,6 +76,7 @@ public class Service : IService
         var query = _dbContext.Vehicles
             .Include(x => x.VehicleType)
             .Where(x => x.CustomerId == customerProfile.Id && x.IsActive == true);
+        
         var selectedQuery = query
             .OrderByDescending(x => x.CreatedAt)
             .Skip((page - 1) * pageSize)
@@ -91,7 +92,12 @@ public class Service : IService
                 HasActiveBooking = _dbContext.Bookings.Any(b =>
                     b.VehicleId == x.Id &&
                     ActiveBookingStatuses.Contains(b.Status)),
-                VehicelType = x.VehicleType.TypeName
+                VehicelType = x.VehicleType.TypeName,
+                VehicleImages = _dbContext.VehicleImages.Where(i => i.VehicleId == x.Id).Select(mp => new Response.VehicleImageResponse
+                {
+                    Id = mp.Id,
+                    ImageUrl = mp.ImageUrl,
+                }).ToList(),
             });
 
         var totalCount = await query.CountAsync();
@@ -220,7 +226,12 @@ public class Service : IService
             // Exception note: phát sinh khi vehicle không tồn tại, đã bị soft delete hoặc không thuộc về customer hiện tại.
             throw new KeyNotFoundException("Vehicle not found.");
         }
-
+        var vehicelImagesQuery = _dbContext.VehicleImages.Where(x => x.VehicleId == id);
+        var vehicelImages = vehicelImagesQuery.Select(x => new Response.VehicleImageResponse
+        {
+            Id = x.Id,
+            ImageUrl = x.ImageUrl
+        });
         var result = new Response.GetVehicleByIdResponse
         {
             Id = query.Id,
@@ -230,6 +241,7 @@ public class Service : IService
             Color = query.Color,
             IsActive = query.IsActive,
             VehicleType = query.VehicleType.TypeName,
+            VehicleImages = vehicelImages.ToList() ,
         };
 
         return result;

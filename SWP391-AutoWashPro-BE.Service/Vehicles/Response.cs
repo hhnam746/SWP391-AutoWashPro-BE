@@ -1,3 +1,5 @@
+using SWP391_AutoWashPro_BE.Repository.Entities;
+
 namespace SWP391_AutoWashPro_BE.Service.Vehicles;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 
@@ -19,6 +21,7 @@ public class Response
         public required string Color { get; set; }
         public required bool IsActive { get; set; }
         public required bool HasActiveBooking { get; set; }
+        public required List<VehicleImageResponse> VehicleImages { get; set; }
     }
 
     public class CreateVehicleResponse
@@ -32,6 +35,12 @@ public class Response
         public required VehicleTypes VehicleType { get; set; }
     }
 
+    public class VehicleImageResponse
+    {
+        public required Guid Id { get; set; }
+        public required string ImageUrl { get; set; }
+    }
+    
     public class GetVehicleByIdResponse
     {
         public required Guid Id { get; set; }
@@ -41,6 +50,7 @@ public class Response
         public required VehicleTypes VehicleType { get; set; }
         public required string Color { get; set; }
         public required bool IsActive { get; set; }
+        public required List<VehicleImageResponse> VehicleImages { get; set; }
     }
 
     public class UpdateVehicleResponse
