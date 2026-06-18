@@ -11,14 +11,19 @@ public class Service : IService
 
     public Service(IConfiguration configuration)
     {
-        configuration.GetSection(nameof(MailOptions)).Bind(_mailOptions);
+        configuration.GetSection("MailOptions").Bind(_mailOptions);
     }
-    
+
     public async Task SendMail(MailContent mailContent)
     {
+        if (string.IsNullOrWhiteSpace(_mailOptions.Mail))
+        {
+            throw new InvalidOperationException("MailOption:Mail is not configured.");
+        }
+
         MimeMessage email = new();
-        email.Sender = new MailboxAddress(_mailOptions?.DisplayName, _mailOptions!.Mail);
-        email.From.Add(new MailboxAddress(_mailOptions?.DisplayName, _mailOptions!.Mail));
+        email.Sender = new MailboxAddress(_mailOptions.DisplayName, _mailOptions.Mail);
+        email.From.Add(new MailboxAddress(_mailOptions.DisplayName, _mailOptions.Mail));
         email.To.Add(MailboxAddress.Parse(mailContent.To));
         email.Subject = mailContent.Subject;
 
