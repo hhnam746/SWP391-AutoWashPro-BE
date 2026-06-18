@@ -190,11 +190,8 @@ public class Service : IService
         _dbContext.Wallets.Add(userWallet);
 
 
-        var faceImageUrls = new List<string>();
-        foreach (var faceImage in request.FaceImages)
-        {
-            faceImageUrls.Add(await _mediaService.UploadImageAsync(faceImage));
-        }
+        var uploadTasks = request.FaceImages.Select(img => _mediaService.UploadImageAsync(img));
+        var faceImageUrls = await Task.WhenAll(uploadTasks);
 
         var userFaceImages = faceImageUrls.Select(imageUrl => new Repository.Entities.UserFaceImage()
         {
@@ -211,13 +208,15 @@ public class Service : IService
 
 
         // Send welcome email
-        try
+        _ = Task.Run(async () => 
         {
-            var mailContent = new MailContent()
+            try
             {
-                To = request.Email,
-                Subject = "Welcome to AutoWash Pro",
-                Body = $@"
+                var mailContent = new MailContent()
+                {
+                    To = request.Email,
+                    Subject = "Welcome to AutoWash Pro",
+                    Body = $@"
 <!DOCTYPE html>
 <html lang=""en"">
 <head>
@@ -435,13 +434,14 @@ public class Service : IService
 </body>
 </html>
 "
-            };
-            await _mailService.SendMail(mailContent);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send welcome email to {Email}", request.Email);
-        }
+                };
+                await _mailService.SendMail(mailContent);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send welcome email to {Email}", request.Email);
+            }
+        });
 
         return "User registered successfully!";
     }
