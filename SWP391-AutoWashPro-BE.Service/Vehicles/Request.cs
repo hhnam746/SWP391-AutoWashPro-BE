@@ -20,7 +20,7 @@ public class Request
         public string Model { get; set; }
         public string Color { get; set; }
         public VehicleTypes VehicleType { get; set; }
-        [MinLength(3, ErrorMessage = "At least 3 face images are required.")]
+        [MinLength(3, ErrorMessage = "At least 3 vehicle images are required.")]
         public required List<IFormFile> VehicleImages { get; set; }
     }
 
