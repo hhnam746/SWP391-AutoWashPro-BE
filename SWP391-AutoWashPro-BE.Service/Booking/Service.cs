@@ -321,16 +321,46 @@ public class Service : IService
         }
 
         //Discount by promotion
-        var promotionDiscountAmount = (decimal)0;
-        if (_dbContext.Promotions.Any(x => x.IsGlobal == true))
+        decimal promotionDiscountAmount = 0;
+
+        // Global Promotions
+        var globalPromotions = await _dbContext.Promotions
+            .Where(x => x.IsGlobal == true)
+            .ToListAsync();
+
+        foreach (var promotion in globalPromotions)
         {
-            promotionDiscountAmount += _dbContext.Promotions.Where(x => x.IsGlobal == true).Sum(p => p.DiscountValue);
+            if (promotion.DiscountType == DiscountType.Percentage)
+            {
+                promotionDiscountAmount +=
+                    basePrice * promotion.DiscountValue / 100;
+            }
+            else
+            {
+                promotionDiscountAmount +=
+                    promotion.DiscountValue;
+            }
         }
 
-        if (_dbContext.PromotionTiers.FirstOrDefault(x => x.TierId == customerProfile.TierId) != null)
+        // Tier Promotion
+        var tierPromotion = await _dbContext.PromotionTiers
+            .Include(x => x.Promotion)
+            .FirstOrDefaultAsync(x => x.TierId == customerProfile.TierId);
+
+        if (tierPromotion != null)
         {
-            promotionDiscountAmount += _dbContext.PromotionTiers.FirstOrDefault(x => x.TierId == customerProfile.TierId)
-                .Promotion.DiscountValue;
+            var promotion = tierPromotion.Promotion;
+
+            if (promotion.DiscountType == DiscountType.Percentage)
+            {
+                promotionDiscountAmount +=
+                    basePrice * promotion.DiscountValue / 100;
+            }
+            else
+            {
+                promotionDiscountAmount +=
+                    promotion.DiscountValue;
+            }
         }
 
         var discountAmount = voucherDiscountAmount + promotionDiscountAmount;
