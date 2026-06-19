@@ -20,4 +20,5 @@ public class User : BaseEntity, IAuditableEntity
     public ICollection<UserFaceImage> UserFaceImages { get; set; } = new List<UserFaceImage>();
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     public ICollection<SystemConfig> UpdatedSystemConfigs { get; set; } = new List<SystemConfig>();
+    public ICollection<Otp> Otps { get; set; } = new List<Otp>();
 }

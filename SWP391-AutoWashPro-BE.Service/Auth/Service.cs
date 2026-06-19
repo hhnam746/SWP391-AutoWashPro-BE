@@ -21,10 +21,11 @@ public class Service : IService
     private readonly JwtOptions _jwtOption = new();
     private readonly JwtService.IService _jwtService;
     private readonly Security.IService _securityService;
+    private readonly OtpService.IService _otpService;
 
     public Service(AppDbContext dbContext, MediaService.IService mediaService, MailService.IService mailService,
         ILogger<Service> logger, JwtService.IService jwtService, IConfiguration configuration,
-        Security.IService service)
+        Security.IService service, OtpService.IService otpService)
     {
         _dbContext = dbContext;
         _mediaService = mediaService;
@@ -32,6 +33,7 @@ public class Service : IService
         _logger = logger;
         _jwtService = jwtService;
         _securityService = service;
+        _otpService = otpService;
         configuration.GetSection(nameof(JwtOptions)).Bind(_jwtOption);
     }
 
@@ -499,6 +501,108 @@ public class Service : IService
             Access_token = accessToken,
             isVerify = user.isVerify
         };
+    }
+
+    public async Task ForgotPassword(Request.ForgotPasswordRequest request)
+    {
+        var user = await _dbContext.Users
+            .FirstOrDefaultAsync(u => u.Email == request.Email);
+
+        if (user == null)
+        {
+            throw new ArgumentException("Email does not exist.");
+        }
+
+        if (user.Status == AccountStatus.Locked)
+        {
+            throw new ForbiddenAccessException("Account is locked");
+        }
+
+        if (user.Status == AccountStatus.Inactive)
+        {
+            throw new ForbiddenAccessException("Account is inactive");
+        }
+
+        await _otpService.GenerateAndSendOtpAsync(user.Id, user.Email);
+    }
+
+    public async Task<Response.ResetPasswordResponse> VerifyForgotPassword(Request.VerifyOtpRequest request)
+    {
+        var user = await _dbContext.Users
+            .FirstOrDefaultAsync(u => u.Email == request.Email);
+
+        if (user == null)
+        {
+            throw new ArgumentException("Email does not exist.");
+        }
+
+        var isOtpValid = await _otpService.VerifyOtpAsync(user.Id, request.Otp);
+        if (!isOtpValid)
+        {
+            throw new ArgumentException("Invalid or expired OTP.");
+        }
+
+        // Tạo một JWT token ngắn hạn (vd 15 phút) để đánh dấu đã xác thực OTP thành công
+        // FE sẽ dùng token này để gọi api ResetPassword
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new("Purpose", "ResetPassword"),
+            new Claim(ClaimTypes.Expired, DateTimeOffset.UtcNow.AddMinutes(15).ToString()),
+        };
+
+        var resetPasswordToken = _jwtService.GenerateAccessToken(claims);
+
+        return new Response.ResetPasswordResponse
+        {
+            ResetPasswordToken = resetPasswordToken
+        };
+    }
+
+    public async Task ResetPassword(Request.ResetPasswordRequest request)
+    {
+        if (request.NewPassword != request.ConfirmPassword)
+        {
+            throw new ArgumentException("Confirm password does not match.");
+        }
+
+        if (!IsValidPassword(request.NewPassword))
+        {
+            throw new ArgumentException("Password must be at least 8 characters long, " +
+                                        "contain at least one uppercase letter," +
+                                        " one lowercase letter, one number, and one special character.");
+        }
+
+        // Validate cái ResetPasswordToken lấy được ở bước trước
+        var principal = _jwtService.ValidateToken(request.ResetPasswordToken);
+        if (principal == null)
+        {
+            throw new UnauthorizedAccessException("Invalid or expired reset password token.");
+        }
+
+        var purposeClaim = principal.FindFirst("Purpose")?.Value;
+        if (purposeClaim != "ResetPassword")
+        {
+            throw new UnauthorizedAccessException("Invalid token purpose.");
+        }
+
+        var userIdString = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out Guid userId))
+        {
+            throw new UnauthorizedAccessException("Invalid token subject.");
+        }
+
+        var user = await _dbContext.Users.FindAsync(userId);
+        if (user == null)
+        {
+            throw new ArgumentException("User not found.");
+        }
+
+        user.PasswordHash = _securityService.Hash(request.NewPassword);
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+
+        _dbContext.Users.Update(user);
+        await _dbContext.SaveChangesAsync();
     }
 
     private bool IsValidEmail(string email)

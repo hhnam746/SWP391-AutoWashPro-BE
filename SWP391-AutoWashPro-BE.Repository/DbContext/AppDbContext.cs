@@ -200,6 +200,7 @@ public class AppDbContext : DbContext
     public DbSet<Booking> Bookings { get; set; }
     public DbSet<PointTransaction> PointTransactions { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<Otp> Otps { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -778,6 +779,32 @@ public class AppDbContext : DbContext
 
             builder.HasOne(x => x.User)
                 .WithMany(x => x.Notifications)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Otp>(builder =>
+        {
+            builder.ToTable("otp");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            builder.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            builder.Property(x => x.OtpHash).HasColumnName("otp_hash").IsRequired();
+            builder.Property(x => x.FailedAttemptCount).HasColumnName("failed_attempt_count").HasDefaultValue(0)
+                .IsRequired();
+            builder.Property(x => x.IsUsed).HasColumnName("is_used").HasDefaultValue(false).IsRequired();
+            builder.Property(x => x.ExpiresAt).HasColumnName("expires_at").IsRequired();
+            builder.Property(x => x.UsedAt).HasColumnName("used_at");
+            builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            builder.HasIndex(x => x.UserId);
+            builder.HasIndex(x => x.IsUsed);
+            builder.HasIndex(x => x.ExpiresAt);
+
+            builder.HasOne(x => x.User)
+                .WithMany(x => x.Otps)
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
