@@ -7,4 +7,9 @@ public class Response
         public string Access_token { get; set; } = null!;
         public bool isVerify { get; set; }
     }
+    
+    public class ResetPasswordResponse
+    {
+        public string ResetPasswordToken { get; set; } = null!;
+    }
 }
