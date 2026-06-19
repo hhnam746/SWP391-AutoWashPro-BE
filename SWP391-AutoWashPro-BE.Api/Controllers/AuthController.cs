@@ -29,4 +29,25 @@ public class AuthController : ControllerBase
         var result = await _userService.Login(request);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Login successfully", HttpContext.TraceIdentifier));
     }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] Request.ForgotPasswordRequest request)
+    {
+        await _userService.ForgotPassword(request);
+        return Ok(ApiResponseFactory.SuccessResponse(null, "If your email is registered, an OTP has been sent.", HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("verify-otp")]
+    public async Task<IActionResult> VerifyOtp([FromBody] Request.VerifyOtpRequest request)
+    {
+        var result = await _userService.VerifyForgotPassword(request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "OTP Verified. Please use the token to reset your password.", HttpContext.TraceIdentifier));
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] Request.ResetPasswordRequest request)
+    {
+        await _userService.ResetPassword(request);
+        return Ok(ApiResponseFactory.SuccessResponse(null, "Password has been successfully reset.", HttpContext.TraceIdentifier));
+    }
 }
