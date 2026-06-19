@@ -25,8 +25,6 @@ using RewardService = SWP391_AutoWashPro_BE.Service.Reward;
 using VoucherService = SWP391_AutoWashPro_BE.Service.Voucher;
 using DiscordService = SWP391_AutoWashPro_BE.Service.DiscordService;
 using NotificationHub = SWP391_AutoWashPro_BE.Service.Hubs.NotificationHub;
-using StackExchange.Redis;
-using OtpService = SWP391_AutoWashPro_BE.Service.Otp;
 
 
 Env.Load();
@@ -52,15 +50,6 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-{
-    var redisConnectionString = builder.Configuration.GetConnectionString("Redis")
-        ?? Environment.GetEnvironmentVariable("REDIS_CONNECTION_STRING");
-
-    return ConnectionMultiplexer.Connect(redisConnectionString);
-});
-
 
 builder.Services.AddJwtServices(builder.Configuration);
 builder.Services.AddSwaggerServices();
@@ -100,8 +89,6 @@ builder.Services.AddScoped<TierService.IService, TierService.Service>();
 builder.Services.AddScoped<PromotionService.IService, PromotionService.Service>();
 builder.Services.AddScoped<RewardService.IService, RewardService.Service>();
 builder.Services.AddScoped<VoucherService.IService, VoucherService.Service>();
-builder.Services.AddScoped<OtpService.IOtpCacheService, OtpService.OtpCacheService>();
-
 
 //test thử discord
 builder.Services.Configure<DiscordService.DiscordAlertOptions>(

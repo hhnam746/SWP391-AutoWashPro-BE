@@ -1,6 +1,5 @@
 ﻿using System.Text.RegularExpressions;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -10,7 +9,6 @@ using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.JwtService;
 using SWP391_AutoWashPro_BE.Service.MailService;
 using SWP391_AutoWashPro_BE.Service.Models;
-using SWP391_AutoWashPro_BE.Service.Otp;
 
 namespace SWP391_AutoWashPro_BE.Service.Auth;
 
@@ -23,19 +21,17 @@ public class Service : IService
     private readonly JwtOptions _jwtOption = new();
     private readonly JwtService.IService _jwtService;
     private readonly Security.IService _securityService;
-    private readonly IOtpCacheService _otpCacheService;
 
     public Service(AppDbContext dbContext, MediaService.IService mediaService, MailService.IService mailService,
         ILogger<Service> logger, JwtService.IService jwtService, IConfiguration configuration,
-        Security.IService securityService, IOtpCacheService otpCacheService)
+        Security.IService service)
     {
         _dbContext = dbContext;
         _mediaService = mediaService;
         _mailService = mailService;
         _logger = logger;
         _jwtService = jwtService;
-        _securityService = securityService;
-        _otpCacheService = otpCacheService;
+        _securityService = service;
         configuration.GetSection(nameof(JwtOptions)).Bind(_jwtOption);
     }
 
@@ -503,106 +499,6 @@ public class Service : IService
             Access_token = accessToken,
             isVerify = user.isVerify
         };
-    }
-
-    public async Task ForgotPassword(Request.ForgotPasswordRequest request)
-    {
-        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
-
-        if (user == null)
-        {
-            // Tránh dò tìm tài khoản bằng email
-            return;
-        }
-
-        // Tạo mã OTP ngẫu nhiên gồm 6 chữ số
-        var otp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
-
-        // Lưu OTP vào Redis
-        await _otpCacheService.SaveOtpAsync(normalizedEmail, otp);
-
-        // Gửi email OTP
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                var mailContent = new MailContent
-                {
-                    To = normalizedEmail,
-                    Subject = "AutoWash Pro - Reset Password OTP",
-                    Body = $@"
-<!DOCTYPE html>
-<html>
-<body style=""font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;"">
-    <div style=""max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1);"">
-        <h2 style=""color: #333;"">Password Reset Request</h2>
-        <p>You have requested to reset your password. Use the OTP code below to verify your identity.</p>
-        <div style=""background: #007bff; color: white; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; border-radius: 5px; margin: 20px 0;"">
-            {otp}
-        </div>
-        <p>This code will expire in 5 minutes. If you did not make this request, please ignore this email.</p>
-        <hr style=""border: none; border-top: 1px solid #eee;"">
-        <p style=""font-size: 12px; color: #777;"">AutoWash Pro Team</p>
-    </div>
-</body>
-</html>"
-                };
-                await _mailService.SendMail(mailContent);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send reset password OTP to {Email}", normalizedEmail);
-            }
-        });
-    }
-
-    public async Task<Response.ResetPasswordResponse> VerifyForgotPassword(Request.VerifyOtpRequest request)
-    {
-        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-
-        // Xác thực OTP
-        await _otpCacheService.VerifyOtpAsync(normalizedEmail, request.Otp);
-
-        // Tạo reset token để FE dùng cho bước reset password
-        var resetToken = await _otpCacheService.CreateResetTokenAsync(normalizedEmail);
-
-        return new Response.ResetPasswordResponse
-        {
-            ResetPasswordToken = resetToken
-        };
-    }
-
-    public async Task ResetPassword(Request.ResetPasswordRequest request)
-    {
-        if (!IsValidPassword(request.NewPassword))
-        {
-            throw new ArgumentException("Password must be at least 8 characters long, " +
-                                        "contain at least one uppercase letter, " +
-                                        "one lowercase letter, one number, and one special character.");
-        }
-
-        if (request.NewPassword != request.ConfirmPassword)
-        {
-            throw new ArgumentException("New password and confirm password do not match.");
-        }
-
-        // Lấy và xác thực Email từ reset token lưu ở Redis
-        var email = await _otpCacheService.ValidateResetTokenAsync(request.ResetPasswordToken);
-
-        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
-        if (user == null)
-        {
-            throw new KeyNotFoundException("User not found.");
-        }
-
-        // Cập nhật password hash mới
-        user.PasswordHash = _securityService.Hash(request.NewPassword);
-
-        await _dbContext.SaveChangesAsync();
-
-        // Xóa reset token khỏi Redis để không dùng lại được nữa
-        await _otpCacheService.DeleteResetTokenAsync(request.ResetPasswordToken);
     }
 
     private bool IsValidEmail(string email)

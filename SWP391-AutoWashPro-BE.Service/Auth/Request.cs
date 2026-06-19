@@ -28,22 +28,4 @@ public class Request
         public required string Identifier { get; set; }
         public required string Password { get; set; }
     }
-    
-    public class ForgotPasswordRequest
-    {
-        public required string Email { get; set; }
-    }
-
-    public class VerifyOtpRequest
-    {
-        public required string Email { get; set; }
-        public required string Otp { get; set; }
-    }
-    
-    public class ResetPasswordRequest
-    {
-        public required string ResetPasswordToken { get; set; }
-        public required string NewPassword { get; set; }
-        public required string ConfirmPassword { get; set; }
-    }
 }
