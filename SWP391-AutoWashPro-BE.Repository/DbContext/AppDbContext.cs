@@ -223,6 +223,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.LastLoginAt).HasColumnName("last_login_at");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+            builder.Property(x => x.Reason).HasColumnName("reason");
 
             builder.HasIndex(x => x.Email).IsUnique();
             builder.HasIndex(x => x.Phone).IsUnique();
