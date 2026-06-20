@@ -19,6 +19,8 @@ public class Response
         public string Name { get; set; } = string.Empty;
         public int Level { get; set; }
         public string? Description { get; set; }
+        public int PriorityBookingDays { get; set; }
+        public int RequiredWashes { get; set; }
     }
 
     public class NextTierInfo

@@ -68,7 +68,9 @@ public class Service : IService
                     Id = customer.Tier.Id,
                     Name = customer.Tier.Name,
                     Level = customer.Tier.Level,
-                    Description = customer.Tier.Description
+                    Description = customer.Tier.Description,
+                    PriorityBookingDays = customer.Tier.PriorityBookingDays,
+                    RequiredWashes = customer.Tier.RequiredWashes,
                 },
             NextTier = nextTier == null
                 ? null
