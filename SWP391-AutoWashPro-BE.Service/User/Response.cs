@@ -31,6 +31,8 @@ public class Response
         public Guid Id { get; set; }
         public string Name { get; set; }
         public int Level { get; set; }
+        public int PriorityBookingDays { get; set; }
+        public int RequiredWashes { get; set; }
     }
     
 

@@ -73,7 +73,9 @@ public class Service : IService
                     {
                         Id = customerProfile.Tier.Id,
                         Name = customerProfile.Tier.Name,
-                        Level = customerProfile.Tier.Level
+                        Level = customerProfile.Tier.Level,
+                        PriorityBookingDays = customerProfile.Tier.PriorityBookingDays,
+                        RequiredWashes = customerProfile.Tier.RequiredWashes
                     }
             },
             LastPointActivityAt = customerProfile.LastPointActivityAt,
@@ -275,7 +277,9 @@ public class Service : IService
                     {
                         Id = user.CustomerProfile.Tier.Id,
                         Name = user.CustomerProfile.Tier.Name,
-                        Level = user.CustomerProfile.Tier.Level
+                        Level = user.CustomerProfile.Tier.Level,
+                        PriorityBookingDays = user.CustomerProfile.Tier.PriorityBookingDays,
+                        RequiredWashes = user.CustomerProfile.Tier.RequiredWashes,
                     }
             },
             FaceImages = user.UserFaceImages
