@@ -909,7 +909,9 @@ public class Service : IService
                     {
                         Id = x.CustomerProfile.Tier.Id,
                         Name = x.CustomerProfile.Tier.Name,
-                        Level = x.CustomerProfile.Tier.Level
+                        Level = x.CustomerProfile.Tier.Level,
+                        PriorityBookingDays = x.CustomerProfile.Tier.PriorityBookingDays,
+                        RequiredWashes = x.CustomerProfile.Tier.RequiredWashes,
                     }
             },
             VehicleCount = x.CustomerProfile.Vehicles.Count(v =>
