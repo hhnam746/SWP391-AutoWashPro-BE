@@ -26,7 +26,7 @@ using VoucherService = SWP391_AutoWashPro_BE.Service.Voucher;
 using DiscordService = SWP391_AutoWashPro_BE.Service.DiscordService;
 using NotificationHub = SWP391_AutoWashPro_BE.Service.Hubs.NotificationHub;
 using OtpService = SWP391_AutoWashPro_BE.Service.OtpService;
-
+using Transaction =  SWP391_AutoWashPro_BE.Service.Transaction;
 
 Env.Load();
 
@@ -91,7 +91,7 @@ builder.Services.AddScoped<PromotionService.IService, PromotionService.Service>(
 builder.Services.AddScoped<RewardService.IService, RewardService.Service>();
 builder.Services.AddScoped<VoucherService.IService, VoucherService.Service>();
 builder.Services.AddScoped<OtpService.IService, OtpService.Service>();
-
+builder.Services.AddScoped<Transaction.IService, Transaction.Service>();
 
 //test thử discord
 builder.Services.Configure<DiscordService.DiscordAlertOptions>(
