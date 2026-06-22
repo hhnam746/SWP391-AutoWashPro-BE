@@ -70,6 +70,7 @@ public class Service : IService
 
         var newReward = new Repository.Entities.Reward()
         {
+            Id = Guid.NewGuid(),
             Name = request.Name,
             RewardType = request.RewardType,
             PointsRequired = request.PointsRequired,
