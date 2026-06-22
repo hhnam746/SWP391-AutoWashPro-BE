@@ -33,7 +33,6 @@ public class LoyaltyController : ControllerBase
         return Ok(result);
     }
     
-    [Authorize(Policy = JwtExtensions.AdminPolicy)]
     [HttpGet("admin/points-config")]
     public async Task<IActionResult> GetAllConfigs()
     {
