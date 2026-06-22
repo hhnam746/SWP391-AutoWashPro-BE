@@ -30,7 +30,7 @@ public class Service : IService
             throw new Exception("Customer profile not found");
 
         var query = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
-        
+
         var result = new Response.GetWalleResponse
         {
             Id = query.Id,
@@ -58,6 +58,19 @@ public class Service : IService
             throw new Exception("Wallet not found");
         }
         wallet.Balance += request.Balance;
+
+        var topUpTransaction = new Repository.Entities.Transaction
+        {
+            Amount = request.Balance,
+            Type = Repository.Enums.TransactionType.WalletTopup,
+            Description = "Wallet top-up",
+            TransactionDate = DateTime.UtcNow,
+            CustomerId = customerProfile.Id,
+            CustomerProfile = customerProfile,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        await _dbContext.Transactions.AddAsync(topUpTransaction);
         await _dbContext.SaveChangesAsync();
 
         var result = new Response.WalletTopupResponse
