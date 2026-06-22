@@ -31,6 +31,9 @@ public class AppDbContext : DbContext
     private static readonly ValueConverter<PointTransactionType, string> PointTransactionTypeConverter =
         new(v => ToDbPointTransactionType(v), v => FromDbPointTransactionType(v));
 
+    private static readonly ValueConverter<TransactionType, string> TransactionTypeConverter =
+        new(v => ToDbTransactionType(v), v => FromDbTransactionType(v));
+
 
     private static string ToDbUserRole(UserRole value) => value switch
     {
@@ -178,6 +181,22 @@ public class AppDbContext : DbContext
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 
+    private static string ToDbTransactionType(TransactionType value) => value switch
+    {
+        TransactionType.Deposit => "deposit",
+        TransactionType.FullPayment => "full_payment",
+        TransactionType.WalletTopup => "wallet_topup",
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static TransactionType FromDbTransactionType(string value) => value switch
+    {
+        "deposit" => TransactionType.Deposit,
+        "full_payment" => TransactionType.FullPayment,
+        "wallet_topup" => TransactionType.WalletTopup,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
@@ -198,6 +217,7 @@ public class AppDbContext : DbContext
     public DbSet<RewardTier> RewardTiers { get; set; }
     public DbSet<Voucher> Vouchers { get; set; }
     public DbSet<Booking> Bookings { get; set; }
+    public DbSet<Transaction> Transactions { get; set; }
     public DbSet<PointTransaction> PointTransactions { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<Otp> Otps { get; set; }
@@ -721,6 +741,37 @@ public class AppDbContext : DbContext
             builder.HasOne(x => x.Voucher)
                 .WithMany(x => x.Bookings)
                 .HasForeignKey(x => x.VoucherId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Transaction>(builder =>
+        {
+            builder.ToTable("transaction");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            builder.Property(x => x.Amount).HasColumnName("amount").HasColumnType("numeric(12,2)").IsRequired();
+            builder.Property(x => x.Type).HasColumnName("type").HasConversion(TransactionTypeConverter).IsRequired();
+            builder.Property(x => x.Description).HasColumnName("description").HasColumnType("text");
+            builder.Property(x => x.TransactionDate).HasColumnName("transaction_date").IsRequired();
+            builder.Property(x => x.CustomerId).HasColumnName("customer_id").IsRequired();
+            builder.Property(x => x.BookingId).HasColumnName("booking_id");
+            builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            builder.HasIndex(x => x.CustomerId);
+            builder.HasIndex(x => x.BookingId);
+            builder.HasIndex(x => x.Type);
+            builder.HasIndex(x => x.TransactionDate);
+
+            builder.HasOne(x => x.CustomerProfile)
+                .WithMany(x => x.Transactions)
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.Booking)
+                .WithMany(x => x.Transactions)
+                .HasForeignKey(x => x.BookingId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

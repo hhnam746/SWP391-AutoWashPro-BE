@@ -21,6 +21,7 @@ public class CustomerProfile : BaseEntity, IAuditableEntity
 
     public Guid? WalletId { get; set; }
     public Wallet? Wallet { get; set; }
+    public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
     public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
     public ICollection<Voucher> Vouchers { get; set; } = new List<Voucher>();
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();

@@ -29,6 +29,6 @@ public class Booking : BaseEntity, IAuditableEntity
     public DateTimeOffset? CompletedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
-
+    public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
     public ICollection<PointTransaction> PointTransactions { get; set; } = new List<PointTransaction>();
 }
