@@ -438,18 +438,18 @@ public class Service : IService
             CreatedAt = DateTimeOffset.UtcNow
         };
         _dbContext.Bookings.Add(newBooking);
-        var DepositTransaction = new Repository.Entities.Transaction
-        {
-            Amount = finalPrice * (paymentDeposite / 100),
-            Type = Repository.Enums.TransactionType.Deposit,
-            Description = "Deposite Booking",
-            TransactionDate = DateTime.UtcNow,
-            CustomerId = customerProfile.Id,
-            CustomerProfile = customerProfile,
-            BookingId = newId,
-            Booking = newBooking,
-            CreatedAt = DateTimeOffset.UtcNow
-        };
+        // var DepositTransaction = new Repository.Entities.Transaction
+        // {
+        //     Amount = finalPrice * (paymentDeposite / 100),
+        //     Type = Repository.Enums.TransactionType.Deposit,
+        //     Description = "Deposite Booking",
+        //     TransactionDate = DateTime.UtcNow,
+        //     CustomerId = customerProfile.Id,
+        //     CustomerProfile = customerProfile,
+        //     BookingId = newId,
+        //     Booking = newBooking,
+        //     CreatedAt = DateTimeOffset.UtcNow
+        // };
         var Branch = _dbContext.Branches.FirstOrDefault(x => x.Id == bookingRequest.BranchId);
         var notification = new Repository.Entities.Notification()
         {
@@ -831,18 +831,18 @@ public class Service : IService
                 voucher.Status = VoucherStatus.Used;
             }
 
-            var FullPayemntBookingTransaction = new Repository.Entities.Transaction
-            {
-                Amount = remainingAmount,
-                Type = Repository.Enums.TransactionType.FullPayment,
-                Description = "Full Payment for Booking",
-                TransactionDate = DateTime.UtcNow,
-                CustomerId = customerProfile.Id,
-                CustomerProfile = customerProfile,
-                BookingId = booking.Id,
-                Booking = booking,
-                CreatedAt = DateTimeOffset.UtcNow
-            };
+            // var FullPayemntBookingTransaction = new Repository.Entities.Transaction
+            // {
+            //     Amount = remainingAmount,
+            //     Type = Repository.Enums.TransactionType.FullPayment,
+            //     Description = "Full Payment for Booking",
+            //     TransactionDate = DateTime.UtcNow,
+            //     CustomerId = customerProfile.Id,
+            //     CustomerProfile = customerProfile,
+            //     BookingId = booking.Id,
+            //     Booking = booking,
+            //     CreatedAt = DateTimeOffset.UtcNow
+            // };
 
             //////////////////////////////////////////////////////
             customerProfile.TotalPoints -= booking.RedemAmount ?? 0;
