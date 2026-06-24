@@ -59,18 +59,18 @@ public class Service : IService
         }
         wallet.Balance += request.Balance;
 
-        // var topUpTransaction = new Repository.Entities.Transaction
-        // {
-        //     Amount = request.Balance,
-        //     Type = Repository.Enums.TransactionType.WalletTopup,
-        //     Description = "Wallet top-up",
-        //     TransactionDate = DateTime.UtcNow,
-        //     CustomerId = customerProfile.Id,
-        //     CustomerProfile = customerProfile,
-        //     CreatedAt = DateTimeOffset.UtcNow
-        // };
-        //
-        // await _dbContext.Transactions.AddAsync(topUpTransaction);
+        var topUpTransaction = new Repository.Entities.Transaction
+        {
+            Amount = request.Balance,
+            Type = Repository.Enums.TransactionType.WalletTopup,
+            Description = "Wallet top-up",
+            TransactionDate = DateTime.UtcNow,
+            CustomerId = customerProfile.Id,
+            CustomerProfile = customerProfile,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        
+        await _dbContext.Transactions.AddAsync(topUpTransaction);
         await _dbContext.SaveChangesAsync();
 
         var result = new Response.WalletTopupResponse

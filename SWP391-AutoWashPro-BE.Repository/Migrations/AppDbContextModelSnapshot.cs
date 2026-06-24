@@ -785,6 +785,62 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.ToTable("tier", (string)null);
                 });
 
+            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Transaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(12,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid?>("BookingId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("booking_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<DateTime>("TransactionDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("transaction_date");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("TransactionDate");
+
+                    b.HasIndex("Type");
+
+                    b.ToTable("transaction", (string)null);
+                });
+
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1327,6 +1383,24 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
+            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Transaction", b =>
+                {
+                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.Booking", "Booking")
+                        .WithMany("Transactions")
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.CustomerProfile", "CustomerProfile")
+                        .WithMany("Transactions")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("CustomerProfile");
+                });
+
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.UserFaceImage", b =>
                 {
                     b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.User", "User")
@@ -1407,6 +1481,8 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Booking", b =>
                 {
                     b.Navigation("PointTransactions");
+
+                    b.Navigation("Transactions");
                 });
 
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Branch", b =>
@@ -1419,6 +1495,8 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.Navigation("Bookings");
 
                     b.Navigation("PointTransactions");
+
+                    b.Navigation("Transactions");
 
                     b.Navigation("Vehicles");
 
