@@ -317,7 +317,14 @@ public class Service : IService
 
         if (voucher != null)
         {
-            voucherDiscountAmount += voucher.DiscountValue;
+            if (voucher.DiscountType == DiscountType.FixedAmount)
+            {
+                voucherDiscountAmount += voucher.DiscountValue;
+            }
+            else
+            {
+                voucherDiscountAmount += (basePrice * voucher.DiscountValue) / 100;
+            }
         }
 
         //Discount by promotion
