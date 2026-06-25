@@ -538,8 +538,8 @@ public class Service : IService
         {
             try
             {
-                // Thời điểm auto cancel = StartTime + 2 phút
-                var autoCancelTime = utcStartTime.AddMinutes(2);
+                // Thời điểm auto cancel = StartTime + 1 phút
+                var autoCancelTime = utcStartTime.AddMinutes(1);
                 var delayTime = autoCancelTime - DateTimeOffset.UtcNow;
 
                 if (delayTime > TimeSpan.Zero)
