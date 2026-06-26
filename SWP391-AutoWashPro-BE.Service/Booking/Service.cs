@@ -1030,14 +1030,14 @@ public class Service : IService
             IsRead = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
-        await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
-        {
-            UserId = userIdGuid,
-            Type = NotificationType.BookingCreated,
-            Data = $"Your booking at {branch?.Name ?? "our branch"} " +
-                   $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
-                   $"has been cancelled successfully.",
-        });
+        // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+        // {
+        //     UserId = userIdGuid,
+        //     Type = NotificationType.BookingCancelled,
+        //     Data = $"Your booking at {branch?.Name ?? "our branch"} " +
+        //            $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
+        //            $"has been cancelled successfully.",
+        // });
 
         _dbContext.Notifications.Add(notification);
 
