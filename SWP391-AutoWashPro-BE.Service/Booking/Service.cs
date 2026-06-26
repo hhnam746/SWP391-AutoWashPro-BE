@@ -596,14 +596,14 @@ public class Service : IService
                             IsRead = false,
                             CreatedAt = DateTimeOffset.UtcNow,
                         };
-                        await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
-                        {
-                            UserId = userIdGuid,
-                            Type = NotificationType.BookingCancelled,
-                            Data = $"Your booking at {branch?.Name ?? "our branch"} " +
-                                   $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
-                                   $"has been cancelled due to over check-in time.",
-                        });
+                        // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+                        // {
+                        //     UserId = userIdGuid,
+                        //     Type = NotificationType.BookingCancelled,
+                        //     Data = $"Your booking at {branch?.Name ?? "our branch"} " +
+                        //            $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
+                        //            $"has been cancelled due to over check-in time.",
+                        // });
 
                         dbContext.Notifications.Add(cancelNotification);
                     }
@@ -886,12 +886,12 @@ public class Service : IService
                     IsRead = false,
                     CreatedAt = DateTimeOffset.UtcNow,
                 };
-                await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
-                {
-                    UserId = userIdGuid,
-                    Type = NotificationType.TierUpgraded,
-                    Data = $"Congratulations! Your tier has been upgraded from {currentTier.Name} to {nextTier.Name}."
-                });
+                // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+                // {
+                //     UserId = userIdGuid,
+                //     Type = NotificationType.TierUpgraded,
+                //     Data = $"Congratulations! Your tier has been upgraded from {currentTier.Name} to {nextTier.Name}."
+                // });
                 _dbContext.Notifications.Add(notification);
             }
 
