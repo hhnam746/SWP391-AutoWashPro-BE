@@ -13,6 +13,8 @@ using AdminService = SWP391_AutoWashPro_BE.Service.Admin;
 using SecurityService = SWP391_AutoWashPro_BE.Service.Security;
 using System.Text.Json.Serialization;
 using DotNetEnv;
+using Quartz;
+// using SWP391_AutoWashPro_BE.Service.BackgroundJob;
 using VehicleService = SWP391_AutoWashPro_BE.Service.Vehicles;
 using WalletService = SWP391_AutoWashPro_BE.Service.Wallet;
 using NotificationService = SWP391_AutoWashPro_BE.Service.Notification;
@@ -98,6 +100,41 @@ builder.Services.Configure<DiscordService.DiscordAlertOptions>(
     builder.Configuration.GetSection("DiscordAlertOptions"));
 builder.Services.AddHttpClient<DiscordService.IService, DiscordService.Service>(); // AddHttpClient là do nó tự gọi API ở bên ngoài
 // Cụ thể ở đây của mình là tự gọi API webhook của discord
+
+//backgroundJob | Cron job
+// builder.Services.AddQuartz(options =>
+// {
+//     var jobBooking = new JobKey(nameof(ProcessBookingJob));
+//     var jobNotification = new JobKey(nameof(ProcessNotificationJob));
+//
+//     options
+//         .AddJob<ProcessBookingJob>(jobBooking)
+//         .AddTrigger(trigger =>
+//             trigger
+//                 .ForJob(jobBooking)
+//                 .WithSimpleSchedule(schedule => schedule
+//                     .WithIntervalInMinutes(2)
+//                     .RepeatForever()
+//                 )
+//         );
+//     
+//     options
+//         .AddJob<ProcessNotificationJob>(jobNotification)
+//         .AddTrigger(trigger =>
+//             trigger
+//                 .ForJob(jobBooking)
+//                 .WithSimpleSchedule(schedule => schedule
+//                     .WithIntervalInMinutes(2) //2 phút thì cron job này chạy 1 lần
+//                     .RepeatForever()
+//                 )
+//         );
+// });
+
+
+builder.Services.AddQuartzHostedService(options =>
+{
+    options.WaitForJobsToComplete = true;
+});
 
 builder.Services.AddTransient<GlobalExceptionHandlerMiddleware>();
 
