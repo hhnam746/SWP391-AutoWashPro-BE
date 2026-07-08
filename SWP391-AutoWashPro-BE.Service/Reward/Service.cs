@@ -38,6 +38,9 @@ public class Service : IService
             ValidDays = x.ValidDays,
             Description = x.Description,
             IsActive = x.IsActive,
+            TierIds = x.RewardTiers
+                .Select(rt => rt.TierId)
+                .ToList()
         });
 
         var listResult = await selected.ToListAsync();
@@ -142,7 +145,7 @@ public class Service : IService
     public async Task<string> DeleteReward(Guid id)
     {
         var reward = await _dbContext.Rewards
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.Id == id && x.IsActive == true);
 
         if (reward == null)
         {

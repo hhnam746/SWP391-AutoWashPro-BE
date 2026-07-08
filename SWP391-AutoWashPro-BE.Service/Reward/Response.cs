@@ -14,6 +14,7 @@ public class Response
         public int ValidDays { get; set; }
         public string? Description { get; set; }
         public bool IsActive { get; set; }
+        public List<Guid> TierIds { get; set; } = new();
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset? UpdatedAt { get; set; }
     }
