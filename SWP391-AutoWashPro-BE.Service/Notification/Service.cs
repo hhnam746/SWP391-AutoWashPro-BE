@@ -131,10 +131,10 @@ public class Service : IService
 
         if (request.UserId.HasValue)
         {
-            if (currentUser.Role != UserRole.Admin)
-            {
-                throw new UnauthorizedAccessException("Only admin can send notification to another user.");
-            }
+            // if (currentUser.Role != UserRole.Admin)
+            // {
+            //     throw new UnauthorizedAccessException("Only admin can send notification to another user.");
+            // }
 
             receiverUserId = request.UserId.Value;
         }
