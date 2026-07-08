@@ -13,7 +13,7 @@ public class Service: IService
     public async Task<Base.Response.PageResult<Response.TierResponse>> GetAllTier(string? searchTerm, int pageSize, int pageIndex)
     {
         
-        var query = _dbContext.Tiers.Where(x => true);
+        var query = _dbContext.Tiers.Where(x => x.IsDeleted == false);
         if (searchTerm != null)
         {
             query = query.Where(x => x.Name.Contains(searchTerm));
@@ -102,6 +102,15 @@ public class Service: IService
         if (tier == null)
         {
             throw new Exception("Tier not found");
+        }
+        var assignedCustomers = await _dbContext.CustomerProfiles
+            .CountAsync(cp => cp.TierId == id);
+
+        if (assignedCustomers > 0)
+        {
+            throw new Exception(
+                "Cannot delete this tier because customer are currently assigned to it. Please assign them to another tier before deleting."
+            );
         }
 
         tier.IsDeleted = true;
