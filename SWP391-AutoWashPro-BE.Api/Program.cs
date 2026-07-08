@@ -131,10 +131,10 @@ builder.Services.AddHttpClient<DiscordService.IService, DiscordService.Service>(
 // });
 
 
-builder.Services.AddQuartzHostedService(options =>
-{
-    options.WaitForJobsToComplete = true;
-});
+// builder.Services.AddQuartzHostedService(options =>
+// {
+//     options.WaitForJobsToComplete = true;
+// });
 
 builder.Services.AddTransient<GlobalExceptionHandlerMiddleware>();
 
