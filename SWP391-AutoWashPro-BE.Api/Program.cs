@@ -14,6 +14,7 @@ using SecurityService = SWP391_AutoWashPro_BE.Service.Security;
 using System.Text.Json.Serialization;
 using DotNetEnv;
 using Quartz;
+using SWP391_AutoWashPro_BE.Service.BackgroundJob;
 // using SWP391_AutoWashPro_BE.Service.BackgroundJob;
 using VehicleService = SWP391_AutoWashPro_BE.Service.Vehicles;
 using WalletService = SWP391_AutoWashPro_BE.Service.Wallet;
@@ -102,39 +103,29 @@ builder.Services.AddHttpClient<DiscordService.IService, DiscordService.Service>(
 // Cụ thể ở đây của mình là tự gọi API webhook của discord
 
 //backgroundJob | Cron job
-// builder.Services.AddQuartz(options =>
-// {
-//     var jobBooking = new JobKey(nameof(ProcessBookingJob));
-//     var jobNotification = new JobKey(nameof(ProcessNotificationJob));
-//
-//     options
-//         .AddJob<ProcessBookingJob>(jobBooking)
-//         .AddTrigger(trigger =>
-//             trigger
-//                 .ForJob(jobBooking)
-//                 .WithSimpleSchedule(schedule => schedule
-//                     .WithIntervalInMinutes(2)
-//                     .RepeatForever()
-//                 )
-//         );
-//     
-//     options
-//         .AddJob<ProcessNotificationJob>(jobNotification)
-//         .AddTrigger(trigger =>
-//             trigger
-//                 .ForJob(jobBooking)
-//                 .WithSimpleSchedule(schedule => schedule
-//                     .WithIntervalInMinutes(2) //2 phút thì cron job này chạy 1 lần
-//                     .RepeatForever()
-//                 )
-//         );
-// });
+builder.Services.AddQuartz(options =>
+{
+    var processBookingJobKey = new JobKey(nameof(ProcessBookingJob));
+    // var jobNotification = new JobKey(nameof(ProcessNotificationJob));
+    
+    
+    options.AddJob<ProcessBookingJob>(job => job
+        .WithIdentity(processBookingJobKey));
+
+    options.AddTrigger(trigger => trigger
+        .ForJob(processBookingJobKey)
+        .WithIdentity($"{nameof(ProcessBookingJob)}-trigger")
+        // Chạy mỗi 15 giây để test gần realtime, production có thể đổi 30-60 giây.
+        .WithCronSchedule("0/15 * * * * ?", cron =>
+            cron.WithMisfireHandlingInstructionDoNothing()));
+});
 
 
-// builder.Services.AddQuartzHostedService(options =>
-// {
-//     options.WaitForJobsToComplete = true;
-// });
+builder.Services.AddQuartzHostedService(options =>
+{
+    //// Auto-cancel được xử lý tập trung bởi Quartz job ProcessBookingJob.
+    options.WaitForJobsToComplete = true;
+});
 
 builder.Services.AddTransient<GlobalExceptionHandlerMiddleware>();
 

@@ -540,83 +540,89 @@ public class Service : IService
             }
         });
         ///////////////////////////////// Thên cronjob cancel tự động
+        //
+        
+        //// Auto-cancel được xử lý tập trung bởi Quartz job ProcessBookingJob.
+        
+        
         // ================================= Auto Cancel Cronjob =================================
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                // Thời điểm auto cancel = StartTime + 1 phút
-                var autoCancelTime = utcStartTime.AddMinutes(1);
-                var delayTime = autoCancelTime - DateTimeOffset.UtcNow;
-
-                if (delayTime > TimeSpan.Zero)
-                {
-                    await Task.Delay(delayTime);
-                }
-
-                using var scope = _serviceScopeFactory.CreateScope();
-                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-                var booking = await dbContext.Bookings
-                    .FirstOrDefaultAsync(x => x.Id == newId);
-
-                // Chỉ cancel nếu vẫn còn Confirmed (chưa CheckIn, chưa Cancel,...)
-                if (booking != null && booking.Status == BookingStatus.Confirmed)
-                {
-                    booking.Status = BookingStatus.Cancelled;
-
-                    // // Hoàn tiền deposit về wallet
-                    // var customerWallet = await dbContext.Wallets
-                    //     .FirstOrDefaultAsync(x => x.CustomerId == booking.CustomerId);
-                    //
-                    // if (customerWallet != null)
-                    // {
-                    //     var depositRefund = booking.FinalPrice * (paymentDeposite / 100);
-                    //     customerWallet.Balance += depositRefund;
-                    // }
-
-                    // Gửi notification cho customer
-                    var customer = await dbContext.CustomerProfiles
-                        .FirstOrDefaultAsync(x => x.Id == booking.CustomerId);
-
-                    if (customer != null)
-                    {
-                        var branch = await dbContext.Branches
-                            .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
-
-                        var cancelNotification = new Repository.Entities.Notification()
-                        {
-                            Id = Guid.NewGuid(),
-                            UserId = customer.UserId,
-                            Type = NotificationType.BookingCancelled,
-                            Title = "Booking Auto-Cancelled",
-                            Content = $"Your booking at {branch?.Name ?? "our branch"} on " +
-                                      $"{booking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy} " +
-                                      $"has been automatically cancelled due to no check-in.",
-                            IsRead = false,
-                            CreatedAt = DateTimeOffset.UtcNow,
-                        };
-                        // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
-                        // {
-                        //     UserId = userIdGuid,
-                        //     Type = NotificationType.BookingCancelled,
-                        //     Data = $"Your booking at {branch?.Name ?? "our branch"} " +
-                        //            $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
-                        //            $"has been cancelled due to over check-in time.",
-                        // });
-
-                        dbContext.Notifications.Add(cancelNotification);
-                    }
-
-                    await dbContext.SaveChangesAsync();
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("======= Auto Cancel Error " + e.Message + " ==========");
-            }
-        });
+        // _ = Task.Run(async () =>
+        // {
+        //     try
+        //     {
+        //         // Thời điểm auto cancel = StartTime + 1 phút
+        //         var autoCancelTime = utcStartTime.AddMinutes(1);
+        //         var delayTime = autoCancelTime - DateTimeOffset.UtcNow;
+        //
+        //         if (delayTime > TimeSpan.Zero)
+        //         {
+        //             await Task.Delay(delayTime);
+        //         }
+        //
+        //         using var scope = _serviceScopeFactory.CreateScope();
+        //         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        //
+        //         var booking = await dbContext.Bookings
+        //             .FirstOrDefaultAsync(x => x.Id == newId);
+        //
+        //         // Chỉ cancel nếu vẫn còn Confirmed (chưa CheckIn, chưa Cancel,...)
+        //         if (booking != null && booking.Status == BookingStatus.Confirmed)
+        //         {
+        //             booking.Status = BookingStatus.Cancelled;
+        //
+        //             // // Hoàn tiền deposit về wallet
+        //             // var customerWallet = await dbContext.Wallets
+        //             //     .FirstOrDefaultAsync(x => x.CustomerId == booking.CustomerId);
+        //             //
+        //             // if (customerWallet != null)
+        //             // {
+        //             //     var depositRefund = booking.FinalPrice * (paymentDeposite / 100);
+        //             //     customerWallet.Balance += depositRefund;
+        //             // }
+        //
+        //             // Gửi notification cho customer
+        //             var customer = await dbContext.CustomerProfiles
+        //                 .FirstOrDefaultAsync(x => x.Id == booking.CustomerId);
+        //
+        //             if (customer != null)
+        //             {
+        //                 var branch = await dbContext.Branches
+        //                     .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
+        //
+        //                 var cancelNotification = new Repository.Entities.Notification()
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     UserId = customer.UserId,
+        //                     Type = NotificationType.BookingCancelled,
+        //                     Title = "Booking Auto-Cancelled",
+        //                     Content = $"Your booking at {branch?.Name ?? "our branch"} on " +
+        //                               $"{booking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy} " +
+        //                               $"has been automatically cancelled due to no check-in.",
+        //                     IsRead = false,
+        //                     CreatedAt = DateTimeOffset.UtcNow,
+        //                 };
+        //                 // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+        //                 // {
+        //                 //     UserId = userIdGuid,
+        //                 //     Type = NotificationType.BookingCancelled,
+        //                 //     Data = $"Your booking at {branch?.Name ?? "our branch"} " +
+        //                 //            $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
+        //                 //            $"has been cancelled due to over check-in time.",
+        //                 // });
+        //
+        //                 dbContext.Notifications.Add(cancelNotification);
+        //             }
+        //
+        //             await dbContext.SaveChangesAsync();
+        //         }
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         Console.WriteLine("======= Auto Cancel Error " + e.Message + " ==========");
+        //     }
+        // });
         // ================================= End Auto Cancel Cronjob =================================
+        
         var result = new Response.CreateBookingResponse
         {
             Id = newId,
