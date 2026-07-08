@@ -30,7 +30,12 @@ public class Service : IService
             throw new Exception("Customer profile not found");
 
         var query = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
-
+        
+        if (query == null)
+        {
+            throw new Exception("Wallet not found");
+        }
+        
         var result = new Response.GetWalleResponse
         {
             Id = query.Id,
