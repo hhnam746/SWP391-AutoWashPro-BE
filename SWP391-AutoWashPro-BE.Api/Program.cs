@@ -14,6 +14,7 @@ using SecurityService = SWP391_AutoWashPro_BE.Service.Security;
 using System.Text.Json.Serialization;
 using DotNetEnv;
 using Quartz;
+using StackExchange.Redis;
 using SWP391_AutoWashPro_BE.Service.BackgroundJob;
 // using SWP391_AutoWashPro_BE.Service.BackgroundJob;
 using VehicleService = SWP391_AutoWashPro_BE.Service.Vehicles;
@@ -75,6 +76,13 @@ builder.Services.AddCors(options =>
         });
 });
 
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var connection = builder.Configuration["Redis:ConnectionString"];
+    return ConnectionMultiplexer.Connect(connection!);
+});
+
+builder.Services.AddScoped<SWP391_AutoWashPro_BE.Service.OTPDemoService.OtpService>();
 
 builder.Services.AddScoped<JwtService.IService, JwtService.Service>();
 builder.Services.AddScoped<MediaService.IService, CloudinaryService.Service>();
