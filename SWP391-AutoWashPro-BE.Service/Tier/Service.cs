@@ -48,8 +48,12 @@ public class Service: IService
 
     public async Task<string> CreateTier(Request.TierRequest request)
     {
+        // var exist = await _dbContext.Tiers
+        //     .AnyAsync(x => x.Name == request.Name);
         var exist = await _dbContext.Tiers
-            .AnyAsync(x => x.Name == request.Name);
+            .AnyAsync(x =>
+                !x.IsDeleted &&
+                (x.Name == request.Name || x.Level == request.Level));
 
         if (exist)
         {
@@ -74,6 +78,16 @@ public class Service: IService
 
     public async Task<string> UpdateTier(Guid id, Request.TierRequest request)
     {
+        var exist = await _dbContext.Tiers.AnyAsync(x =>
+            x.Id != id &&
+            !x.IsDeleted &&
+            (x.Name == request.Name || x.Level == request.Level));
+
+        if (exist)
+        {
+            throw new Exception("Tier already exists");
+        }
+        
         var tier = await _dbContext.Tiers
             .FirstOrDefaultAsync(x => x.Id == id);
 
