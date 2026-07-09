@@ -15,7 +15,6 @@ public class RewardController: ControllerBase
         _service = service;
     }
     
-    [Authorize(Policy = JwtExtensions.AdminPolicy)]
     [HttpGet("admin/rewards")]
     public async Task<IActionResult> GetAllReward(
         [FromQuery] string? searchTerm,
