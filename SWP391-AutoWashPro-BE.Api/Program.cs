@@ -14,6 +14,7 @@ using SecurityService = SWP391_AutoWashPro_BE.Service.Security;
 using System.Text.Json.Serialization;
 using DotNetEnv;
 using Quartz;
+using StackExchange.Redis;
 using SWP391_AutoWashPro_BE.Service.BackgroundJob;
 // using SWP391_AutoWashPro_BE.Service.BackgroundJob;
 using VehicleService = SWP391_AutoWashPro_BE.Service.Vehicles;
@@ -29,7 +30,9 @@ using VoucherService = SWP391_AutoWashPro_BE.Service.Voucher;
 using DiscordService = SWP391_AutoWashPro_BE.Service.DiscordService;
 using NotificationHub = SWP391_AutoWashPro_BE.Service.Hubs.NotificationHub;
 using OtpService = SWP391_AutoWashPro_BE.Service.OtpService;
+using RedisOtpService = SWP391_AutoWashPro_BE.Service.RedisOtpService;
 using Transaction =  SWP391_AutoWashPro_BE.Service.Transaction;
+using AiService = SWP391_AutoWashPro_BE.Service.AiService;
 
 Env.Load();
 
@@ -75,6 +78,14 @@ builder.Services.AddCors(options =>
         });
 });
 
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var connection = builder.Configuration["Redis:ConnectionString"];
+    return ConnectionMultiplexer.Connect(connection!);
+});
+
+builder.Services.AddScoped<SWP391_AutoWashPro_BE.Service.OTPDemoService.OtpService>();
+builder.Services.AddScoped<RedisOtpService.IService, RedisOtpService.Service>();
 
 builder.Services.AddScoped<JwtService.IService, JwtService.Service>();
 builder.Services.AddScoped<MediaService.IService, CloudinaryService.Service>();
@@ -95,6 +106,7 @@ builder.Services.AddScoped<RewardService.IService, RewardService.Service>();
 builder.Services.AddScoped<VoucherService.IService, VoucherService.Service>();
 builder.Services.AddScoped<OtpService.IService, OtpService.Service>();
 builder.Services.AddScoped<Transaction.IService, Transaction.Service>();
+builder.Services.AddScoped<AiService.IService, AiService.Service>();
 
 //test thử discord
 builder.Services.Configure<DiscordService.DiscordAlertOptions>(

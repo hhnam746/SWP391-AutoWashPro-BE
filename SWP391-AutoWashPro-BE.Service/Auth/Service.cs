@@ -523,7 +523,12 @@ public class Service : IService
             throw new ForbiddenAccessException("Account is inactive");
         }
 
-        await _otpService.GenerateAndSendOtpAsync(user.Id, user.Email);
+        if (string.IsNullOrWhiteSpace(user.Email))
+        {
+            throw new InvalidOperationException("User email is not available.");
+        }
+
+        await _otpService.GenerateAndSendOtpAsync(user.Email);
     }
 
     public async Task<Response.ResetPasswordResponse> VerifyForgotPassword(Request.VerifyOtpRequest request)
@@ -536,7 +541,12 @@ public class Service : IService
             throw new ArgumentException("Email does not exist.");
         }
 
-        var isOtpValid = await _otpService.VerifyOtpAsync(user.Id, request.Otp);
+        if (string.IsNullOrWhiteSpace(user.Email))
+        {
+            throw new InvalidOperationException("User email is not available.");
+        }
+
+        var isOtpValid = await _otpService.VerifyOtpAsync(user.Email, request.Otp);
         if (!isOtpValid)
         {
             throw new ArgumentException("Invalid or expired OTP.");
