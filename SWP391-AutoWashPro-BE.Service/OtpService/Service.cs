@@ -1,65 +1,62 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using SWP391_AutoWashPro_BE.Repository;
-using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Service.MailService;
+using SWP391_AutoWashPro_BE.Service.Models;
+using RedisOtpService = SWP391_AutoWashPro_BE.Service.RedisOtpService;
 
 namespace SWP391_AutoWashPro_BE.Service.OtpService;
 
 public class Service : IService
 {
     private readonly OtpOptions _otpOption = new();
-    private readonly AppDbContext _dbContext;
     private readonly Security.IService _securityService;
     private readonly MailService.IService _mailService;
+    private readonly RedisOtpService.IService _redisOtpService;
     private readonly ILogger<Service> _logger;
 
     public Service(
         IConfiguration configuration,
-        AppDbContext dbContext,
         Security.IService securityService,
         MailService.IService mailService,
+        RedisOtpService.IService redisOtpService,
         ILogger<Service> logger)
     {
         configuration.GetSection(nameof(OtpOptions)).Bind(_otpOption);
-        _dbContext = dbContext;
         _securityService = securityService;
         _mailService = mailService;
+        _redisOtpService = redisOtpService;
         _logger = logger;
     }
 
-    public async Task<string> GenerateAndSendOtpAsync(Guid userId, string email)
+    public async Task GenerateAndSendOtpAsync(string email)
     {
-        // 1. Vô hiệu hóa các OTP cũ đang có hiệu lực của user
-        await InvalidateOldOtpsAsync(userId);
+        var normalizedEmail = NormalizeEmail(email);
+        var sendCount = await _redisOtpService.GetSendCountAsync(normalizedEmail);
 
-        // 2. Tạo mã OTP ngẫu nhiên (6 chữ số)
-        var otpCode = Random.Shared.Next(100000, 999999).ToString();
-
-        // 3. Hash mã OTP và lưu vào db
-        var otp = new Otp
+        if (sendCount >= _otpOption.MaxSendPerHour)
         {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            OtpHash = _securityService.Hash(otpCode),
-            FailedAttemptCount = 0,
-            IsUsed = false,
-            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(_otpOption.ExpiryMinutes),
-            CreatedAt = DateTimeOffset.UtcNow
-        };
+            throw new TooManyRequestsException("OTP request limit exceeded. Please try again later.");
+        }
 
-        _dbContext.Otps.Add(otp);
-        await _dbContext.SaveChangesAsync();
+        await InvalidateOldOtpsAsync(normalizedEmail);
 
-        // 4. Gửi OTP qua email (fire & forget)
+        var otpCode = Random.Shared.Next(100000, 999999).ToString();
+        var otpHash = _securityService.Hash(otpCode);
+
+        await _redisOtpService.SaveOtpAsync(
+            normalizedEmail,
+            otpHash,
+            TimeSpan.FromMinutes(_otpOption.ExpiryMinutes));
+
+        await _redisOtpService.IncrementSendCountAsync(normalizedEmail);
+
         _ = Task.Run(async () =>
         {
             try
             {
                 var mailContent = new MailContent()
                 {
-                    To = email,
+                    To = normalizedEmail,
                     Subject = "AutoWash Pro – Your One-Time Password (OTP)",
                     Body = $@"
 <!DOCTYPE html>
@@ -90,7 +87,6 @@ public class Service : IService
             box-shadow:0 20px 80px rgba(15,15,15,0.12);
        "">
 
-    <!-- Header -->
     <tr>
         <td style=""
             background:#0A0A0B;
@@ -99,7 +95,6 @@ public class Service : IService
             border-top:4px solid #C6A56A;
         "">
 
-        <!-- Premium Logo -->
         <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" width=""100%"">
             <tr>
                 <td align=""center"" style=""padding:40px 0 24px;"">
@@ -164,7 +159,6 @@ public class Service : IService
         </td>
     </tr>
 
-    <!-- Content -->
     <tr>
         <td style=""padding:48px;"">
 
@@ -187,7 +181,6 @@ public class Service : IService
                 Please use the verification code below to continue.
             </p>
 
-            <!-- OTP Card -->
             <table
                 width=""100%""
                 cellpadding=""0""
@@ -229,7 +222,6 @@ public class Service : IService
                 </tr>
             </table>
 
-            <!-- Security Box -->
             <table
                 width=""100%""
                 cellpadding=""0""
@@ -277,14 +269,12 @@ public class Service : IService
                 If you did not request this verification, you can safely ignore this email.
             </p>
 
-            <!-- Divider -->
             <div style=""
                 margin-top:40px;
                 border-top:1px solid #E6E0D5;
                 height:1px;
             ""></div>
 
-            <!-- Signature -->
             <table width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"">
                 <tr>
                     <td style=""padding-top:24px;"">
@@ -313,7 +303,6 @@ public class Service : IService
         </td>
     </tr>
 
-    <!-- Footer -->
     <tr>
         <td style=""
             background:#0A0A0B;
@@ -359,75 +348,51 @@ public class Service : IService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi khi gửi OTP qua email đến {Email}", email);
+                _logger.LogError(ex, "Lỗi khi gửi OTP qua email đến {Email}", normalizedEmail);
             }
         });
-
-        return otp.Id.ToString();
     }
 
-    public async Task<bool> VerifyOtpAsync(Guid userId, string otpCode)
+    public async Task<bool> VerifyOtpAsync(string email, string otpCode)
     {
-        // Lấy OTP mới nhất, chưa sử dụng và chưa hết hạn của user
-        var otp = await _dbContext.Otps
-            .Where(x => x.UserId == userId && !x.IsUsed && x.ExpiresAt > DateTimeOffset.UtcNow)
-            .OrderByDescending(x => x.CreatedAt)
-            .FirstOrDefaultAsync();
+        var normalizedEmail = NormalizeEmail(email);
+        var otpHash = await _redisOtpService.GetOtpAsync(normalizedEmail);
 
-        if (otp == null)
+        if (string.IsNullOrWhiteSpace(otpHash))
         {
             return false;
         }
 
-        // Kiểm tra xem đã vượt quá số lần thử tối đa chưa
-        if (otp.FailedAttemptCount >= _otpOption.MaxFailedAttempts)
+        var failedAttemptCount = await _redisOtpService.GetVerifyAttemptCountAsync(normalizedEmail);
+        if (failedAttemptCount >= _otpOption.MaxFailedAttempts)
         {
+            await InvalidateOldOtpsAsync(normalizedEmail);
             return false;
         }
 
-        // Kiểm tra mã OTP
-        var isOtpValid = _securityService.Verify(otpCode, otp.OtpHash);
-
+        var isOtpValid = _securityService.Verify(otpCode, otpHash);
         if (!isOtpValid)
         {
-            // Nếu sai thì tăng số lần thử
-            otp.FailedAttemptCount++;
-            otp.UpdatedAt = DateTimeOffset.UtcNow;
+            failedAttemptCount = await _redisOtpService.IncrementVerifyAttemptAsync(normalizedEmail);
 
-            _dbContext.Otps.Update(otp);
-            await _dbContext.SaveChangesAsync();
+            if (failedAttemptCount >= _otpOption.MaxFailedAttempts)
+            {
+                await InvalidateOldOtpsAsync(normalizedEmail);
+            }
+
             return false;
         }
 
-        // Nếu đúng thì cập nhật trạng thái đã sử dụng
-        otp.IsUsed = true;
-        otp.UsedAt = DateTimeOffset.UtcNow;
-        otp.UpdatedAt = DateTimeOffset.UtcNow;
-
-        _dbContext.Otps.Update(otp);
-        await _dbContext.SaveChangesAsync();
-
+        await InvalidateOldOtpsAsync(normalizedEmail);
         return true;
     }
 
-    public async Task InvalidateOldOtpsAsync(Guid userId)
+    public async Task InvalidateOldOtpsAsync(string email)
     {
-        var activeOtps = await _dbContext.Otps
-            .Where(x => x.UserId == userId && !x.IsUsed && x.ExpiresAt > DateTimeOffset.UtcNow)
-            .ToListAsync();
-
-        if (activeOtps.Any())
-        {
-            foreach (var otp in activeOtps)
-            {
-                // Thay vì xóa mềm (IsDeleted) mà bảng Otp không có, ta ép IsUsed = true và đổi ngày Expire về quá khứ
-                otp.IsUsed = true;
-                otp.ExpiresAt = DateTimeOffset.UtcNow;
-                otp.UpdatedAt = DateTimeOffset.UtcNow;
-            }
-
-            _dbContext.Otps.UpdateRange(activeOtps);
-            await _dbContext.SaveChangesAsync();
-        }
+        var normalizedEmail = NormalizeEmail(email);
+        await _redisOtpService.DeleteOtpAsync(normalizedEmail);
+        await _redisOtpService.ResetVerifyAttemptCountAsync(normalizedEmail);
     }
+
+    private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 }

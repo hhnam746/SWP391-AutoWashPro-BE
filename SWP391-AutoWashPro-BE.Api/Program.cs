@@ -30,6 +30,7 @@ using VoucherService = SWP391_AutoWashPro_BE.Service.Voucher;
 using DiscordService = SWP391_AutoWashPro_BE.Service.DiscordService;
 using NotificationHub = SWP391_AutoWashPro_BE.Service.Hubs.NotificationHub;
 using OtpService = SWP391_AutoWashPro_BE.Service.OtpService;
+using RedisOtpService = SWP391_AutoWashPro_BE.Service.RedisOtpService;
 using Transaction =  SWP391_AutoWashPro_BE.Service.Transaction;
 
 Env.Load();
@@ -83,6 +84,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 });
 
 builder.Services.AddScoped<SWP391_AutoWashPro_BE.Service.OTPDemoService.OtpService>();
+builder.Services.AddScoped<RedisOtpService.IService, RedisOtpService.Service>();
 
 builder.Services.AddScoped<JwtService.IService, JwtService.Service>();
 builder.Services.AddScoped<MediaService.IService, CloudinaryService.Service>();
