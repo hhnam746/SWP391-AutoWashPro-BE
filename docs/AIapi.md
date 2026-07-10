@@ -477,3 +477,145 @@ Khi `conversationId` khong ton tai hoac khong thuoc ve user hien tai:
 3. Moi lan chat tiep theo, gui lai `conversationId` do
 4. Khi mo lai man hinh chat, goi `GET /api/v1/chat/{conversationId}/history`
 5. Khi user muon xoa cuoc tro chuyen, goi `DELETE /api/v1/chat/{conversationId}`
+
+## FE Flow Su Dung Cac API Nay
+
+Phan nay mo ta flow thong thuong de frontend xay man hinh chat voi `AiChatController`.
+
+### 1. Mo man hinh chat
+
+- FE khoi tao state chat:
+  - `conversationId = null`
+  - `messages = []`
+  - `loading = false`
+- Neu day la phien chat moi, FE chua can goi API ngay
+- Neu FE dang mo lai 1 hoi thoai cu va da co `conversationId`, FE goi:
+
+```http
+GET /api/v1/chat/{conversationId}/history
+```
+
+de nap lai toan bo lich su tin nhan
+
+### 2. User gui tin nhan dau tien
+
+Khi user gui tin nhan dau tien, FE goi:
+
+```http
+POST /api/v1/chat
+```
+
+voi body:
+
+```json
+{
+  "conversationId": null,
+  "message": "Toi co voucher nao dang dung duoc?"
+}
+```
+
+FE xu ly response:
+
+- doc `data.conversationId`
+- luu `conversationId` vao state
+- append cau hoi cua user vao UI
+- append cau tra loi cua assistant vao UI
+
+### 3. User chat tiep trong cung hoi thoai
+
+Sau khi da co `conversationId`, moi tin nhan tiep theo deu gui lai ID nay:
+
+```json
+{
+  "conversationId": "d7be2eaf-f0d5-4f55-a55b-7b3ec6af8c2e",
+  "message": "Voucher nao cua toi da het han?"
+}
+```
+
+Muc dich:
+
+- giu context hoi thoai
+- de backend luu tiep message vao dung conversation
+- de AI co lich su chat truoc do
+
+### 4. Reload trang hoac mo lai conversation
+
+Neu user refresh trang, dong mo lai app, hoac bam vao 1 cuoc tro chuyen da co, FE khong goi lai `POST` ngay.
+
+Thay vao do:
+
+```http
+GET /api/v1/chat/{conversationId}/history
+```
+
+FE dung response nay de:
+
+- render lai danh sach bubble chat
+- sap xep theo thu tu thoi gian
+- phuc hoi lich su conversation len UI
+
+### 5. Xoa hoi thoai
+
+Khi user bam xoa conversation:
+
+```http
+DELETE /api/v1/chat/{conversationId}
+```
+
+Neu success, FE nen:
+
+- xoa `conversationId` khoi state
+- clear `messages`
+- dua UI ve trang thai chat moi
+
+### 6. Phan tach vai tro cua tung API
+
+- `POST /api/v1/chat`
+  - Dung de gui tin nhan moi
+  - Tao conversation moi hoac chat tiep conversation cu
+
+- `GET /api/v1/chat/{conversationId}/history`
+  - Dung de load lai lich su hoi thoai
+  - Khong dung de gui message moi
+
+- `DELETE /api/v1/chat/{conversationId}`
+  - Dung de xoa 1 conversation
+
+### 7. Goi y state cho frontend
+
+```ts
+type ChatMessage = {
+  id?: string;
+  role: "User" | "Assistant";
+  content: string;
+  intent?: string | null;
+  createdAt?: string;
+};
+
+type ChatState = {
+  conversationId: string | null;
+  messages: ChatMessage[];
+  loading: boolean;
+};
+```
+
+### 8. Goi y xu ly UI khi gui tin nhan
+
+Frontend co the dung flow sau:
+
+1. User nhap noi dung va bam gui
+2. FE append tam tin nhan user len UI
+3. FE goi `POST /api/v1/chat`
+4. Neu success:
+   - luu `conversationId` neu la lan dau
+   - append message assistant vao UI
+5. Neu fail:
+   - hien toast loi
+   - hoac hien 1 bubble thong bao khong gui duoc
+
+### 9. Luu y cho frontend
+
+- Luon gui `Authorization: Bearer <access_token>`
+- Khong can FE tu detect intent, backend tu xu ly
+- `conversationId` la key de giu context chat
+- Neu backend fallback khi AI provider loi, FE van chi can render `data.answer` nhu binh thuong
