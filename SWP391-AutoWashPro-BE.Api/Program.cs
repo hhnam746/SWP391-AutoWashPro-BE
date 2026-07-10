@@ -107,6 +107,9 @@ builder.Services.AddScoped<VoucherService.IService, VoucherService.Service>();
 builder.Services.AddScoped<OtpService.IService, OtpService.Service>();
 builder.Services.AddScoped<Transaction.IService, Transaction.Service>();
 builder.Services.AddScoped<AiService.IService, AiService.Service>();
+builder.Services.AddScoped<AiService.IntentDetector>();
+builder.Services.AddScoped<AiService.PromptBuilder>();
+builder.Services.AddHttpClient<AiService.GoogleAiStudioService>();
 
 //test thử discord
 builder.Services.Configure<DiscordService.DiscordAlertOptions>(

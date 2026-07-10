@@ -34,6 +34,12 @@ public class AppDbContext : DbContext
     private static readonly ValueConverter<TransactionType, string> TransactionTypeConverter =
         new(v => ToDbTransactionType(v), v => FromDbTransactionType(v));
 
+    private static readonly ValueConverter<ChatIntent, string> ChatIntentConverter =
+        new(v => ToDbChatIntent(v), v => FromDbChatIntent(v));
+
+    private static readonly ValueConverter<ChatMessageRole, string> ChatMessageRoleConverter =
+        new(v => ToDbChatMessageRole(v), v => FromDbChatMessageRole(v));
+
 
     private static string ToDbUserRole(UserRole value) => value switch
     {
@@ -197,6 +203,54 @@ public class AppDbContext : DbContext
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 
+    private static string ToDbChatIntent(ChatIntent value) => value switch
+    {
+        ChatIntent.UserProfile => "user_profile",
+        ChatIntent.Loyalty => "loyalty",
+        ChatIntent.Booking => "booking",
+        ChatIntent.BookingDetail => "booking_detail",
+        ChatIntent.Voucher => "voucher",
+        ChatIntent.Promotion => "promotion",
+        ChatIntent.Branch => "branch",
+        ChatIntent.NearestBranch => "nearest_branch",
+        ChatIntent.TopBranch => "top_branch",
+        ChatIntent.Faq => "faq",
+        ChatIntent.Unknown => "unknown",
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static ChatIntent FromDbChatIntent(string value) => value switch
+    {
+        "user_profile" => ChatIntent.UserProfile,
+        "loyalty" => ChatIntent.Loyalty,
+        "booking" => ChatIntent.Booking,
+        "booking_detail" => ChatIntent.BookingDetail,
+        "voucher" => ChatIntent.Voucher,
+        "promotion" => ChatIntent.Promotion,
+        "branch" => ChatIntent.Branch,
+        "nearest_branch" => ChatIntent.NearestBranch,
+        "top_branch" => ChatIntent.TopBranch,
+        "faq" => ChatIntent.Faq,
+        "unknown" => ChatIntent.Unknown,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static string ToDbChatMessageRole(ChatMessageRole value) => value switch
+    {
+        ChatMessageRole.User => "user",
+        ChatMessageRole.Assistant => "assistant",
+        ChatMessageRole.System => "system",
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static ChatMessageRole FromDbChatMessageRole(string value) => value switch
+    {
+        "user" => ChatMessageRole.User,
+        "assistant" => ChatMessageRole.Assistant,
+        "system" => ChatMessageRole.System,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
@@ -220,6 +274,8 @@ public class AppDbContext : DbContext
     public DbSet<Transaction> Transactions { get; set; }
     public DbSet<PointTransaction> PointTransactions { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<Conversation> Conversations { get; set; }
+    public DbSet<ChatMessage> ChatMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -831,6 +887,51 @@ public class AppDbContext : DbContext
             builder.HasOne(x => x.User)
                 .WithMany(x => x.Notifications)
                 .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Conversation>(builder =>
+        {
+            builder.ToTable("conversation");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            builder.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+            builder.Property(x => x.Title).HasColumnName("title").HasMaxLength(120).IsRequired();
+            builder.Property(x => x.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false).IsRequired();
+            builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            builder.HasIndex(x => x.UserId);
+            builder.HasIndex(x => x.UpdatedAt);
+            builder.HasIndex(x => x.IsDeleted);
+
+            builder.HasOne(x => x.User)
+                .WithMany(x => x.Conversations)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ChatMessage>(builder =>
+        {
+            builder.ToTable("chat_message");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            builder.Property(x => x.ConversationId).HasColumnName("conversation_id").IsRequired();
+            builder.Property(x => x.Role).HasColumnName("role").HasConversion(ChatMessageRoleConverter).IsRequired();
+            builder.Property(x => x.Content).HasColumnName("content").HasColumnType("text").IsRequired();
+            builder.Property(x => x.Intent).HasColumnName("intent").HasConversion(ChatIntentConverter);
+            builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            builder.HasIndex(x => x.ConversationId);
+            builder.HasIndex(x => x.CreatedAt);
+            builder.HasIndex(x => x.Intent);
+
+            builder.HasOne(x => x.Conversation)
+                .WithMany(x => x.ChatMessages)
+                .HasForeignKey(x => x.ConversationId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
