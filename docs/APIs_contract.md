@@ -2282,11 +2282,12 @@ Response `200 OK`
 
 ```json
 {
-  "modelName": "gpt-4o-mini",
+  "modelName": "gemini-3.5-flash",
+  "fallbackModelName": "gemini-flash-latest",
   "temperature": 0.7,
   "maxTokens": 1000,
   "isEnabled": false,
-  "apiKeyMasked": "sk-...xxxx"
+  "apiKeyMasked": "AIza...xxxx"
 }
 ```
 
@@ -2298,7 +2299,8 @@ Request
 
 ```json
 {
-  "modelName": "gpt-4o-mini",
+  "modelName": "gemini-3.5-flash",
+  "fallbackModelName": "gemini-flash-latest",
   "temperature": 0.7,
   "maxTokens": 1000,
   "apiKey": "string | null",
@@ -2310,7 +2312,8 @@ Response `200 OK`
 
 ```json
 {
-  "modelName": "gpt-4o-mini",
+  "modelName": "gemini-3.5-flash",
+  "fallbackModelName": "gemini-flash-latest",
   "isEnabled": true
 }
 ```
