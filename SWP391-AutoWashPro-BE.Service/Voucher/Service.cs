@@ -22,6 +22,8 @@ public class Service: IService
         var query = _dbContext.Vouchers
             .Where(x => x.CustomerId == customer.Id);
 
+        var totalItems = await query.CountAsync();
+
         query = query.OrderBy(x => x.Id);
         query = query.Skip((pageIndex - 1) * pageSize).Take(pageSize);
 
@@ -36,7 +38,6 @@ public class Service: IService
             UsedAt = y.UsedAt
         });
         var listResult = await selected.ToListAsync();
-        var totalItems = listResult.Count;
 
         var result = new Base.Response.PageResult<Response.VoucherResponse>()
         {
