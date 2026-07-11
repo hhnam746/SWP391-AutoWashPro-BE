@@ -228,7 +228,7 @@ public class Service: IService
             throw new Exception("Cannot delete active promotion");
         }
 
-        _dbContext.Promotions.Remove(promotion);
+        promotion.IsDeleted = true;
 
         await _dbContext.SaveChangesAsync();
 
