@@ -546,81 +546,79 @@ public class Service : IService
         
         
         // ================================= Auto Cancel Cronjob =================================
-        // _ = Task.Run(async () =>
-        // {
-        //     try
-        //     {
-        //         // Thời điểm auto cancel = StartTime + 1 phút
-        //         var autoCancelTime = utcStartTime.AddMinutes(1);
-        //         var delayTime = autoCancelTime - DateTimeOffset.UtcNow;
-        //
-        //         if (delayTime > TimeSpan.Zero)
-        //         {
-        //             await Task.Delay(delayTime);
-        //         }
-        //
-        //         using var scope = _serviceScopeFactory.CreateScope();
-        //         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        //
-        //         var booking = await dbContext.Bookings
-        //             .FirstOrDefaultAsync(x => x.Id == newId);
-        //
-        //         // Chỉ cancel nếu vẫn còn Confirmed (chưa CheckIn, chưa Cancel,...)
-        //         if (booking != null && booking.Status == BookingStatus.Confirmed)
-        //         {
-        //             booking.Status = BookingStatus.Cancelled;
-        //
-        //             // // Hoàn tiền deposit về wallet
-        //             // var customerWallet = await dbContext.Wallets
-        //             //     .FirstOrDefaultAsync(x => x.CustomerId == booking.CustomerId);
-        //             //
-        //             // if (customerWallet != null)
-        //             // {
-        //             //     var depositRefund = booking.FinalPrice * (paymentDeposite / 100);
-        //             //     customerWallet.Balance += depositRefund;
-        //             // }
-        //
-        //             // Gửi notification cho customer
-        //             var customer = await dbContext.CustomerProfiles
-        //                 .FirstOrDefaultAsync(x => x.Id == booking.CustomerId);
-        //
-        //             if (customer != null)
-        //             {
-        //                 var branch = await dbContext.Branches
-        //                     .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
-        //
-        //                 var cancelNotification = new Repository.Entities.Notification()
-        //                 {
-        //                     Id = Guid.NewGuid(),
-        //                     UserId = customer.UserId,
-        //                     Type = NotificationType.BookingCancelled,
-        //                     Title = "Booking Auto-Cancelled",
-        //                     Content = $"Your booking at {branch?.Name ?? "our branch"} on " +
-        //                               $"{booking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy} " +
-        //                               $"has been automatically cancelled due to no check-in.",
-        //                     IsRead = false,
-        //                     CreatedAt = DateTimeOffset.UtcNow,
-        //                 };
-        //                 // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
-        //                 // {
-        //                 //     UserId = userIdGuid,
-        //                 //     Type = NotificationType.BookingCancelled,
-        //                 //     Data = $"Your booking at {branch?.Name ?? "our branch"} " +
-        //                 //            $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
-        //                 //            $"has been cancelled due to over check-in time.",
-        //                 // });
-        //
-        //                 dbContext.Notifications.Add(cancelNotification);
-        //             }
-        //
-        //             await dbContext.SaveChangesAsync();
-        //         }
-        //     }
-        //     catch (Exception e)
-        //     {
-        //         Console.WriteLine("======= Auto Cancel Error " + e.Message + " ==========");
-        //     }
-        // });
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var cancelTimeConfig = await _dbContext.SystemConfigs
+                                           .FirstOrDefaultAsync(x => x.ConfigKey == "CancelTimeMinutes")
+                                       ?? throw new Exception("CancelTimeMinutes config not found");
+
+                if (!int.TryParse(cancelTimeConfig.ConfigValue, out var cancelTimeMinutes) ||
+                    cancelTimeMinutes < 0)
+                {
+                    throw new Exception("Invalid CancelTimeMinutes config value");
+                }
+
+                var autoCancelTime = utcStartTime.AddMinutes(cancelTimeMinutes);
+                var delayTime = autoCancelTime - DateTimeOffset.UtcNow;
+        
+                if (delayTime > TimeSpan.Zero)
+                {
+                    await Task.Delay(delayTime);
+                }
+        
+                using var scope = _serviceScopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        
+                var booking = await dbContext.Bookings
+                    .FirstOrDefaultAsync(x => x.Id == newId);
+        
+                // Chỉ cancel nếu vẫn còn Confirmed (chưa CheckIn, chưa Cancel,...)
+                if (booking != null && booking.Status == BookingStatus.Confirmed)
+                {
+                    booking.Status = BookingStatus.Cancelled;
+                    // Gửi notification cho customer
+                    var customer = await dbContext.CustomerProfiles
+                        .FirstOrDefaultAsync(x => x.Id == booking.CustomerId);
+        
+                    if (customer != null)
+                    {
+                        var branch = await dbContext.Branches
+                            .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
+        
+                        var cancelNotification = new Repository.Entities.Notification()
+                        {
+                            Id = Guid.NewGuid(),
+                            UserId = customer.UserId,
+                            Type = NotificationType.BookingCancelled,
+                            Title = "Booking Auto-Cancelled",
+                            Content = $"Your booking at {branch?.Name ?? "our branch"} on " +
+                                      $"{booking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy} " +
+                                      $"has been automatically cancelled due to no check-in.",
+                            IsRead = false,
+                            CreatedAt = DateTimeOffset.UtcNow,
+                        };
+                        await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+                        {
+                            UserId = userIdGuid,
+                            Type = NotificationType.BookingCancelled,
+                            Data = $"Your booking at {branch?.Name ?? "our branch"} " +
+                                   $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
+                                   $"has been cancelled due to over check-in time.",
+                        });
+        
+                        dbContext.Notifications.Add(cancelNotification);
+                    }
+        
+                    await dbContext.SaveChangesAsync();
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("======= Auto Cancel Error " + e.Message + " ==========");
+            }
+        });
         // ================================= End Auto Cancel Cronjob =================================
         
         var result = new Response.CreateBookingResponse
@@ -796,13 +794,18 @@ public class Service : IService
         if (customerProfile == null)
             throw new Exception("Customer profile not found");
 
-        var booking =
-            await _dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == Id && x.Status == BookingStatus.Confirmed);
+        var booking = await _dbContext.Bookings
+            .FirstOrDefaultAsync(x =>
+                x.Id == Id &&
+                x.CustomerId == customerProfile.Id &&
+                x.Status == BookingStatus.Confirmed);
+
         if (booking == null)
         {
-            throw new Exception("Booking not found or has been check-in");
+            throw new Exception(
+                "Booking not found, does not belong to the current customer, or is no longer confirmed.");
         }
-
+        
         var slotDurationConfig = await _dbContext.SystemConfigs
                                      .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
                                  ?? throw new Exception("SlotDurationMinutes config not found");
@@ -812,6 +815,27 @@ public class Service : IService
             throw new Exception("Invalid SlotDurationMinutes config value");
         }
 
+        var cancelTimeConfig = await _dbContext.SystemConfigs
+                                   .FirstOrDefaultAsync(x => x.ConfigKey == "CancelTimeMinutes")
+                               ?? throw new Exception("CancelTimeMinutes config not found");
+
+        if (!int.TryParse(cancelTimeConfig.ConfigValue, out var cancelTimeMinutes) ||
+            cancelTimeMinutes < 0)
+        {
+            throw new Exception("Invalid CancelTimeMinutes config value");
+        }
+        var now = DateTimeOffset.UtcNow;
+        var latestCheckInTime = booking.StartTime.AddMinutes(cancelTimeMinutes);
+
+        if (now < booking.StartTime)
+        {
+            throw new Exception("Check-in is not available before the booking start time.");
+        }
+
+        if (now > latestCheckInTime)
+        {
+            throw new Exception("Check-in time has expired.");
+        }
         var msg = "";
         var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
         var voucher = await _dbContext.Vouchers.FirstOrDefaultAsync(x => x.Id == booking.VoucherId);
@@ -986,13 +1010,19 @@ public class Service : IService
             throw new Exception("User not found");
         }
 
-        var booking = await _dbContext.Bookings
-            .FirstOrDefaultAsync(x => x.Id == Id);
+        var customerProfile = await _dbContext.CustomerProfiles
+                                  .FirstOrDefaultAsync(x => x.UserId == userIdGuid)
+                              ?? throw new Exception("Customer profile not found");
 
+        var booking = await _dbContext.Bookings
+            .FirstOrDefaultAsync(x =>
+                x.Id == Id &&
+                x.CustomerId == customerProfile.Id);
         if (booking == null)
         {
             throw new Exception("Booking not found");
         }
+        
 
         if (booking.Status == BookingStatus.Cancelled)
         {
@@ -1010,11 +1040,26 @@ public class Service : IService
             throw new Exception("Only confirmed bookings can be cancelled");
         }
 
-        var today = DateOnly.FromDateTime(DateTime.Now);
+        var cancellationConfig = await _dbContext.SystemConfigs
+                                     .FirstOrDefaultAsync(x => x.ConfigKey == "CancellationDeadlineHours")
+                                 ?? throw new Exception("CancellationDeadlineHours config not found");
 
-        if ((booking.BookingDate.DayNumber - today.DayNumber) < 1)
+        if (!int.TryParse(
+                cancellationConfig.ConfigValue,
+                out var cancellationDeadlineHours) ||
+            cancellationDeadlineHours < 0)
         {
-            throw new Exception("Booking is too close to the scheduled time to cancel");
+            throw new Exception("Invalid CancellationDeadlineHours config value");
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var cancellationDeadline =
+            booking.StartTime.AddHours(-cancellationDeadlineHours);
+
+        if (now >= cancellationDeadline)
+        {
+            throw new Exception(
+                $"Booking must be cancelled at least {cancellationDeadlineHours} hours before the start time.");
         }
 
         booking.Status = BookingStatus.Cancelled;
