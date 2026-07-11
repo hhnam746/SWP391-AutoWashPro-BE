@@ -53,12 +53,12 @@ public class RewardController: ControllerBase
     }
 
   
-    [HttpPost("redeem-reward/{id}")]
+    [HttpPost("redeem-reward")]
     public async Task<IActionResult> RedeemReward(
-        [FromRoute] Guid id,
-        [FromQuery] Guid userId)
+        [FromQuery] Guid rewardId,
+        [FromQuery] Guid id)
     {
-        var result = await _service.RedeemReward(id, userId);
+        var result = await _service.RedeemReward(rewardId, id);
         return Ok(result);
     }
 }
