@@ -13,6 +13,8 @@ public class Promotion : BaseEntity, IAuditableEntity
     public DateTimeOffset EndDate { get; set; }
     public bool? IsGlobal { get; set; }
     public bool IsActive { get; set; }
+    
+    public bool IsDeleted { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
 
