@@ -160,10 +160,10 @@ public class Service : IService
         return "Reward deleted successfully";
     }
 
-    public async Task<string> RedeemReward(Guid rewardId, Guid userId)
+    public async Task<string> RedeemReward(Guid rewardId, Guid Id)
     {
         var customer = await _dbContext.CustomerProfiles
-            .FirstOrDefaultAsync(x => x.UserId == userId);
+            .FirstOrDefaultAsync(x => x.Id == Id);
 
         if (customer == null)
             throw new Exception("Customer not found");
@@ -226,7 +226,7 @@ public class Service : IService
 
         var notification = new Repository.Entities.Notification
         {
-            UserId = userId,
+            UserId = Id,
             Type = NotificationType.RewardRedeemed,
             Title = "Reward Redeemed",
             CreatedAt = DateTimeOffset.UtcNow
@@ -243,7 +243,7 @@ public class Service : IService
         
         await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
         {
-            UserId = userId,
+            UserId = Id,
             Type = NotificationType.RewardRedeemed,
             Data = $"You have successfully redeemed {reward.Name}. Your voucher code is {voucher.Code}."
         });
