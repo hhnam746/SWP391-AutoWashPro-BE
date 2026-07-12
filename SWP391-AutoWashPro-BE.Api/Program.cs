@@ -118,20 +118,41 @@ builder.Services.AddHttpClient<DiscordService.IService, DiscordService.Service>(
 // Cụ thể ở đây của mình là tự gọi API webhook của discord
 
 //backgroundJob | Cron job
+var processBookingCron = builder.Configuration["Quartz:ProcessBookingCron"] ?? "0/15 * * * * ?";
+var processBookingReminderCron = builder.Configuration["Quartz:BookingReminderCron"] ?? "0/30 * * * * ?"; //30s quét 1 lần
+var processBookingCompletedCron = builder.Configuration["Quartz:BookingCompletedCron"] ?? "0/30 * * * * ?";
 builder.Services.AddQuartz(options =>
 {
-    var processBookingJobKey = new JobKey(nameof(ProcessBookingJob));
-    // var jobNotification = new JobKey(nameof(ProcessNotificationJob));
-    
-    
-    options.AddJob<ProcessBookingJob>(job => job
+    var processBookingJobKey = new JobKey(nameof(ProcessBookingAutoCancelJob));
+    var processBookingReminderJobKey = new JobKey(nameof(ProcessBookingReminderJob));
+    var processBookingCompletedJobKey = new JobKey(nameof(ProcessBookingAutoCompleteJob));
+
+    options.AddJob<ProcessBookingAutoCancelJob>(job => job
         .WithIdentity(processBookingJobKey));
+
+    options.AddJob<ProcessBookingReminderJob>(job => job
+        .WithIdentity(processBookingReminderJobKey));
+
+    options.AddJob<ProcessBookingAutoCompleteJob>(job => job
+        .WithIdentity(processBookingCompletedJobKey));
 
     options.AddTrigger(trigger => trigger
         .ForJob(processBookingJobKey)
-        .WithIdentity($"{nameof(ProcessBookingJob)}-trigger")
-        // Chạy mỗi 15 giây để test gần realtime, production có thể đổi 30-60 giây.
-        .WithCronSchedule("0/15 * * * * ?", cron =>
+        .WithIdentity($"{nameof(ProcessBookingAutoCancelJob)}-trigger")
+        // Mặc định chạy mỗi 15 giây để test gần realtime, có thể override bằng Quartz:ProcessBookingCron.
+        .WithCronSchedule(processBookingCron, cron =>
+            cron.WithMisfireHandlingInstructionDoNothing()));
+
+    options.AddTrigger(trigger => trigger
+        .ForJob(processBookingReminderJobKey)
+        .WithIdentity($"{nameof(ProcessBookingReminderJob)}-trigger")
+        .WithCronSchedule(processBookingReminderCron, cron =>
+            cron.WithMisfireHandlingInstructionDoNothing()));
+
+    options.AddTrigger(trigger => trigger
+        .ForJob(processBookingCompletedJobKey)
+        .WithIdentity($"{nameof(ProcessBookingAutoCompleteJob)}-trigger")
+        .WithCronSchedule(processBookingCompletedCron, cron =>
             cron.WithMisfireHandlingInstructionDoNothing()));
 });
 
