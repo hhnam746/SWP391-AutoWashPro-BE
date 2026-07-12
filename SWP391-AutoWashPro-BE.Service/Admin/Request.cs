@@ -62,7 +62,7 @@ public class Request
     {
         public DateOnly FromDate { get; set; }
         public DateOnly ToDate { get; set; }
-        public Guid BranchId { get; set; }
+        // public Guid BranchId { get; set; }
     }
 
     public class GetBranchReportRequest
