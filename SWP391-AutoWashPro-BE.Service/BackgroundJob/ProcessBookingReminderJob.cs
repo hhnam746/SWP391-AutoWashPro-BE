@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Quartz;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Enums;
+using System.Text.Json;
 
 namespace SWP391_AutoWashPro_BE.Service.BackgroundJob;
 
@@ -10,7 +11,8 @@ namespace SWP391_AutoWashPro_BE.Service.BackgroundJob;
 public class ProcessBookingReminderJob : IJob
 {
     private static readonly TimeSpan DisplayTimeOffset = TimeSpan.FromHours(7);
-    private static readonly TimeSpan ReminderLeadTime = TimeSpan.FromDays(1);
+    private static readonly TimeSpan ReminderLeadTime = TimeSpan.FromDays(1); //là khoảng thời gian nhắc trước 1 ngày.
+    // private static readonly TimeSpan ReminderLeadTime = TimeSpan.FromSeconds(30);
 
     private readonly AppDbContext _dbContext;
     private readonly ILogger<ProcessBookingReminderJob> _logger;
@@ -36,8 +38,10 @@ public class ProcessBookingReminderJob : IJob
             nowLocal,
             reminderBefore);
 
-        var dueReminderBookings = await _dbContext.Bookings
-            .Where(x => x.Status == BookingStatus.Confirmed && x.StartTime <= reminderBefore)
+        var queryDueReminderBookings = _dbContext.Bookings
+            .Where(x => x.Status == BookingStatus.Confirmed && x.StartTime <= reminderBefore);
+
+        var selectedDueReminderBookings = queryDueReminderBookings
             .Select(x => new
             {
                 Booking = x,
@@ -45,8 +49,9 @@ public class ProcessBookingReminderJob : IJob
                 x.StartTime,
                 CustomerUserId = x.Customer != null ? x.Customer.UserId : (Guid?)null,
                 BranchName = x.Branch != null ? x.Branch.Name : null
-            })
-            .ToListAsync(cancellationToken);
+            });
+            
+        var dueReminderBookings = await selectedDueReminderBookings.ToListAsync(cancellationToken);
 
         if (dueReminderBookings.Count == 0)
         {
@@ -58,15 +63,17 @@ public class ProcessBookingReminderJob : IJob
             return;
         }
 
-        var bookingIds = dueReminderBookings.Select(x => x.Id.ToString()).ToList();
+        var bookingIds = dueReminderBookings.Select(x => x.Id.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var existingReminderMetadata = await _dbContext.Notifications
             .Where(x => x.Type == NotificationType.BookingReminder &&
-                        x.Metadata != null &&
-                        bookingIds.Contains(x.Metadata))
+                        x.Metadata != null)
             .Select(x => x.Metadata!)
             .ToListAsync(cancellationToken);
 
-        var existingReminderSet = existingReminderMetadata.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var existingReminderSet = existingReminderMetadata
+            .Select(TryExtractBookingId)
+            .Where(x => !string.IsNullOrWhiteSpace(x) && bookingIds.Contains(x))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var notifications = new List<Repository.Entities.Notification>();
         var remindedBookingIds = new List<Guid>();
 
@@ -91,7 +98,7 @@ public class ProcessBookingReminderJob : IJob
                 Title = "Booking Reminder",
                 Content =
                     $"Reminder: Your booking at {item.BranchName ?? "our branch"} starts at {item.StartTime.ToOffset(DisplayTimeOffset):HH:mm dd/MM/yyyy}.",
-                Metadata = metadata,
+                Metadata = JsonSerializer.Serialize(new { bookingId = metadata }),
                 IsRead = false,
                 CreatedAt = nowUtc
             });
@@ -122,5 +129,36 @@ public class ProcessBookingReminderJob : IJob
             notifications.Count,
             nowUtc,
             string.Join(", ", remindedBookingIds));
+    }
+
+    private static string? TryExtractBookingId(string? metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(metadata);
+
+            if (document.RootElement.ValueKind == JsonValueKind.Object &&
+                document.RootElement.TryGetProperty("bookingId", out var bookingIdElement) &&
+                bookingIdElement.ValueKind == JsonValueKind.String)
+            {
+                return bookingIdElement.GetString();
+            }
+
+            if (document.RootElement.ValueKind == JsonValueKind.String)
+            {
+                return document.RootElement.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            // Ignore malformed or legacy metadata that cannot be parsed.
+        }
+
+        return null;
     }
 }

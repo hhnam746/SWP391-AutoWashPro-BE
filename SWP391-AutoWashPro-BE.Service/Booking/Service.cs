@@ -481,6 +481,7 @@ public class Service : IService
         }
 
         //ProcessBookingReminder
+        
         // _ = Task.Run(async () =>
         // {
         //     try
@@ -540,6 +541,9 @@ public class Service : IService
         //         Console.WriteLine("======= Reminder Error " + e.Message + " ==========");
         //     }
         // });
+        
+        
+        //ProcessAutoCancelJob
         
         //// Auto-cancel được xử lý tập trung bởi Quartz job ProcessBookingJob.
         
@@ -949,46 +953,49 @@ public class Service : IService
                 _dbContext.PointTransactions.Add(pointTransaction);
             }
             
-            //Thêm background job cho thông báo completed
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(TimeSpan.FromMinutes(SlotDurationMinutes));
-                    using var scope = _serviceScopeFactory.CreateScope();
-                    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    var delayedBooking = await dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == booking.Id);
-                    if (delayedBooking != null && delayedBooking.Status == BookingStatus.InProgress)
-                    {
-                        delayedBooking.Status = BookingStatus.Completed;
-                        delayedBooking.CompletedAt = DateTime.UtcNow;
-                        var branch = dbContext.Branches.FirstOrDefault(x => x.Id == delayedBooking.BranchId);
-                        var customer =
-                            dbContext.CustomerProfiles.FirstOrDefault(x => x.Id == delayedBooking.CustomerId);
-                        if (customer != null)
-                        {
-                            var notification = new Repository.Entities.Notification()
-                            {
-                                Id = Guid.NewGuid(),
-                                UserId = customer.UserId,
-                                Type = NotificationType.BookingCompleted,
-                                Title = "Booking Completed",
-                                Content =
-                                    $"Your booking at {branch?.Name ?? "our branch"} has been completed successfully. Thank you for using our service.",
-                                IsRead = false,
-                                CreatedAt = DateTimeOffset.UtcNow,
-                            };
-                            dbContext.Notifications.Add(notification);
-                        }
-
-                        await dbContext.SaveChangesAsync();
-                    }
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("=======Error Occure " + e.Message + " ==========");
-                }
-            });
+            //Thêm background job => ProcessBookingAutoComplete 
+            //Completed khi mà time(NOW) > Endtime
+            
+            //
+            // _ = Task.Run(async () =>
+            // {
+            //     try
+            //     {
+            //         await Task.Delay(TimeSpan.FromMinutes(SlotDurationMinutes));
+            //         using var scope = _serviceScopeFactory.CreateScope();
+            //         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            //         var delayedBooking = await dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == booking.Id);
+            //         if (delayedBooking != null && delayedBooking.Status == BookingStatus.InProgress)
+            //         {
+            //             delayedBooking.Status = BookingStatus.Completed;
+            //             delayedBooking.CompletedAt = DateTime.UtcNow;
+            //             var branch = dbContext.Branches.FirstOrDefault(x => x.Id == delayedBooking.BranchId);
+            //             var customer =
+            //                 dbContext.CustomerProfiles.FirstOrDefault(x => x.Id == delayedBooking.CustomerId);
+            //             if (customer != null)
+            //             {
+            //                 var notification = new Repository.Entities.Notification()
+            //                 {
+            //                     Id = Guid.NewGuid(),
+            //                     UserId = customer.UserId,
+            //                     Type = NotificationType.BookingCompleted,
+            //                     Title = "Booking Completed",
+            //                     Content =
+            //                         $"Your booking at {branch?.Name ?? "our branch"} has been completed successfully. Thank you for using our service.",
+            //                     IsRead = false,
+            //                     CreatedAt = DateTimeOffset.UtcNow,
+            //                 };
+            //                 dbContext.Notifications.Add(notification);
+            //             }
+            //
+            //             await dbContext.SaveChangesAsync();
+            //         }
+            //     }
+            //     catch (Exception e)
+            //     {
+            //         Console.WriteLine("=======Error Occure " + e.Message + " ==========");
+            //     }
+            // });
         }
 
         await _dbContext.SaveChangesAsync();
