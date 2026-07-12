@@ -480,146 +480,157 @@ public class Service : IService
             throw new Exception("Slot already booked");
         }
 
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                var reminderTime = utcStartTime.AddDays(-1);
-
-                var delayTime = reminderTime - DateTimeOffset.UtcNow;
-
-                if (delayTime > TimeSpan.Zero)
-                {
-                    await Task.Delay(delayTime);
-
-                    using var scope = _serviceScopeFactory.CreateScope();
-
-                    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-                    var reminderBooking = await dbContext.Bookings
-                        .FirstOrDefaultAsync(x => x.Id == newBooking.Id);
-
-                    if (reminderBooking != null &&
-                        reminderBooking.Status == BookingStatus.Confirmed)
-                    {
-                        var branch = await dbContext.Branches
-                            .FirstOrDefaultAsync(x => x.Id == reminderBooking.BranchId);
-
-                        var customer = await dbContext.CustomerProfiles
-                            .FirstOrDefaultAsync(x => x.Id == reminderBooking.CustomerId);
-
-                        if (customer != null)
-                        {
-                            var reminderNotification = new Repository.Entities.Notification()
-                            {
-                                Id = Guid.NewGuid(),
-                                UserId = customer.UserId,
-                                Type = NotificationType.BookingReminder,
-                                Title = "Booking Reminder",
-                                Content =
-                                    $"Reminder: Your booking at {branch?.Name ?? "our branch"} starts at {reminderBooking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy}.",
-                                IsRead = false,
-                                CreatedAt = DateTimeOffset.UtcNow,
-                            };
-
-                            dbContext.Notifications.Add(reminderNotification);
-                            // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
-                            // {
-                            //     UserId = userIdGuid,
-                            //     Type = NotificationType.BookingCreated,
-                            //     Data = $"Booking Success! Your booking at {branch?.Name ?? "our branch"} starts at {reminderBooking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy}.",
-                            // });
-                            await dbContext.SaveChangesAsync();
-                        }
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("======= Reminder Error " + e.Message + " ==========");
-            }
-        });
-        ///////////////////////////////// Thên cronjob cancel tự động
+        //ProcessBookingReminder
+        
+        // _ = Task.Run(async () =>
+        // {
+        //     try
+        //     {
+        //         var reminderTime = utcStartTime.AddDays(-1);
         //
+        //         var delayTime = reminderTime - DateTimeOffset.UtcNow;
+        //
+        //         if (delayTime > TimeSpan.Zero)
+        //         {
+        //             await Task.Delay(delayTime);
+        //
+        //             using var scope = _serviceScopeFactory.CreateScope();
+        //
+        //             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        //
+        //             var reminderBooking = await dbContext.Bookings
+        //                 .FirstOrDefaultAsync(x => x.Id == newBooking.Id);
+        //
+        //             if (reminderBooking != null &&
+        //                 reminderBooking.Status == BookingStatus.Confirmed)
+        //             {
+        //                 var branch = await dbContext.Branches
+        //                     .FirstOrDefaultAsync(x => x.Id == reminderBooking.BranchId);
+        //
+        //                 var customer = await dbContext.CustomerProfiles
+        //                     .FirstOrDefaultAsync(x => x.Id == reminderBooking.CustomerId);
+        //
+        //                 if (customer != null)
+        //                 {
+        //                     var reminderNotification = new Repository.Entities.Notification()
+        //                     {
+        //                         Id = Guid.NewGuid(),
+        //                         UserId = customer.UserId,
+        //                         Type = NotificationType.BookingReminder,
+        //                         Title = "Booking Reminder",
+        //                         Content =
+        //                             $"Reminder: Your booking at {branch?.Name ?? "our branch"} starts at {reminderBooking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy}.",
+        //                         IsRead = false,
+        //                         CreatedAt = DateTimeOffset.UtcNow,
+        //                     };
+        //
+        //                     dbContext.Notifications.Add(reminderNotification);
+        //                     // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+        //                     // {
+        //                     //     UserId = userIdGuid,
+        //                     //     Type = NotificationType.BookingCreated,
+        //                     //     Data = $"Booking Success! Your booking at {branch?.Name ?? "our branch"} starts at {reminderBooking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy}.",
+        //                     // });
+        //                     await dbContext.SaveChangesAsync();
+        //                 }
+        //             }
+        //         }
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         Console.WriteLine("======= Reminder Error " + e.Message + " ==========");
+        //     }
+        // });
+        
+        
+        //ProcessAutoCancelJob
         
         //// Auto-cancel được xử lý tập trung bởi Quartz job ProcessBookingJob.
         
         
         // ================================= Auto Cancel Cronjob =================================
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                var cancelTimeConfig = await _dbContext.SystemConfigs
-                                           .FirstOrDefaultAsync(x => x.ConfigKey == "CancelTimeMinutes")
-                                       ?? throw new Exception("CancelTimeMinutes config not found");
-
-                if (!int.TryParse(cancelTimeConfig.ConfigValue, out var cancelTimeMinutes) ||
-                    cancelTimeMinutes < 0)
-                {
-                    throw new Exception("Invalid CancelTimeMinutes config value");
-                }
-
-                var autoCancelTime = utcStartTime.AddMinutes(cancelTimeMinutes);
-                var delayTime = autoCancelTime - DateTimeOffset.UtcNow;
-        
-                if (delayTime > TimeSpan.Zero)
-                {
-                    await Task.Delay(delayTime);
-                }
-        
-                using var scope = _serviceScopeFactory.CreateScope();
-                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        
-                var booking = await dbContext.Bookings
-                    .FirstOrDefaultAsync(x => x.Id == newId);
-        
-                // Chỉ cancel nếu vẫn còn Confirmed (chưa CheckIn, chưa Cancel,...)
-                if (booking != null && booking.Status == BookingStatus.Confirmed)
-                {
-                    booking.Status = BookingStatus.Cancelled;
-                    // Gửi notification cho customer
-                    var customer = await dbContext.CustomerProfiles
-                        .FirstOrDefaultAsync(x => x.Id == booking.CustomerId);
-        
-                    if (customer != null)
-                    {
-                        var branch = await dbContext.Branches
-                            .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
-        
-                        var cancelNotification = new Repository.Entities.Notification()
-                        {
-                            Id = Guid.NewGuid(),
-                            UserId = customer.UserId,
-                            Type = NotificationType.BookingCancelled,
-                            Title = "Booking Auto-Cancelled",
-                            Content = $"Your booking at {branch?.Name ?? "our branch"} on " +
-                                      $"{booking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy} " +
-                                      $"has been automatically cancelled due to no check-in.",
-                            IsRead = false,
-                            CreatedAt = DateTimeOffset.UtcNow,
-                        };
-                        await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
-                        {
-                            UserId = userIdGuid,
-                            Type = NotificationType.BookingCancelled,
-                            Data = $"Your booking at {branch?.Name ?? "our branch"} " +
-                                   $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
-                                   $"has been cancelled due to over check-in time.",
-                        });
-        
-                        dbContext.Notifications.Add(cancelNotification);
-                    }
-        
-                    await dbContext.SaveChangesAsync();
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("======= Auto Cancel Error " + e.Message + " ==========");
-            }
-        });
+        // vì Task.Run(): bug when deploy render with TASK
+        //using Background job to change Task solution
+        //Task với Cronb job có cơ chế hoạt khác nhau
+        //+ Lifecycle
+        //Task: Dies instantly if your application crashes or restarts.
+        //Cronb Job: Persists independently; will attempt to fire even if your main app is down.
+        //+ Main Use Case: Tự tìm hiểu
+        //+ Granularity: Tự tìm hiểu
         // ================================= End Auto Cancel Cronjob =================================
+        //  _ = Task.Run(async () =>
+        // {
+        //     try
+        //     {
+        //         var cancelTimeConfig = await _dbContext.SystemConfigs
+        //                                    .FirstOrDefaultAsync(x => x.ConfigKey == "CancelTimeMinutes")
+        //                                ?? throw new Exception("CancelTimeMinutes config not found");
+
+        //         if (!int.TryParse(cancelTimeConfig.ConfigValue, out var cancelTimeMinutes) ||
+        //             cancelTimeMinutes < 0)
+        //         {
+        //             throw new Exception("Invalid CancelTimeMinutes config value");
+        //         }
+
+        //         var autoCancelTime = utcStartTime.AddMinutes(cancelTimeMinutes);
+        //         var delayTime = autoCancelTime - DateTimeOffset.UtcNow;
+        
+        //         if (delayTime > TimeSpan.Zero)
+        //         {
+        //             await Task.Delay(delayTime);
+        //         }
+        
+        //         using var scope = _serviceScopeFactory.CreateScope();
+        //         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        
+        //         var booking = await dbContext.Bookings
+        //             .FirstOrDefaultAsync(x => x.Id == newId);
+        
+        //         // Chỉ cancel nếu vẫn còn Confirmed (chưa CheckIn, chưa Cancel,...)
+        //         if (booking != null && booking.Status == BookingStatus.Confirmed)
+        //         {
+        //             booking.Status = BookingStatus.Cancelled;
+        //             // Gửi notification cho customer
+        //             var customer = await dbContext.CustomerProfiles
+        //                 .FirstOrDefaultAsync(x => x.Id == booking.CustomerId);
+        
+        //             if (customer != null)
+        //             {
+        //                 var branch = await dbContext.Branches
+        //                     .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
+        
+        //                 var cancelNotification = new Repository.Entities.Notification()
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     UserId = customer.UserId,
+        //                     Type = NotificationType.BookingCancelled,
+        //                     Title = "Booking Auto-Cancelled",
+        //                     Content = $"Your booking at {branch?.Name ?? "our branch"} on " +
+        //                               $"{booking.StartTime.ToOffset(TimeSpan.FromHours(7)):HH:mm dd/MM/yyyy} " +
+        //                               $"has been automatically cancelled due to no check-in.",
+        //                     IsRead = false,
+        //                     CreatedAt = DateTimeOffset.UtcNow,
+        //                 };
+        //                 await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+        //                 {
+        //                     UserId = userIdGuid,
+        //                     Type = NotificationType.BookingCancelled,
+        //                     Data = $"Your booking at {branch?.Name ?? "our branch"} " +
+        //                            $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
+        //                            $"has been cancelled due to over check-in time.",
+        //                 });
+        
+        //                 dbContext.Notifications.Add(cancelNotification);
+        //             }
+        
+        //             await dbContext.SaveChangesAsync();
+        //         }
+        //     }
+        //     catch (Exception e)
+        //     {
+        //         Console.WriteLine("======= Auto Cancel Error " + e.Message + " ==========");
+        //     }
+        // });
         
         var result = new Response.CreateBookingResponse
         {
@@ -941,46 +952,50 @@ public class Service : IService
                 };
                 _dbContext.PointTransactions.Add(pointTransaction);
             }
-
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await Task.Delay(TimeSpan.FromMinutes(SlotDurationMinutes));
-                    using var scope = _serviceScopeFactory.CreateScope();
-                    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    var delayedBooking = await dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == booking.Id);
-                    if (delayedBooking != null && delayedBooking.Status == BookingStatus.InProgress)
-                    {
-                        delayedBooking.Status = BookingStatus.Completed;
-                        delayedBooking.CompletedAt = DateTime.UtcNow;
-                        var branch = dbContext.Branches.FirstOrDefault(x => x.Id == delayedBooking.BranchId);
-                        var customer =
-                            dbContext.CustomerProfiles.FirstOrDefault(x => x.Id == delayedBooking.CustomerId);
-                        if (customer != null)
-                        {
-                            var notification = new Repository.Entities.Notification()
-                            {
-                                Id = Guid.NewGuid(),
-                                UserId = customer.UserId,
-                                Type = NotificationType.BookingCompleted,
-                                Title = "Booking Completed",
-                                Content =
-                                    $"Your booking at {branch?.Name ?? "our branch"} has been completed successfully. Thank you for using our service.",
-                                IsRead = false,
-                                CreatedAt = DateTimeOffset.UtcNow,
-                            };
-                            dbContext.Notifications.Add(notification);
-                        }
-
-                        await dbContext.SaveChangesAsync();
-                    }
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine("=======Error Occure " + e.Message + " ==========");
-                }
-            });
+            
+            //Thêm background job => ProcessBookingAutoComplete 
+            //Completed khi mà time(NOW) > Endtime
+            
+            //
+            // _ = Task.Run(async () =>
+            // {
+            //     try
+            //     {
+            //         await Task.Delay(TimeSpan.FromMinutes(SlotDurationMinutes));
+            //         using var scope = _serviceScopeFactory.CreateScope();
+            //         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            //         var delayedBooking = await dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == booking.Id);
+            //         if (delayedBooking != null && delayedBooking.Status == BookingStatus.InProgress)
+            //         {
+            //             delayedBooking.Status = BookingStatus.Completed;
+            //             delayedBooking.CompletedAt = DateTime.UtcNow;
+            //             var branch = dbContext.Branches.FirstOrDefault(x => x.Id == delayedBooking.BranchId);
+            //             var customer =
+            //                 dbContext.CustomerProfiles.FirstOrDefault(x => x.Id == delayedBooking.CustomerId);
+            //             if (customer != null)
+            //             {
+            //                 var notification = new Repository.Entities.Notification()
+            //                 {
+            //                     Id = Guid.NewGuid(),
+            //                     UserId = customer.UserId,
+            //                     Type = NotificationType.BookingCompleted,
+            //                     Title = "Booking Completed",
+            //                     Content =
+            //                         $"Your booking at {branch?.Name ?? "our branch"} has been completed successfully. Thank you for using our service.",
+            //                     IsRead = false,
+            //                     CreatedAt = DateTimeOffset.UtcNow,
+            //                 };
+            //                 dbContext.Notifications.Add(notification);
+            //             }
+            //
+            //             await dbContext.SaveChangesAsync();
+            //         }
+            //     }
+            //     catch (Exception e)
+            //     {
+            //         Console.WriteLine("=======Error Occure " + e.Message + " ==========");
+            //     }
+            // });
         }
 
         await _dbContext.SaveChangesAsync();
