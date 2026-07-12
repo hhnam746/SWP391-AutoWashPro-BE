@@ -3,7 +3,7 @@ using Quartz;
 namespace SWP391_AutoWashPro_BE.Service.BackgroundJob;
 
 [DisallowConcurrentExecution]
-public class ProcessBookingAutoCheckinJob : IJob
+public class ProcessBookingNotiCheckInJob : IJob
 {
     public Task Execute(IJobExecutionContext context)
     {

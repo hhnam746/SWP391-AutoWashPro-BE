@@ -119,20 +119,31 @@ builder.Services.AddHttpClient<DiscordService.IService, DiscordService.Service>(
 
 //backgroundJob | Cron job
 var processBookingCron = builder.Configuration["Quartz:ProcessBookingCron"] ?? "0/15 * * * * ?";
+var processBookingReminderCron = builder.Configuration["Quartz:BookingReminderCron"] ?? "0/30 * * * * ?";
 builder.Services.AddQuartz(options =>
 {
     var processBookingJobKey = new JobKey(nameof(ProcessBookingAutoCancelJob));
+    var processBookingReminderJobKey = new JobKey(nameof(ProcessBookingReminderJob));
     // var jobNotification = new JobKey(nameof(ProcessNotificationJob));
     
     
     options.AddJob<ProcessBookingAutoCancelJob>(job => job
         .WithIdentity(processBookingJobKey));
 
+    options.AddJob<ProcessBookingReminderJob>(job => job
+        .WithIdentity(processBookingReminderJobKey));
+
     options.AddTrigger(trigger => trigger
         .ForJob(processBookingJobKey)
         .WithIdentity($"{nameof(ProcessBookingAutoCancelJob)}-trigger")
         // Mặc định chạy mỗi 15 giây để test gần realtime, có thể override bằng Quartz:ProcessBookingCron.
         .WithCronSchedule(processBookingCron, cron =>
+            cron.WithMisfireHandlingInstructionDoNothing()));
+
+    options.AddTrigger(trigger => trigger
+        .ForJob(processBookingReminderJobKey)
+        .WithIdentity($"{nameof(ProcessBookingReminderJob)}-trigger")
+        .WithCronSchedule(processBookingReminderCron, cron =>
             cron.WithMisfireHandlingInstructionDoNothing()));
 });
 
