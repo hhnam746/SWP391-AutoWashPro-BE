@@ -19,7 +19,7 @@ public class Service : IService
     public async Task<Base.Response.PageResult<Response.RewardResponse>> GetAllReward(string? searchTerm, int pageSize,
         int pageIndex)
     {
-        var query = _dbContext.Rewards.Where(x => true);
+        var query = _dbContext.Rewards.Where(x =>  x.IsActive == true);
         if (searchTerm != null)
         {
             query = query.Where(x => x.Name.Contains(searchTerm));
@@ -160,10 +160,10 @@ public class Service : IService
         return "Reward deleted successfully";
     }
 
-    public async Task<string> RedeemReward(Guid rewardId, Guid Id)
+    public async Task<string> RedeemReward(Guid rewardId, Guid id)
     {
         var customer = await _dbContext.CustomerProfiles
-            .FirstOrDefaultAsync(x => x.Id == Id);
+            .FirstOrDefaultAsync(x => x.Id == id);
 
         if (customer == null)
             throw new Exception("Customer not found");
@@ -224,29 +224,29 @@ public class Service : IService
             CreatedAt = DateTimeOffset.UtcNow
         };
 
-        var notification = new Repository.Entities.Notification
-        {
-            UserId = Id,
-            Type = NotificationType.RewardRedeemed,
-            Title = "Reward Redeemed",
-            CreatedAt = DateTimeOffset.UtcNow
-        };
+        // var notification = new Repository.Entities.Notification
+        // {
+        //     UserId = id,
+        //     Type = NotificationType.RewardRedeemed,
+        //     Title = "Reward Redeemed",
+        //     CreatedAt = DateTimeOffset.UtcNow
+        // };
 
         _dbContext.PointTransactions.Add(pointTransaction);
 
         _dbContext.Vouchers.Add(voucher);
 
-        _dbContext.Notifications.Add(notification);
+        // _dbContext.Notifications.Add(notification);
 
         await _dbContext.SaveChangesAsync();
         
         
-        await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
-        {
-            UserId = Id,
-            Type = NotificationType.RewardRedeemed,
-            Data = $"You have successfully redeemed {reward.Name}. Your voucher code is {voucher.Code}."
-        });
+        // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
+        // {
+        //     UserId = Id,
+        //     Type = NotificationType.RewardRedeemed,
+        //     Data = $"You have successfully redeemed {reward.Name}. Your voucher code is {voucher.Code}."
+        // });
         
         return "Reward redeemed successfully";
     }
