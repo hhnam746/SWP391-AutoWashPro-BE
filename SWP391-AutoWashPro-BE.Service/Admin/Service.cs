@@ -307,14 +307,14 @@ public class Service : IService
             throw new ArgumentException("FromDate must be less than or equal to ToDate.");
         }
 
-        if (request.BranchId == Guid.Empty)
-        {
-            throw new ArgumentException("BranchId is required.");
-        }
+        // if (request.BranchId == Guid.Empty)
+        // {
+        //     throw new ArgumentException("BranchId is required.");
+        // }
 
         var branchExists = await _dbContext.Branches
             .AsNoTracking()
-            .AnyAsync(x => x.Id == request.BranchId && !x.IsDeleted);
+            .AnyAsync(x => !x.IsDeleted);
 
         if (!branchExists)
         {
@@ -323,7 +323,7 @@ public class Service : IService
 
         var dailyRaw = await _dbContext.Bookings
             .AsNoTracking()
-            .Where(x => x.BranchId == request.BranchId &&
+            .Where(x =>
                         x.BookingDate >= request.FromDate &&
                         x.BookingDate <= request.ToDate)
             .GroupBy(x => x.BookingDate)
