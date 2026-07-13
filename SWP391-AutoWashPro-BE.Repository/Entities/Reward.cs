@@ -11,6 +11,8 @@ public class Reward : BaseEntity, IAuditableEntity
     public int QuantityAvailable { get; set; }
     public int ValidDays { get; set; }
     public string? Description { get; set; }
+    public DiscountType DiscountType { get; set; }
+    public decimal DiscountValue { get; set; }
     public bool IsActive { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }

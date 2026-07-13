@@ -20,10 +20,10 @@ public class PromotionController: ControllerBase
     [HttpGet("admin/promotions")]
     public async Task<IActionResult> GetPromotion(
         [FromQuery] string? searchTerm,
-        [FromQuery] int pageSize = 10,
-        [FromQuery] int pageIndex = 1)
+        [FromQuery] int? pageSize,
+        [FromQuery] int? pageIndex)
     {
-        var result = await _service.GetPromotion(searchTerm, pageSize, pageIndex);
+        var result = await _service.GetPromotion(searchTerm, pageSize!.Value, pageIndex!.Value);
         return Ok(result);
     }
 

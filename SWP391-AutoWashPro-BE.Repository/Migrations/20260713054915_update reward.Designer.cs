@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SWP391_AutoWashPro_BE.Repository;
@@ -11,9 +12,11 @@ using SWP391_AutoWashPro_BE.Repository;
 namespace SWP391_AutoWashPro_BE.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260713054915_update reward")]
+    partial class updatereward
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -728,14 +731,6 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                             ConfigValue = "15",
                             CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
                             Description = "Duration of each booking slot in minutes."
-                        },
-                        new
-                        {
-                            Id = new Guid("7f3b0ad6-9b0b-4c3d-b8d1-5dc1d17a6c4e"),
-                            ConfigKey = "SlotBreakMinutes",
-                            ConfigValue = "0",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
-                            Description = "Break time in minutes between consecutive booking slots."
                         },
                         new
                         {

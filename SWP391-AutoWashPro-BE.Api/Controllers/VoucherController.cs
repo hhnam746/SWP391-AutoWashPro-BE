@@ -15,10 +15,10 @@ public class VoucherController: ControllerBase
     [HttpGet("vouchers")]
     public async Task<IActionResult> GetVoucher(
         [FromQuery] Guid userId,
-        [FromQuery] int pageSize = 10,
-        [FromQuery] int pageIndex = 1)
+        [FromQuery] int? pageSize,
+        [FromQuery] int? pageIndex)
     {
-        var result = await _service.GetVoucher(userId, pageSize, pageIndex);
+        var result = await _service.GetVoucher(userId, pageSize!.Value, pageIndex!.Value);
         return Ok(result);
     }
 
