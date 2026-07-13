@@ -17,7 +17,6 @@ using Quartz;
 using StackExchange.Redis;
 using SWP391_AutoWashPro_BE.Service.BackgroundJob;
 // using SWP391_AutoWashPro_BE.Service.BackgroundJob;
-using Microsoft.Extensions.Logging;
 using VehicleService = SWP391_AutoWashPro_BE.Service.Vehicles;
 using WalletService = SWP391_AutoWashPro_BE.Service.Wallet;
 using NotificationService = SWP391_AutoWashPro_BE.Service.Notification;
@@ -82,15 +81,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var connection = builder.Configuration["Redis:ConnectionString"];
-    if (string.IsNullOrWhiteSpace(connection))
-    {
-        throw new InvalidOperationException("Redis:ConnectionString is not configured.");
-    }
-
-    var options = ConfigurationOptions.Parse(connection);
-    options.AbortOnConnectFail = false;
-
-    return ConnectionMultiplexer.Connect(options);
+    return ConnectionMultiplexer.Connect(connection!);
 });
 
 builder.Services.AddScoped<SWP391_AutoWashPro_BE.Service.OTPDemoService.OtpService>();
@@ -175,18 +166,6 @@ builder.Services.AddQuartzHostedService(options =>
 builder.Services.AddTransient<GlobalExceptionHandlerMiddleware>();
 
 var app = builder.Build();
-
-var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
-startupLogger.LogInformation(
-    "MailOptions config present: Mail={HasMail}, DisplayName={HasDisplayName}, Password={HasPassword}, Host={HasHost}, Port={HasPort}",
-    !string.IsNullOrWhiteSpace(app.Configuration["MailOptions:Mail"]),
-    !string.IsNullOrWhiteSpace(app.Configuration["MailOptions:DisplayName"]),
-    !string.IsNullOrWhiteSpace(app.Configuration["MailOptions:Password"]),
-    !string.IsNullOrWhiteSpace(app.Configuration["MailOptions:Host"]),
-    !string.IsNullOrWhiteSpace(app.Configuration["MailOptions:Port"]));
-startupLogger.LogInformation(
-    "Redis connection string configured: {HasRedisConnection}",
-    !string.IsNullOrWhiteSpace(app.Configuration["Redis:ConnectionString"]));
 
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
