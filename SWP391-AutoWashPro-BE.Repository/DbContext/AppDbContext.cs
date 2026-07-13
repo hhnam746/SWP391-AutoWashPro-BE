@@ -557,6 +557,16 @@ public class AppDbContext : DbContext
                     CreatedAt = defaultConfigCreatedAt,
                 },
 
+                //SlotBreakMinutes = 0
+                new()
+                {
+                    Id = Guid.Parse("7f3b0ad6-9b0b-4c3d-b8d1-5dc1d17a6c4e"),
+                    ConfigKey = "SlotBreakMinutes",
+                    ConfigValue = "0",
+                    Description = "Break time in minutes between consecutive booking slots.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+
                 //BasePrice = 100000
                 new()
                 {
