@@ -74,12 +74,14 @@ public class Service : IService
             throw new Exception("Please select at least one tier");
         }
       
-        var hasDeletedTier = await _dbContext.Tiers
-            .AnyAsync(t => request.TierIds.Contains(t.Id) && t.IsDeleted);
+        var tierIds = request.TierIds.Distinct().ToList();
 
-        if (hasDeletedTier)
+        var validTierCount = await _dbContext.Tiers
+            .CountAsync(t => tierIds.Contains(t.Id) && !t.IsDeleted);
+
+        if (validTierCount != tierIds.Count)
         {
-            throw new Exception("Selected tier has been deleted.");
+            throw new Exception("One or more selected tiers are invalid or have been deleted.");
         }
         
         if (request.DiscountValue <= 0)
@@ -106,8 +108,8 @@ public class Service : IService
             Description = request.Description,
             IsActive = true,
         };
-        _dbContext.Add(newReward);
-        foreach (var tierId in request.TierIds)
+        _dbContext.Rewards.Add(newReward);
+        foreach (var tierId in tierIds)
         {
             var rewardTier = new RewardTier()
             {
@@ -134,9 +136,39 @@ public class Service : IService
             throw new Exception("Reward not found");
         }
         
+        var exist = await _dbContext.Rewards.AnyAsync(x =>
+            x.Id != id &&
+            x.Name == request.Name);
+
+        if (exist)
+        {
+            throw new Exception("Reward already exists");
+        }
+        
         if (request.TierIds == null || !request.TierIds.Any())
             throw new Exception("Please select at least one tier");
 
+        var tierIds = request.TierIds.Distinct().ToList();
+
+        var validTierCount = await _dbContext.Tiers
+            .CountAsync(t => tierIds.Contains(t.Id) && !t.IsDeleted);
+
+        if (validTierCount != tierIds.Count)
+        {
+            throw new Exception("One or more selected tiers are invalid or have been deleted.");
+        }
+        
+        if (request.DiscountValue <= 0)
+        {
+            throw new Exception("Discount value must be greater than 0.");
+        }
+
+        if (request.DiscountType == DiscountType.Percentage &&
+            request.DiscountValue >= 100)
+        {
+            throw new Exception("Percentage discount cannot exceed 100.");
+        }
+        
         reward.Name = request.Name;
         reward.RewardType = request.RewardType;
         reward.PointsRequired = request.PointsRequired;
@@ -154,7 +186,7 @@ public class Service : IService
 
         _dbContext.RewardTiers.RemoveRange(oldRewardTiers);
 
-        foreach (var tierId in request.TierIds)
+        foreach (var tierId in tierIds)
         {
             _dbContext.RewardTiers.Add(new RewardTier
             {

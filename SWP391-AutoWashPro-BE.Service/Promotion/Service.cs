@@ -20,7 +20,7 @@ public class Service: IService
 
     public async Task<Base.Response.PageResult<Response.PromotionResponse>> GetPromotion(string? searchTerm, int pageSize, int pageIndex)
     {
-        var query = _dbContext.Promotions.Where(x => true);
+        var query = _dbContext.Promotions.Where(x => x.IsActive == true && x.IsDeleted == false);
 
         if (searchTerm != null)
         {
@@ -59,14 +59,28 @@ public class Service: IService
     public async Task<string> CreatePromotion(Request.PromotionRequest request)
     {
         var exists = await _dbContext.Promotions.AnyAsync(x => x.Name == request.Name);
+        
         if (exists)
         {
             throw new Exception("Promotion already exists");
         }
+        
         if (request.IsGlobal == false &&
             (request.TierIds == null || !request.TierIds.Any()))
         {
             throw new Exception("Please select at least one tier");
+        }
+        List<Guid> tierIds = new();
+        if (request.IsGlobal == false)
+        {
+            tierIds = request.TierIds.Distinct().ToList();
+            var validTierCount = await _dbContext.Tiers
+                .CountAsync(t => tierIds.Contains(t.Id) && !t.IsDeleted);
+
+            if (validTierCount != tierIds.Count)
+            {
+                throw new Exception("One or more selected tiers are invalid or have been deleted.");
+            }
         }
         if (request.DiscountValue <= 0)
             throw new Exception("Discount value must be greater than 0");
@@ -76,6 +90,7 @@ public class Service: IService
 
         var newPromotion = new Repository.Entities.Promotion()
         {
+            Id = Guid.NewGuid(),
             Name = request.Name,
             Description = request.Description,
             DiscountType = request.DiscountType,
@@ -90,9 +105,9 @@ public class Service: IService
 
         if (request.IsGlobal == false)
         {
-            foreach (var tierId in request.TierIds)
+            foreach (var tierId in tierIds)
             {
-               await  _dbContext.PromotionTiers.AddAsync(new PromotionTier()
+                await _dbContext.PromotionTiers.AddAsync(new PromotionTier
                 {
                     PromotionId = newPromotion.Id,
                     TierId = tierId,
@@ -100,6 +115,18 @@ public class Service: IService
                 });
             }
         }
+        // if (request.IsGlobal == false)
+        // {
+        //     foreach (var tierId in request.TierIds)
+        //     {
+        //        await  _dbContext.PromotionTiers.AddAsync(new PromotionTier()
+        //         {
+        //             PromotionId = newPromotion.Id,
+        //             TierId = tierId,
+        //             CreatedAt = DateTimeOffset.UtcNow
+        //         });
+        //     }
+        // }
         
         await _dbContext.SaveChangesAsync();
         
@@ -133,6 +160,15 @@ public class Service: IService
         if (promotion == null)
         {
             throw new Exception("Promotion not found");
+        }
+        
+        var exists = await _dbContext.Promotions.AnyAsync(x =>
+            x.Id != id &&
+            x.Name == request.Name);
+
+        if (exists)
+        {
+            throw new Exception("Promotion already exists");
         }
         
         if (request.Name != null)
@@ -170,6 +206,24 @@ public class Service: IService
             throw new Exception("Please select at least one tier");
         if (request.TierIds != null)
         {
+            if (promotion.IsGlobal == false)
+            {
+                if (!request.TierIds.Any())
+                {
+                    throw new Exception("Please select at least one tier");
+                }
+
+                var tierIds = request.TierIds.Distinct().ToList();
+
+                var validTierCount = await _dbContext.Tiers
+                    .CountAsync(t => tierIds.Contains(t.Id) && !t.IsDeleted);
+
+                if (validTierCount != tierIds.Count)
+                {
+                    throw new Exception("One or more selected tiers are invalid or have been deleted.");
+                }
+            }
+
             var oldPromotionTiers = await _dbContext.PromotionTiers
                 .Where(x => x.PromotionId == promotion.Id)
                 .ToListAsync();
@@ -178,7 +232,7 @@ public class Service: IService
 
             if (promotion.IsGlobal == false)
             {
-                foreach (var tierId in request.TierIds)
+                foreach (var tierId in request.TierIds.Distinct())
                 {
                     _dbContext.PromotionTiers.Add(new PromotionTier
                     {
