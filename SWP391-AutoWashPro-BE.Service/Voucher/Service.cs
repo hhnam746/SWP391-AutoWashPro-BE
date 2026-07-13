@@ -31,6 +31,7 @@ public class Service: IService
         {
             Id = y.Id,
             Code = y.Code,
+            RewardName = y.Reward != null ? y.Reward.Name : null,
             Status = y.Status,
             DiscountType = y.DiscountType,
             DiscountValue = y.DiscountValue,
@@ -59,6 +60,7 @@ public class Service: IService
             throw new Exception("Customer not found");
 
         var voucher = await _dbContext.Vouchers
+            .Include(x => x.Reward)
             .FirstOrDefaultAsync(x =>
                 x.Code == request.Code &&
                 x.CustomerId == customer.Id);
@@ -74,6 +76,9 @@ public class Service: IService
 
         if (voucher.UsedAt != null)
             throw new Exception("Voucher already used");
+
+        if (voucher.DiscountValue <= 0)
+            throw new Exception("Voucher has no discount value");
 
         decimal discountAmount;
 
@@ -95,6 +100,9 @@ public class Service: IService
         
         var result = new Response.ValidateVoucherResponse()
         {
+            VoucherId = voucher.Id,
+            Code = voucher.Code,
+            RewardName = voucher.Reward?.Name,
             IsValid = true,
             Message = "Voucher is valid",
             DiscountAmount = discountAmount,
