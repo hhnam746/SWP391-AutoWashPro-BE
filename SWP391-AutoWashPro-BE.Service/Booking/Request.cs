@@ -17,7 +17,7 @@ public class Request
         public required Guid VehicleId { get; set; }
         public required Guid? VoucherId { get; set; }
         public required DateOnly BookingDate { get; set; }
-        public required DateTime StartTime { get; set; }
+        public required DateTimeOffset StartTime { get; set; }
         public required bool? redemPoint { get; set; }
        
     }

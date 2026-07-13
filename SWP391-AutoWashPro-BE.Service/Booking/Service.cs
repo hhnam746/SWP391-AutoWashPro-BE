@@ -98,7 +98,7 @@ public class Service : IService
             WorkingStartHour,
             0,
             0,
-            TimeSpan.FromHours(7));
+            DefaultUtcOffset);
 
         var endWorkTime = new DateTimeOffset(
             date.Year,
@@ -107,7 +107,7 @@ public class Service : IService
             WorkingEndHour,
             0,
             0,
-            TimeSpan.FromHours(7));
+            DefaultUtcOffset);
         ;
 
         while (currentTime.AddMinutes(SlotDurationMinutes) <= endWorkTime)
@@ -257,12 +257,14 @@ public class Service : IService
             basePrice += SuvBasePrice;
         }
 
-        if (bookingRequest.StartTime <= DateTimeOffset.Now)
+        var bookingLocalStartTime = bookingRequest.StartTime.ToOffset(DefaultUtcOffset);
+
+        if (bookingLocalStartTime <= DateTimeOffset.UtcNow)
         {
             throw new Exception("Cannot book past time");
         }
 
-        var bookingLocalDate = DateOnly.FromDateTime(bookingRequest.StartTime);
+        var bookingLocalDate = DateOnly.FromDateTime(bookingLocalStartTime.DateTime);
         if (bookingLocalDate != bookingRequest.BookingDate)
         {
             throw new Exception("BookingDate must match StartTime date.");
@@ -277,14 +279,14 @@ public class Service : IService
             throw new Exception("Invalid SlotDurationMinutes config value");
         }
 
-        if (bookingRequest.StartTime.Minute % SlotDurationMinutes != 0 ||
-            bookingRequest.StartTime.Second != 0 ||
-            bookingRequest.StartTime.Millisecond != 0)
+        if (bookingLocalStartTime.Minute % SlotDurationMinutes != 0 ||
+            bookingLocalStartTime.Second != 0 ||
+            bookingLocalStartTime.Millisecond != 0)
         {
             throw new Exception($"StartTime must align to {SlotDurationMinutes}-minute slot boundaries.");
         }
 
-        var localStartTimeOnly = TimeOnly.FromDateTime(bookingRequest.StartTime);
+        var localStartTimeOnly = TimeOnly.FromDateTime(bookingLocalStartTime.DateTime);
         var workingStart = new TimeOnly(WorkingStartHour, 0);
         var workingEnd = new TimeOnly(WorkingEndHour, 0);
 
@@ -293,7 +295,7 @@ public class Service : IService
             throw new Exception($"StartTime must be within working hours ({workingStart}-{workingEnd}).");
         }
 
-        var utcStartTime = bookingRequest.StartTime.ToUniversalTime();
+        var utcStartTime = bookingLocalStartTime.ToUniversalTime();
 
         var isBooked = _dbContext.Bookings.Any(x =>
             x.BranchId == bookingRequest.BranchId && x.BookingDate == bookingRequest.BookingDate
@@ -304,7 +306,7 @@ public class Service : IService
             throw new Exception("Slot already booked");
         }
 
-        var canBooked = bookingRequest.StartTime - DateTimeOffset.Now;
+        var canBooked = bookingLocalStartTime - DateTimeOffset.UtcNow;
         if ((int)canBooked.TotalDays > customerProfile.Tier.PriorityBookingDays)
         {
             throw new Exception("Your rank is not enough for this booked");
@@ -466,7 +468,7 @@ public class Service : IService
             Type = NotificationType.BookingCreated,
             Title = "Booking Confirmed",
             Content =
-                $"Your booking at {Branch.Name} has been confirmed for {bookingRequest.StartTime:HH:mm dd/MM/yyyy}.",
+                $"Your booking at {Branch.Name} has been confirmed for {bookingLocalStartTime:HH:mm dd/MM/yyyy}.",
             IsRead = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
@@ -647,8 +649,8 @@ public class Service : IService
                 LicensePlate = _dbContext.Vehicles.FirstOrDefault(x => x.Id == newBooking.VehicleId).LicensePlate,
             },
             BookingDate = newBooking.BookingDate,
-            StartTime = newBooking.StartTime.ToOffset(TimeSpan.FromHours(7)),
-            EndTime = newBooking.EndTime.ToOffset(TimeSpan.FromHours(7)),
+            StartTime = newBooking.StartTime.ToOffset(DefaultUtcOffset),
+            EndTime = newBooking.EndTime.ToOffset(DefaultUtcOffset),
             BasePrice = basePrice,
             DiscountAmount = discountAmount,
             FinalPrice = finalPrice,
@@ -711,9 +713,16 @@ public class Service : IService
         bookingDetail = bookingDetail
             .Skip((page - 1) * pageSize)
             .Take(pageSize);
+        var bookingItems = await bookingDetail.ToListAsync();
+        foreach (var booking in bookingItems)
+        {
+            booking.StartTime = booking.StartTime.ToOffset(DefaultUtcOffset);
+            booking.EndTime = booking.EndTime.ToOffset(DefaultUtcOffset);
+        }
+
         var result = new Response.GetBookingsResponse
         {
-            Data = await bookingDetail.ToListAsync(),
+            Data = bookingItems,
             Pagination = new Response.Pagination
             {
                 Page = page,
@@ -766,8 +775,8 @@ public class Service : IService
             Id = query.Id,
             Status = query.Status,
             BookingDate = query.BookingDate,
-            StartTime = query.StartTime.ToOffset(TimeSpan.FromHours(7)),
-            EndTime = query.EndTime.ToOffset(TimeSpan.FromHours(7)),
+            StartTime = query.StartTime.ToOffset(DefaultUtcOffset),
+            EndTime = query.EndTime.ToOffset(DefaultUtcOffset),
             Branch = new Response.BookingBranchDetail
             {
                 Id = query.BranchId,
@@ -1004,8 +1013,8 @@ public class Service : IService
         {
             Id = booking.Id,
             Status = booking.Status,
-            CheckedInAt = booking.StartTime,
-            EstimatedCompletedAt = booking.EndTime,
+            CheckedInAt = booking.StartTime.ToOffset(DefaultUtcOffset),
+            EstimatedCompletedAt = booking.EndTime.ToOffset(DefaultUtcOffset),
             Message = msg
         };
         return result;
@@ -1091,7 +1100,7 @@ public class Service : IService
             Title = "Booking Cancelled",
             Content =
                 $"Your booking at {branch?.Name ?? "our branch"} " +
-                $"for {booking.StartTime:HH:mm dd/MM/yyyy} " +
+                $"for {booking.StartTime.ToOffset(DefaultUtcOffset):HH:mm dd/MM/yyyy} " +
                 $"has been cancelled successfully.",
             IsRead = false,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -1113,7 +1122,7 @@ public class Service : IService
         {
             Id = booking.Id,
             Status = booking.Status,
-            CancelledAt = booking.CancelledAt ?? DateTime.UtcNow,
+            CancelledAt = (booking.CancelledAt ?? DateTimeOffset.UtcNow).ToOffset(DefaultUtcOffset),
             Message = "Booking cancelled successfully",
         };
 
