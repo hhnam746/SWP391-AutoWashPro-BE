@@ -25,9 +25,11 @@ public class Service : IService
 
 
     private static readonly TimeSpan DefaultUtcOffset = TimeSpan.FromHours(7);
+    private const int RedeemPointValue = 100; //1 điểm = 100 đ
     private int WorkingStartHour = 0;
     private int WorkingEndHour = 0;
     private int SlotDurationMinutes = 0;
+    private int SlotBreakMinutes = 0;
 
     public async Task<Response.GetBookingSlotsResponse> GetBookingSlots(Guid branchId, DateOnly date)
     {
@@ -45,7 +47,6 @@ public class Service : IService
                 x.BookingDate == date &&
                 x.Status != BookingStatus.Cancelled)
             .ToListAsync();
-
         var workingStartHourConfig = await _dbContext.SystemConfigs
             .FirstOrDefaultAsync(x => x.ConfigKey == "WorkingStartHour");
 
@@ -59,9 +60,7 @@ public class Service : IService
             throw new Exception("Invalid WorkingStartHour config value");
         }
 
-        ///////////////// ///////////////// ///////////////// /////////////////
         WorkingStartHour = workingStartHour;
-        ///////////////// ///////////////// ///////////////// /////////////////
 
         var workingEndHourConfig = await _dbContext.SystemConfigs
             .FirstOrDefaultAsync(x => x.ConfigKey == "WorkingEndHour");
@@ -76,9 +75,7 @@ public class Service : IService
             throw new Exception("Invalid WorkingEndHour config value");
         }
 
-        ///////////////// ///////////////// ///////////////// /////////////////
         WorkingEndHour = workingEndHour;
-        ///////////////// ///////////////// ///////////////// /////////////////
 
         var slotDurationConfig = await _dbContext.SystemConfigs
                                      .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
@@ -87,6 +84,15 @@ public class Service : IService
         if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
         {
             throw new Exception("Invalid SlotDurationMinutes config value");
+        }
+
+        var slotBreakConfig = await _dbContext.SystemConfigs
+                                  .FirstOrDefaultAsync(x => x.ConfigKey == "SlotBreakMinutes")
+                              ?? throw new Exception("SlotBreakMinutes config not found");
+
+        if (!int.TryParse(slotBreakConfig.ConfigValue, out SlotBreakMinutes))
+        {
+            throw new Exception("Invalid SlotBreakMinutes config value");
         }
 
         var slots = new List<Response.SlotStatus>();
@@ -108,24 +114,24 @@ public class Service : IService
             0,
             0,
             DefaultUtcOffset);
-        ;
 
         while (currentTime.AddMinutes(SlotDurationMinutes) <= endWorkTime)
         {
+            var slotStartTime = currentTime;
             var slotEndTime = currentTime.AddMinutes(SlotDurationMinutes);
 
             var bookedSlot = bookings.FirstOrDefault(x =>
-                x.StartTime.UtcDateTime == currentTime.UtcDateTime &&
+                x.StartTime.UtcDateTime == slotStartTime.UtcDateTime &&
                 x.EndTime.UtcDateTime == slotEndTime.UtcDateTime);
 
             slots.Add(new Response.SlotStatus
             {
-                StartTime = currentTime,
+                StartTime = slotStartTime,
                 EndTime = slotEndTime,
                 Status = bookedSlot != null ? bookedSlot.Status : BookingStatus.Available
             });
 
-            currentTime = slotEndTime;
+            currentTime = slotEndTime.AddMinutes(SlotBreakMinutes);
         }
 
         var result = new Response.GetBookingSlotsResponse
@@ -175,9 +181,7 @@ public class Service : IService
             throw new Exception("Invalid WorkingStartHour config value");
         }
 
-        ///////////////// ///////////////// ///////////////// /////////////////
         WorkingStartHour = workingStartHour;
-        ///////////////// ///////////////// ///////////////// /////////////////
 
         var workingEndHourConfig = await _dbContext.SystemConfigs
             .FirstOrDefaultAsync(x => x.ConfigKey == "WorkingEndHour");
@@ -192,9 +196,25 @@ public class Service : IService
             throw new Exception("Invalid WorkingEndHour config value");
         }
 
-        ///////////////// ///////////////// ///////////////// /////////////////
         WorkingEndHour = workingEndHour;
-        ///////////////// ///////////////// ///////////////// /////////////////
+
+        var slotDurationConfig = await _dbContext.SystemConfigs
+                                     .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
+                                 ?? throw new Exception("SlotDurationMinutes config not found");
+
+        if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
+        {
+            throw new Exception("Invalid SlotDurationMinutes config value");
+        }
+
+        var slotBreakConfig = await _dbContext.SystemConfigs
+                                  .FirstOrDefaultAsync(x => x.ConfigKey == "SlotBreakMinutes")
+                              ?? throw new Exception("SlotBreakMinutes config not found");
+
+        if (!int.TryParse(slotBreakConfig.ConfigValue, out SlotBreakMinutes))
+        {
+            throw new Exception("Invalid SlotBreakMinutes config value");
+        }
 
         /////////////// Base Price Config /////////////
         var basePriceConfig = await _dbContext.SystemConfigs
@@ -270,22 +290,6 @@ public class Service : IService
             throw new Exception("BookingDate must match StartTime date.");
         }
 
-        var slotDurationConfig = await _dbContext.SystemConfigs
-                                     .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
-                                 ?? throw new Exception("SlotDurationMinutes config not found");
-
-        if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
-        {
-            throw new Exception("Invalid SlotDurationMinutes config value");
-        }
-
-        if (bookingLocalStartTime.Minute % SlotDurationMinutes != 0 ||
-            bookingLocalStartTime.Second != 0 ||
-            bookingLocalStartTime.Millisecond != 0)
-        {
-            throw new Exception($"StartTime must align to {SlotDurationMinutes}-minute slot boundaries.");
-        }
-
         var localStartTimeOnly = TimeOnly.FromDateTime(bookingLocalStartTime.DateTime);
         var workingStart = new TimeOnly(WorkingStartHour, 0);
         var workingEnd = new TimeOnly(WorkingEndHour, 0);
@@ -295,9 +299,55 @@ public class Service : IService
             throw new Exception($"StartTime must be within working hours ({workingStart}-{workingEnd}).");
         }
 
+        if (bookingLocalStartTime.Second != 0 || bookingLocalStartTime.Millisecond != 0)
+        {
+            throw new Exception("StartTime must be aligned to exact minute boundaries.");
+        }
+
+        var currentTime = new DateTimeOffset(
+            bookingRequest.BookingDate.Year,
+            bookingRequest.BookingDate.Month,
+            bookingRequest.BookingDate.Day,
+            WorkingStartHour,
+            0,
+            0,
+            DefaultUtcOffset);
+
+        var endWorkTime = new DateTimeOffset(
+            bookingRequest.BookingDate.Year,
+            bookingRequest.BookingDate.Month,
+            bookingRequest.BookingDate.Day,
+            WorkingEndHour,
+            0,
+            0,
+            DefaultUtcOffset);
+
+        DateTimeOffset? validSlotStart = null;
+        DateTimeOffset? validSlotEnd = null;
+
+        while (currentTime.AddMinutes(SlotDurationMinutes) <= endWorkTime)
+        {
+            var slotStartTime = currentTime;
+            var slotEndTime = currentTime.AddMinutes(SlotDurationMinutes);
+
+            if (slotStartTime.UtcDateTime == bookingLocalStartTime.UtcDateTime)
+            {
+                validSlotStart = slotStartTime;
+                validSlotEnd = slotEndTime;
+                break;
+            }
+
+            currentTime = slotEndTime.AddMinutes(SlotBreakMinutes);
+        }
+
+        if (!validSlotStart.HasValue || !validSlotEnd.HasValue)
+        {
+            throw new Exception("StartTime must match a configured booking slot.");
+        }
+
         var utcStartTime = bookingLocalStartTime.ToUniversalTime();
 
-        var isBooked = _dbContext.Bookings.Any(x =>
+        var isBooked = await _dbContext.Bookings.AnyAsync(x =>
             x.BranchId == bookingRequest.BranchId && x.BookingDate == bookingRequest.BookingDate
                                                   && x.StartTime == utcStartTime
                                                   && x.Status != BookingStatus.Cancelled);
@@ -393,20 +443,19 @@ public class Service : IService
 
         var discountAmount = voucherDiscountAmount + promotionDiscountAmount;
 
-        // Discount By Redeem
+        // Redeem points use point units for storage and VND units for discount math.
         decimal redeemDiscountAmount = 0;
+        int redeemPointsUsed = 0;
 
         if (bookingRequest.redemPoint == true)
         {
-            var remainToDiscount = basePrice - discountAmount;
+            var remainToDiscount = Math.Max(basePrice - discountAmount, 0);
+            var maxRedeemablePoints = (int)Math.Floor(remainToDiscount / RedeemPointValue);
 
-            if (customerProfile.TotalPoints >= remainToDiscount)
+            if (maxRedeemablePoints > 0)
             {
-                redeemDiscountAmount = remainToDiscount;
-            }
-            else
-            {
-                redeemDiscountAmount = customerProfile.TotalPoints;
+                redeemPointsUsed = Math.Min(customerProfile.TotalPoints, maxRedeemablePoints);
+                redeemDiscountAmount = redeemPointsUsed * RedeemPointValue;
             }
         }
 
@@ -417,7 +466,7 @@ public class Service : IService
             discountAmount = basePrice;
         }
 
-        var utcEndTime = utcStartTime.AddMinutes(SlotDurationMinutes);
+        var utcEndTime = validSlotEnd.Value.ToUniversalTime();
 
         //Wallet
         if (discountAmount > basePrice)
@@ -461,7 +510,7 @@ public class Service : IService
             Status = BookingStatus.Confirmed,
             BasePrice = basePrice,
             DiscountAmount = discountAmount,
-            RedemAmount = (int)redeemDiscountAmount,
+            RedemAmount = redeemPointsUsed,
             FinalPrice = finalPrice,
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -788,7 +837,6 @@ public class Service : IService
                 Code = query.Voucher.Code,
                 DiscountAmount = query.Voucher.DiscountValue
             };
-        var discountAmount = Voucher?.DiscountAmount ?? 0;
         var result = new Response.GetBookingDetailResponse
         {
             Id = query.Id,
@@ -811,7 +859,7 @@ public class Service : IService
             },
             Voucher = Voucher,
             BasePrice = query.BasePrice,
-            DiscountAmount = discountAmount,
+            DiscountAmount = query.DiscountAmount,
             FinalPrice = query.FinalPrice,
         };
         return result;
@@ -845,15 +893,6 @@ public class Service : IService
                 "Booking not found, does not belong to the current customer, or is no longer confirmed.");
         }
         
-        var slotDurationConfig = await _dbContext.SystemConfigs
-                                     .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
-                                 ?? throw new Exception("SlotDurationMinutes config not found");
-
-        if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
-        {
-            throw new Exception("Invalid SlotDurationMinutes config value");
-        }
-
         var cancelTimeConfig = await _dbContext.SystemConfigs
                                    .FirstOrDefaultAsync(x => x.ConfigKey == "CancelTimeMinutes")
                                ?? throw new Exception("CancelTimeMinutes config not found");
@@ -964,7 +1003,7 @@ public class Service : IService
                 _dbContext.Notifications.Add(notification);
             }
 
-            if (booking.RedemAmount != null)
+            if ((booking.RedemAmount ?? 0) > 0)
             {
                 var pointTransaction = new Repository.Entities.PointTransaction()
                 {
@@ -975,7 +1014,7 @@ public class Service : IService
                     BookingId = booking.Id,
                     Points = booking.RedemAmount ?? 0,
                     TransactionType = PointTransactionType.Redeem,
-                    Description = $"Redeemed {booking.RedemAmount} points for booking payment.",
+                    Description = $"Redeemed {booking.RedemAmount} points for booking discount.",
                     CreatedAt = DateTime.UtcNow,
                 };
                 _dbContext.PointTransactions.Add(pointTransaction);
