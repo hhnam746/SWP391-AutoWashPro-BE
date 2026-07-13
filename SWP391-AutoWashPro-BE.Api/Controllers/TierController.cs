@@ -20,10 +20,10 @@ public class TierController: ControllerBase
     [HttpGet("admin/tiers")]
     public async Task<IActionResult> GetAllTier(
         [FromQuery] string? searchTerm,
-        [FromQuery] int pageSize = 10,
-        [FromQuery] int pageIndex = 1)
+        [FromQuery] int? pageSize,
+        [FromQuery] int? pageIndex)
     {
-        var result = await _service.GetAllTier(searchTerm, pageSize, pageIndex);
+        var result = await _service.GetAllTier(searchTerm, pageSize!.Value, pageIndex!.Value);
         return Ok(result);
     }
 

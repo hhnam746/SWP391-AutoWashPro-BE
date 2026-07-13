@@ -10,5 +10,5 @@ public interface IService
     
     public Task<string> DeleteReward(Guid id);
     
-    public Task<string> RedeemReward(Guid rewardId, Guid userId);
+    public Task<string> RedeemReward(Guid rewardId);
 }
