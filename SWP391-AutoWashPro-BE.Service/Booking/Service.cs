@@ -332,7 +332,7 @@ public class Service : IService
 
         // Global Promotions
         var globalPromotions = await _dbContext.Promotions
-            .Where(x => x.IsGlobal == true)
+            .Where(x => x.IsActive == true && x.IsGlobal == true)
             .ToListAsync();
 
         foreach (var promotion in globalPromotions)
