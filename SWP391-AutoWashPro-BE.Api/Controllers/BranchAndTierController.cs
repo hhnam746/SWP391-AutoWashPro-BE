@@ -47,10 +47,10 @@ public class BranchAndTierController : ControllerBase
     [HttpGet("admin/branch")]
     public async Task<IActionResult> GetAllBranches(
         [FromQuery] string? searchTerm,
-        [FromQuery] int pageSize = 10,
-        [FromQuery] int pageIndex = 1)
+        [FromQuery] int? pageSize,
+        [FromQuery] int? pageIndex)
     {
-        var result = await _service.GetAllBranches(searchTerm, pageSize, pageIndex);
+        var result = await _service.GetAllBranches(searchTerm, pageSize!.Value, pageIndex!.Value);
         return Ok(result);
     }
 
