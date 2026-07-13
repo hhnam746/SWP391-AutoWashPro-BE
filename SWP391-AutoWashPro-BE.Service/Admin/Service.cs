@@ -285,7 +285,7 @@ public class Service : IService
                 .Select(x => new Response.DashboardTodayBookingResponse
                 {
                     Id = x.Id,
-                    StartTime = x.StartTime,
+                    StartTime = x.StartTime.ToOffset(DefaultUtcOffset),
                     Status = x.Status.ToString(),
                     BranchName = x.BranchName,
                     LicensePlate = x.LicensePlate
@@ -1212,6 +1212,12 @@ public class Service : IService
             .Take(request.PageSize)
             .ToListAsync();
 
+        foreach (var booking in items)
+        {
+            booking.StartTime = booking.StartTime.ToOffset(DefaultUtcOffset);
+            booking.EndTime = booking.EndTime.ToOffset(DefaultUtcOffset);
+        }
+
         return new Base.Response.PageResult<Response.BookingResponse>
         {
             Items = items,
@@ -1332,7 +1338,7 @@ public class Service : IService
             WorkingStartHour,
             0,
             0,
-            TimeSpan.FromHours(7));
+            DefaultUtcOffset);
 
         var endWorkTime = new DateTimeOffset(
             request.Date.Year,
@@ -1341,7 +1347,7 @@ public class Service : IService
             WorkingEndHour,
             0,
             0,
-            TimeSpan.FromHours(7));
+            DefaultUtcOffset);
 
         while (currentTime.AddMinutes(SlotDurationMinutes) <= endWorkTime)
         {
