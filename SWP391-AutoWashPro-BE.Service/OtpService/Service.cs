@@ -31,6 +31,7 @@ public class Service : IService
     public async Task GenerateAndSendOtpAsync(string email)
     {
         var normalizedEmail = NormalizeEmail(email);
+        _logger.LogInformation("Generating OTP for {Email}", normalizedEmail);
         var sendCount = await _redisOtpService.GetSendCountAsync(normalizedEmail);
 
         if (sendCount >= _otpOption.MaxSendPerHour)
@@ -47,18 +48,18 @@ public class Service : IService
             normalizedEmail,
             otpHash,
             TimeSpan.FromMinutes(_otpOption.ExpiryMinutes));
+        _logger.LogInformation("OTP stored in Redis for {Email} with expiry {ExpiryMinutes} minutes", normalizedEmail, _otpOption.ExpiryMinutes);
 
         await _redisOtpService.IncrementSendCountAsync(normalizedEmail);
+        _logger.LogInformation("OTP send count incremented for {Email}", normalizedEmail);
 
-        _ = Task.Run(async () =>
+        try
         {
-            try
+            var mailContent = new MailContent()
             {
-                var mailContent = new MailContent()
-                {
-                    To = normalizedEmail,
-                    Subject = "AutoWash Pro – Your One-Time Password (OTP)",
-                    Body = $@"
+                To = normalizedEmail,
+                Subject = "AutoWash Pro – Your One-Time Password (OTP)",
+                Body = $@"
 <!DOCTYPE html>
 <html lang=""en"">
 <head>
@@ -343,14 +344,17 @@ public class Service : IService
 </body>
 </html>
 "
-                };
-                await _mailService.SendMail(mailContent);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Lỗi khi gửi OTP qua email đến {Email}", normalizedEmail);
-            }
-        });
+            };
+
+            _logger.LogInformation("Sending OTP email to {Email}", normalizedEmail);
+            await _mailService.SendMail(mailContent);
+        }
+        catch (Exception ex)
+        {
+            await InvalidateOldOtpsAsync(normalizedEmail);
+            _logger.LogError(ex, "Failed to send OTP email to {Email}. OTP has been invalidated.", normalizedEmail);
+            throw;
+        }
     }
 
     public async Task<bool> VerifyOtpAsync(string email, string otpCode)
