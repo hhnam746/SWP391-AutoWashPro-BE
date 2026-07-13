@@ -14,6 +14,7 @@ public class Service : IService
     private  int WorkingStartHour = 0;
     private  int WorkingEndHour = 0;
     private  int SlotDurationMinutes = 0;
+    private  int SlotBreakMinutes = 0;
     private int PointsPerCompletedWash = 0;
 
     private readonly AppDbContext _dbContext;
@@ -1327,8 +1328,16 @@ public class Service : IService
         {
             throw new Exception("Invalid SlotDurationMinutes config value");
         }
-        
-        
+
+        var slotBreakConfig = await _dbContext.SystemConfigs
+                                  .FirstOrDefaultAsync(x => x.ConfigKey == "SlotBreakMinutes")
+                              ?? throw new Exception("SlotBreakMinutes config not found");
+
+        if (!int.TryParse(slotBreakConfig.ConfigValue, out SlotBreakMinutes))
+        {
+            throw new Exception("Invalid SlotBreakMinutes config value");
+        }
+
         var slotData = new List<Response.SlotDataResponse>();
 
         var currentTime = new DateTimeOffset(
@@ -1351,16 +1360,18 @@ public class Service : IService
 
         while (currentTime.AddMinutes(SlotDurationMinutes) <= endWorkTime)
         {
+            var slotStartTime = currentTime;
             var slotEndTime = currentTime.AddMinutes(SlotDurationMinutes);
+
             var booking = bookedSlots.FirstOrDefault(x =>
-                x.StartTime.UtcDateTime == currentTime.UtcDateTime &&
+                x.StartTime.UtcDateTime == slotStartTime.UtcDateTime &&
                 x.EndTime.UtcDateTime == slotEndTime.UtcDateTime);
 
             if (booking != null)
             {
                 slotData.Add(new Response.SlotDataResponse
                 {
-                    StartTime = currentTime,
+                    StartTime = slotStartTime,
                     EndTime = slotEndTime,
                     Status = "booked",
                     Booking = new Response.SlotBookingResponse
@@ -1376,14 +1387,14 @@ public class Service : IService
             {
                 slotData.Add(new Response.SlotDataResponse
                 {
-                    StartTime = currentTime,
+                    StartTime = slotStartTime,
                     EndTime = slotEndTime,
                     Status = "available",
                     Booking = null
                 });
             }
 
-            currentTime = slotEndTime;
+            currentTime = slotEndTime.AddMinutes(SlotBreakMinutes);
         }
 
         var totalItems = slotData.Count;
@@ -1403,6 +1414,4 @@ public class Service : IService
             Data = pagedSlotData
         };
     }
-    
-    
 }
