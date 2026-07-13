@@ -8,6 +8,7 @@ public class Response
     {
         public Guid Id { get; set; }
         public string Code { get; set; } = null!;
+        public string? RewardName { get; set; }
         public VoucherStatus Status { get; set; }
         public DiscountType DiscountType { get; set; }
         public decimal DiscountValue { get; set; }
@@ -17,6 +18,9 @@ public class Response
     
     public class ValidateVoucherResponse
     {
+        public Guid VoucherId { get; set; }
+        public string Code { get; set; } = null!;
+        public string? RewardName { get; set; }
         public bool IsValid { get; set; }
         public string Message { get; set; } = null!;
         public decimal DiscountAmount { get; set; }
