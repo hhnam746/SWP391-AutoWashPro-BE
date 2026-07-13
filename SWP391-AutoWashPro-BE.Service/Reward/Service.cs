@@ -23,13 +23,11 @@ public class Service : IService
     public async Task<Base.Response.PageResult<Response.RewardResponse>> GetAllReward(string? searchTerm, int pageSize,
         int pageIndex)
     {
-        var query = _dbContext.Rewards.Where(x =>  x.IsActive == true);
-        
+        var query = _dbContext.Rewards.Where(x =>  x.IsActive == true && x.RewardType == RewardType.Voucher);
         if (searchTerm != null)
         {
             query = query.Where(x => x.Name.Contains(searchTerm));
         }
-
         query = query.OrderBy(x => x.Name);
         query = query.Skip((pageIndex - 1) * pageSize).Take(pageSize);
 
