@@ -25,6 +25,7 @@ public class Service : IService
 
 
     private static readonly TimeSpan DefaultUtcOffset = TimeSpan.FromHours(7);
+    private const int RedeemPointValue = 100; //1 điểm = 100 đ
     private int WorkingStartHour = 0;
     private int WorkingEndHour = 0;
     private int SlotDurationMinutes = 0;
@@ -423,20 +424,19 @@ public class Service : IService
 
         var discountAmount = voucherDiscountAmount + promotionDiscountAmount;
 
-        // Discount By Redeem
+        // Redeem points use point units for storage and VND units for discount math.
         decimal redeemDiscountAmount = 0;
+        int redeemPointsUsed = 0;
 
         if (bookingRequest.redemPoint == true)
         {
-            var remainToDiscount = basePrice - discountAmount;
+            var remainToDiscount = Math.Max(basePrice - discountAmount, 0);
+            var maxRedeemablePoints = (int)Math.Floor(remainToDiscount / RedeemPointValue);
 
-            if (customerProfile.TotalPoints >= remainToDiscount)
+            if (maxRedeemablePoints > 0)
             {
-                redeemDiscountAmount = remainToDiscount;
-            }
-            else
-            {
-                redeemDiscountAmount = customerProfile.TotalPoints;
+                redeemPointsUsed = Math.Min(customerProfile.TotalPoints, maxRedeemablePoints);
+                redeemDiscountAmount = redeemPointsUsed * RedeemPointValue;
             }
         }
 
@@ -491,7 +491,7 @@ public class Service : IService
             Status = BookingStatus.Confirmed,
             BasePrice = basePrice,
             DiscountAmount = discountAmount,
-            RedemAmount = (int)redeemDiscountAmount,
+            RedemAmount = redeemPointsUsed,
             FinalPrice = finalPrice,
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -818,7 +818,6 @@ public class Service : IService
                 Code = query.Voucher.Code,
                 DiscountAmount = query.Voucher.DiscountValue
             };
-        var discountAmount = Voucher?.DiscountAmount ?? 0;
         var result = new Response.GetBookingDetailResponse
         {
             Id = query.Id,
@@ -841,7 +840,7 @@ public class Service : IService
             },
             Voucher = Voucher,
             BasePrice = query.BasePrice,
-            DiscountAmount = discountAmount,
+            DiscountAmount = query.DiscountAmount,
             FinalPrice = query.FinalPrice,
         };
         return result;
@@ -985,7 +984,7 @@ public class Service : IService
                 _dbContext.Notifications.Add(notification);
             }
 
-            if (booking.RedemAmount != null)
+            if ((booking.RedemAmount ?? 0) > 0)
             {
                 var pointTransaction = new Repository.Entities.PointTransaction()
                 {
@@ -996,7 +995,7 @@ public class Service : IService
                     BookingId = booking.Id,
                     Points = booking.RedemAmount ?? 0,
                     TransactionType = PointTransactionType.Redeem,
-                    Description = $"Redeemed {booking.RedemAmount} points for booking payment.",
+                    Description = $"Redeemed {booking.RedemAmount} points for booking discount.",
                     CreatedAt = DateTime.UtcNow,
                 };
                 _dbContext.PointTransactions.Add(pointTransaction);
