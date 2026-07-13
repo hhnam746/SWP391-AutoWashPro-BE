@@ -364,11 +364,30 @@ public class Service : IService
 
         //Discount Voucher
         var voucherDiscountAmount = (decimal)0;
-        var voucher = await _dbContext.Vouchers
-            .FirstOrDefaultAsync(x => x.Id == bookingRequest.VoucherId);
+        Repository.Entities.Voucher? voucher = null;
 
-        if (voucher != null)
+        if (bookingRequest.VoucherId.HasValue)
         {
+            voucher = await _dbContext.Vouchers
+                .FirstOrDefaultAsync(x =>
+                    x.Id == bookingRequest.VoucherId.Value &&
+                    x.CustomerId == customerProfile.Id);
+
+            if (voucher == null)
+                throw new Exception("Voucher not found");
+
+            if (voucher.Status != VoucherStatus.Active)
+                throw new Exception("Voucher is inactive");
+
+            if (voucher.ExpiresAt < DateTimeOffset.UtcNow)
+                throw new Exception("Voucher expired");
+
+            if (voucher.UsedAt != null)
+                throw new Exception("Voucher already used");
+
+            if (voucher.DiscountValue <= 0)
+                throw new Exception("Voucher has no discount value");
+
             if (voucher.DiscountType == DiscountType.FixedAmount)
             {
                 voucherDiscountAmount += voucher.DiscountValue;
