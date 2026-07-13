@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
+using SWP391_AutoWashPro_BE.Service.Base;
 
 namespace SWP391_AutoWashPro_BE.Service.Reward;
 
@@ -9,17 +11,20 @@ public class Service : IService
 {
     private readonly AppDbContext _dbContext;
     private readonly Notification.IService _notificationService;
+    private readonly IHttpContextAccessor _httpContext;
 
-    public Service(AppDbContext dbContext, Notification.IService notificationService)
+    public Service(AppDbContext dbContext, Notification.IService notificationService, IHttpContextAccessor httpContext)
     {
         _dbContext = dbContext;
         _notificationService = notificationService;
+        _httpContext = httpContext;
     }
 
     public async Task<Base.Response.PageResult<Response.RewardResponse>> GetAllReward(string? searchTerm, int pageSize,
         int pageIndex)
     {
         var query = _dbContext.Rewards.Where(x =>  x.IsActive == true);
+        
         if (searchTerm != null)
         {
             query = query.Where(x => x.Name.Contains(searchTerm));
@@ -64,12 +69,31 @@ public class Service : IService
         {
             throw new Exception("Reward already exists");
         }
-
+        
+        
         if (request.TierIds == null || !request.TierIds.Any())
         {
             throw new Exception("Please select at least one tier");
         }
       
+        var hasDeletedTier = await _dbContext.Tiers
+            .AnyAsync(t => request.TierIds.Contains(t.Id) && t.IsDeleted);
+
+        if (hasDeletedTier)
+        {
+            throw new Exception("Selected tier has been deleted.");
+        }
+        
+        if (request.DiscountValue <= 0)
+        {
+            throw new Exception("Discount value must be greater than 0.");
+        }
+
+        if (request.DiscountType == DiscountType.Percentage &&
+            request.DiscountValue > 100)
+        {
+            throw new Exception("Percentage discount cannot exceed 100.");
+        }
 
         var newReward = new Repository.Entities.Reward()
         {
@@ -79,6 +103,8 @@ public class Service : IService
             PointsRequired = request.PointsRequired,
             QuantityAvailable = request.QuantityAvailable,
             ValidDays = request.ValidDays,
+            DiscountType = request.DiscountType,
+            DiscountValue = request.DiscountValue,
             Description = request.Description,
             IsActive = true,
         };
@@ -118,6 +144,8 @@ public class Service : IService
         reward.PointsRequired = request.PointsRequired;
         reward.QuantityAvailable = request.QuantityAvailable;
         reward.ValidDays = request.ValidDays;
+        reward.DiscountType = request.DiscountType;
+        reward.DiscountValue = request.DiscountValue;
         reward.Description = request.Description;
         reward.IsActive = request.IsActive;
         reward.UpdatedAt = DateTimeOffset.UtcNow;
@@ -160,10 +188,12 @@ public class Service : IService
         return "Reward deleted successfully";
     }
 
-    public async Task<string> RedeemReward(Guid rewardId, Guid id)
+    public async Task<string> RedeemReward(Guid rewardId)
     {
+        var userId = ServiceClaimHelper.GetRequiredUserId(_httpContext);
+        
         var customer = await _dbContext.CustomerProfiles
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.UserId == userId);
 
         if (customer == null)
             throw new Exception("Customer not found");
@@ -215,8 +245,8 @@ public class Service : IService
 
             Status = VoucherStatus.Active,
 
-            DiscountType = DiscountType.Percentage,
-            DiscountValue = 10,
+            DiscountType = reward.DiscountType,
+            DiscountValue = reward.DiscountValue,
 
             ExpiresAt = DateTimeOffset.UtcNow
                 .AddDays(reward.ValidDays),
@@ -243,7 +273,7 @@ public class Service : IService
         
         // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
         // {
-        //     UserId = Id,
+        //     UserId = id,
         //     Type = NotificationType.RewardRedeemed,
         //     Data = $"You have successfully redeemed {reward.Name}. Your voucher code is {voucher.Code}."
         // });

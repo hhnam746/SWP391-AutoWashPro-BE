@@ -18,10 +18,10 @@ public class RewardController: ControllerBase
     [HttpGet("admin/rewards")]
     public async Task<IActionResult> GetAllReward(
         [FromQuery] string? searchTerm,
-        [FromQuery] int pageSize = 10,
-        [FromQuery] int pageIndex = 1)
+        [FromQuery] int? pageSize,
+        [FromQuery] int? pageIndex)
     {
-        var result = await _service.GetAllReward(searchTerm, pageSize, pageIndex);
+        var result = await _service.GetAllReward(searchTerm, pageSize!.Value, pageIndex!.Value);
         return Ok(result);
     }
 
@@ -53,12 +53,13 @@ public class RewardController: ControllerBase
     }
 
   
+    [Authorize(Policy = JwtExtensions.UserPolicy)]
     [HttpPost("redeem-reward")]
-    public async Task<IActionResult> RedeemReward(
-        [FromQuery] Guid rewardId,
-        [FromQuery] Guid id)
+    public async Task<IActionResult> RedeemReward([FromQuery] Guid rewardId)
     {
-        var result = await _service.RedeemReward(rewardId, id);
+
+        var result = await _service.RedeemReward(rewardId);
+
         return Ok(result);
     }
 }
