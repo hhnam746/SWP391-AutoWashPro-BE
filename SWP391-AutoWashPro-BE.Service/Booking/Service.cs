@@ -892,7 +892,42 @@ public class Service : IService
             throw new Exception(
                 "Booking not found, does not belong to the current customer, or is no longer confirmed.");
         }
-        
+
+        return await ProcessCheckInBooking(booking, customerProfile, userIdGuid);
+    }
+
+    public async Task<Response.CheckInBookingResponse> CheckInBookingByAdmin(Guid bookingId)
+    {
+        var booking = await _dbContext.Bookings
+            .FirstOrDefaultAsync(x => x.Id == bookingId);
+
+        if (booking == null)
+        {
+            throw new KeyNotFoundException("Booking not found.");
+        }
+
+        if (booking.Status != BookingStatus.Confirmed)
+        {
+            throw new InvalidOperationException("Only confirmed bookings can be checked in.");
+        }
+
+        var customerProfile = await _dbContext.CustomerProfiles
+            .Include(x => x.Tier)
+            .FirstOrDefaultAsync(x => x.Id == booking.CustomerId);
+
+        if (customerProfile == null)
+        {
+            throw new KeyNotFoundException("Customer profile not found.");
+        }
+
+        return await ProcessCheckInBooking(booking, customerProfile, customerProfile.UserId);
+    }
+
+    private async Task<Response.CheckInBookingResponse> ProcessCheckInBooking(
+        Repository.Entities.Booking booking,
+        Repository.Entities.CustomerProfile customerProfile,
+        Guid customerUserId)
+    {
         var cancelTimeConfig = await _dbContext.SystemConfigs
                                    .FirstOrDefaultAsync(x => x.ConfigKey == "CancelTimeMinutes")
                                ?? throw new Exception("CancelTimeMinutes config not found");
@@ -986,7 +1021,7 @@ public class Service : IService
                 var notification = new Repository.Entities.Notification()
                 {
                     Id = Guid.NewGuid(),
-                    UserId = userIdGuid,
+                    UserId = customerUserId,
                     Type = NotificationType.TierUpgraded,
                     Title = "Tier Upgraded",
                     Content =
@@ -996,7 +1031,7 @@ public class Service : IService
                 };
                 // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
                 // {
-                //     UserId = userIdGuid,
+                //     UserId = customerUserId,
                 //     Type = NotificationType.TierUpgraded,
                 //     Data = $"Congratulations! Your tier has been upgraded from {currentTier.Name} to {nextTier.Name}."
                 // });

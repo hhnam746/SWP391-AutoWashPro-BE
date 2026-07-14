@@ -84,6 +84,13 @@ public class AdminController : ControllerBase
         return Ok(ApiResponseFactory.SuccessResponse(result, "Booking completed manually", HttpContext.TraceIdentifier));
     }
 
+    [HttpPost("bookings/{bookingId:guid}/check-in")]
+    public async Task<IActionResult> CheckInBookingByAdmin([FromRoute] Guid bookingId)
+    {
+        var result = await _adminService.CheckInBookingByAdmin(bookingId);
+        return Ok(ApiResponseFactory.SuccessResponse(result, result.Message, HttpContext.TraceIdentifier));
+    }
+
     [HttpPost("bookings/{id:guid}/cancel")]
     public async Task<IActionResult> CancelBookingByAdmin(
         [FromRoute] Guid id,

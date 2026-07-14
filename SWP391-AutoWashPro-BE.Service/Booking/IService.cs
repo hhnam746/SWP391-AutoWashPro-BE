@@ -9,5 +9,6 @@ public interface IService
     public Task<Response.GetBookingsResponse> GetBookings(BookingStatus? status, DateOnly fromDate, DateOnly toDate, int page, int pageSize);
     public Task<Response.GetBookingDetailResponse> GetBookingById (Guid bookingId);
     public Task<Response.CheckInBookingResponse> CheckInBooking (Guid Id);
+    public Task<Response.CheckInBookingResponse> CheckInBookingByAdmin(Guid bookingId);
     public Task<Response.CancelBookingResponse> CancelBooking (Guid Id, Request.CancelBookingRequest bookingRequest);
 }

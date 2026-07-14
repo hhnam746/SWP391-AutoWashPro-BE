@@ -31,6 +31,7 @@ public interface IService
     public Task<Response.CompleteBookingByAdminResponse> CompleteBookingByAdmin(
         Guid bookingId,
         Request.CompleteBookingByAdminRequest request);
+    public Task<Booking.Response.CheckInBookingResponse> CheckInBookingByAdmin(Guid bookingId);
     public Task<Response.CancelBookingByAdminResponse> CancelBookingByAdmin(
         Guid bookingId,
         Request.CancelBookingByAdminRequest request);
