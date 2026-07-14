@@ -202,7 +202,19 @@ public class Service : IService
             throw new Exception("Config not found");
         }
 
-        config.ConfigValue = request.ConfigValue;
+        var configValue = request.ConfigValue.ValueKind switch
+        {
+            System.Text.Json.JsonValueKind.String => request.ConfigValue.GetString(),
+            System.Text.Json.JsonValueKind.Number => request.ConfigValue.GetRawText(),
+            _ => null
+        };
+
+        if (string.IsNullOrWhiteSpace(configValue))
+        {
+            throw new Exception("Config value must be a string or number");
+        }
+
+        config.ConfigValue = configValue;
         config.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _dbContext.SaveChangesAsync();

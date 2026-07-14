@@ -1,4 +1,5 @@
 using SWP391_AutoWashPro_BE.Repository.Enums;
+using System.Text.Json;
 
 namespace SWP391_AutoWashPro_BE.Service.Loyalty;
 
@@ -14,6 +15,6 @@ public class Request
     public class ConfigRequest
     {
         public string ConfigKey { get; set; }
-        public string ConfigValue { get; set; }
+        public JsonElement ConfigValue { get; set; }
     }
 }
