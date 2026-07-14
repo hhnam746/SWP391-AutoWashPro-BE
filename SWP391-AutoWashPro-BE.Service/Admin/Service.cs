@@ -5,6 +5,7 @@ using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.Base;
+using BookingService = SWP391_AutoWashPro_BE.Service.Booking;
 
 namespace SWP391_AutoWashPro_BE.Service.Admin;
 
@@ -20,12 +21,18 @@ public class Service : IService
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContext;
     private readonly Notification.IService _notificationService;
+    private readonly BookingService.IService _bookingService;
 
-    public Service(AppDbContext dbContext, IHttpContextAccessor httpContext, Notification.IService notificationService)
+    public Service(
+        AppDbContext dbContext,
+        IHttpContextAccessor httpContext,
+        Notification.IService notificationService,
+        BookingService.IService bookingService)
     {
         _dbContext = dbContext;
         _httpContext = httpContext;
         _notificationService = notificationService;
+        _bookingService = bookingService;
     }
 
     public async Task<List<Response.BranchResponse>> GetBranches(bool? isActive, string? keyword)
@@ -501,6 +508,11 @@ public class Service : IService
             },
             TierDistribution = tierDistribution
         };
+    }
+
+    public Task<BookingService.Response.CheckInBookingResponse> CheckInBookingByAdmin(Guid bookingId)
+    {
+        return _bookingService.CheckInBookingByAdmin(bookingId);
     }
 
     public async Task<Response.CompleteBookingByAdminResponse> CompleteBookingByAdmin(
