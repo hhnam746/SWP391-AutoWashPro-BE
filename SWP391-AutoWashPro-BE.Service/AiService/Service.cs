@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
@@ -15,11 +16,13 @@ namespace SWP391_AutoWashPro_BE.Service.AiService;
 
 public class Service : IService
 {
+    private static readonly TimeSpan ChatRequestTimeBudget = TimeSpan.FromSeconds(12);
     private readonly AppDbContext _dbContext;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IntentDetector _intentDetector;
     private readonly PromptBuilder _promptBuilder;
     private readonly GoogleAiStudioService _aiProvider;
+    private readonly ILogger<Service> _logger;
     private readonly UserService.IService _userService;
     private readonly BookingService.IService _bookingService;
     private readonly VoucherService.IService _voucherService;
@@ -32,6 +35,7 @@ public class Service : IService
         IntentDetector intentDetector,
         PromptBuilder promptBuilder,
         GoogleAiStudioService aiProvider,
+        ILogger<Service> logger,
         UserService.IService userService,
         BookingService.IService bookingService,
         VoucherService.IService voucherService,
@@ -43,6 +47,7 @@ public class Service : IService
         _intentDetector = intentDetector;
         _promptBuilder = promptBuilder;
         _aiProvider = aiProvider;
+        _logger = logger;
         _userService = userService;
         _bookingService = bookingService;
         _voucherService = voucherService;
@@ -50,27 +55,48 @@ public class Service : IService
         _branchService = branchService;
     }
 
-    public async Task<Response.ChatResponse> ChatAsync(Request.ChatRequest request)
+    public async Task<Response.ChatResponse> ChatAsync(Request.ChatRequest request, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.Message))
         {
             throw new ArgumentException("Message is required.");
         }
 
+        var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        using var timeBudgetCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeBudgetCts.CancelAfter(ChatRequestTimeBudget);
+        var requestCancellationToken = timeBudgetCts.Token;
+
         var userId = ServiceClaimHelper.GetRequiredUserId(_httpContextAccessor);
         var now = DateTimeOffset.UtcNow;
 
-        var conversation = await GetOrCreateConversationAsync(userId, request.ConversationId, request.Message.Trim(), now);
+        var trimmedMessage = request.Message.Trim();
+        var conversation = await GetOrCreateConversationAsync(userId, request.ConversationId, trimmedMessage, now);
         var history = await LoadRecentHistoryAsync(conversation.Id);
+
+        var detectStopwatch = System.Diagnostics.Stopwatch.StartNew();
         var detection = _intentDetector.Detect(request.Message);
+        detectStopwatch.Stop();
+
+        var contextStopwatch = System.Diagnostics.Stopwatch.StartNew();
         var businessContext = await BuildBusinessContextAsync(userId, detection);
-        var answer = await GenerateAnswerAsync(detection.Intent, businessContext, history, request.Message);
+        contextStopwatch.Stop();
+
+        var answerStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var answerResult = await GenerateAnswerAsync(
+            detection.Intent,
+            detection.NormalizedMessage,
+            businessContext,
+            history,
+            trimmedMessage,
+            requestCancellationToken);
+        answerStopwatch.Stop();
 
         var userMessage = new ChatMessage
         {
             ConversationId = conversation.Id,
             Role = ChatMessageRole.User,
-            Content = request.Message.Trim(),
+            Content = trimmedMessage,
             Intent = detection.Intent,
             CreatedAt = now
         };
@@ -79,7 +105,7 @@ public class Service : IService
         {
             ConversationId = conversation.Id,
             Role = ChatMessageRole.Assistant,
-            Content = answer,
+            Content = answerResult.Answer,
             Intent = detection.Intent,
             CreatedAt = now
         };
@@ -90,10 +116,21 @@ public class Service : IService
         _dbContext.ChatMessages.Add(assistantMessage);
         await _dbContext.SaveChangesAsync();
 
+        totalStopwatch.Stop();
+        _logger.LogInformation(
+            "Chat request completed in {TotalElapsedMs} ms. Intent={Intent}, Source={Source}, Detect={DetectMs} ms, Context={ContextMs} ms, Answer={AnswerMs} ms, ConversationId={ConversationId}",
+            totalStopwatch.ElapsedMilliseconds,
+            detection.Intent,
+            answerResult.Source,
+            detectStopwatch.ElapsedMilliseconds,
+            contextStopwatch.ElapsedMilliseconds,
+            answerStopwatch.ElapsedMilliseconds,
+            conversation.Id);
+
         return new Response.ChatResponse
         {
             ConversationId = conversation.Id,
-            Answer = answer,
+            Answer = answerResult.Answer,
             CreatedAt = assistantMessage.CreatedAt,
             Intent = detection.Intent
         };
@@ -206,21 +243,35 @@ public class Service : IService
         return await _bookingService.GetBookings(null, today.AddDays(-30), today.AddDays(30), 1, 10);
     }
 
-    private async Task<string> GenerateAnswerAsync(
+    private async Task<ChatAnswerResult> GenerateAnswerAsync(
         ChatIntent intent,
+        string normalizedMessage,
         object businessContext,
         IReadOnlyCollection<PromptHistoryItem> history,
-        string currentMessage)
+        string currentMessage,
+        CancellationToken cancellationToken)
     {
+        if (ShouldShortCircuitIntent(intent, normalizedMessage))
+        {
+            return new ChatAnswerResult(BuildFallbackAnswer(intent, businessContext), "fallback");
+        }
+
         var prompt = _promptBuilder.BuildPrompt(intent, businessContext, history, currentMessage);
 
         try
         {
-            return await _aiProvider.GenerateResponseAsync(prompt);
+            var answer = await _aiProvider.GenerateResponseAsync(prompt, cancellationToken);
+            return new ChatAnswerResult(answer, "ai");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning("Chat AI generation cancelled or timed out for intent {Intent}. Using fallback response.", intent);
+            return new ChatAnswerResult(BuildFallbackAnswer(intent, businessContext), "fallback");
         }
         catch (Exception ex) when (ShouldUseFallbackResponse(ex))
         {
-            return BuildFallbackAnswer(intent, businessContext);
+            _logger.LogWarning(ex, "Chat AI generation failed for intent {Intent}. Using fallback response.", intent);
+            return new ChatAnswerResult(BuildFallbackAnswer(intent, businessContext), "fallback");
         }
     }
 
@@ -308,13 +359,120 @@ public class Service : IService
                exception is TimeoutException;
     }
 
+    private static bool ShouldShortCircuitIntent(ChatIntent intent, string normalizedMessage)
+    {
+        return intent is ChatIntent.UserProfile or ChatIntent.NearestBranch or ChatIntent.TopBranch ||
+               (intent == ChatIntent.Faq && IsGreeting(normalizedMessage));
+    }
+
+    private static bool IsGreeting(string normalizedMessage)
+    {
+        return normalizedMessage is "hello" or "hi" or "xin chao" or "chao" or "alo";
+    }
+
     private static string BuildFallbackAnswer(ChatIntent intent, object businessContext)
     {
         return intent switch
         {
+            ChatIntent.UserProfile => BuildUserProfileFallbackAnswer(businessContext),
+            ChatIntent.Loyalty => BuildLoyaltyFallbackAnswer(businessContext),
+            ChatIntent.Booking => BuildBookingFallbackAnswer(businessContext),
+            ChatIntent.BookingDetail => BuildBookingDetailFallbackAnswer(businessContext),
             ChatIntent.Voucher => BuildVoucherFallbackAnswer(businessContext),
+            ChatIntent.Promotion => BuildPromotionFallbackAnswer(businessContext),
+            ChatIntent.Branch => BuildBranchFallbackAnswer(businessContext),
+            ChatIntent.NearestBranch => "Tính năng chi nhánh gần nhất chưa được hỗ trợ ở phiên bản hiện tại.",
+            ChatIntent.TopBranch => "Tính năng top chi nhánh chưa được hỗ trợ ở phiên bản hiện tại.",
+            ChatIntent.Faq => BuildFaqFallbackAnswer(businessContext),
+            ChatIntent.Unknown => BuildUnknownFallbackAnswer(),
             _ => "He thong AI tam thoi ban hoac da het han muc su dung. Vui long thu lai sau it phut."
         };
+    }
+
+    private static string BuildUserProfileFallbackAnswer(object businessContext)
+    {
+        if (businessContext is UserService.Response.ProfileResponse profile)
+        {
+            var firstName = profile.ProfileData?.FirstName?.Trim();
+            var lastName = profile.ProfileData?.LastName?.Trim();
+            var originalName = string.Join(" ", new[] { firstName, lastName }.Where(x => !string.IsNullOrWhiteSpace(x)));
+            var vietnameseOrderName = string.Join(" ", new[] { lastName, firstName }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+            var displayName = !string.IsNullOrWhiteSpace(vietnameseOrderName)
+                ? !string.IsNullOrWhiteSpace(originalName) && !string.Equals(vietnameseOrderName, originalName, StringComparison.Ordinal)
+                    ? $"{vietnameseOrderName} ({originalName})"
+                    : vietnameseOrderName
+                : "Chưa cập nhật";
+
+            var phone = string.IsNullOrWhiteSpace(profile.Phone) ? "Chưa cập nhật" : profile.Phone;
+            var email = string.IsNullOrWhiteSpace(profile.Email) ? "Chưa cập nhật" : profile.Email;
+            var cccd = string.IsNullOrWhiteSpace(profile.ProfileData?.Cccd) ? "Chưa cập nhật" : profile.ProfileData.Cccd;
+            var tierDescription = profile.ProfileData?.TierData is { } tierData
+                ? $"{tierData.Name} (Cấp độ {tierData.Level})"
+                : "Chưa có hạng thành viên";
+
+            return
+                $"Chào bạn,{Environment.NewLine}{Environment.NewLine}" +
+                $"Dưới đây là thông tin tài khoản AutoWashPro của bạn:{Environment.NewLine}{Environment.NewLine}" +
+                $"Họ và tên: {displayName}{Environment.NewLine}" +
+                $"Số điện thoại: {phone}{Environment.NewLine}" +
+                $"Email: {email}{Environment.NewLine}" +
+                $"Số CCCD: {cccd}{Environment.NewLine}" +
+                $"Hạng thành viên: {tierDescription}{Environment.NewLine}" +
+                $"Tổng điểm tích lũy: {profile.TotalPoints} điểm{Environment.NewLine}" +
+                $"Tổng số lần rửa xe: {profile.TotalWashes} lần{Environment.NewLine}{Environment.NewLine}" +
+                $"Bạn hiện có {profile.TotalPoints} điểm tích lũy. Nếu cần, mình có thể giúp bạn kiểm tra phần thưởng có thể đổi, voucher phù hợp hoặc lịch sử rửa xe.";
+        }
+
+        return "Mình chưa lấy được đầy đủ thông tin tài khoản của bạn. Vui lòng thử lại sau ít phút.";
+    }
+
+    private static string BuildLoyaltyFallbackAnswer(object businessContext)
+    {
+        if (businessContext is LoyaltyService.Response.LoyaltyMeResponse loyalty)
+        {
+            var currentTier = loyalty.CurrentTier?.Name ?? "chưa có";
+            if (loyalty.NextTier is not null)
+            {
+                return $"Bạn hiện có {loyalty.TotalPoints} điểm, {loyalty.TotalWashes} lượt rửa và đang ở hạng {currentTier}. Bạn cần thêm {loyalty.NextTier.RemainingWashes} lượt để lên hạng {loyalty.NextTier.Name}.";
+            }
+
+            return $"Bạn hiện có {loyalty.TotalPoints} điểm, {loyalty.TotalWashes} lượt rửa và đang ở hạng {currentTier}.";
+        }
+
+        return "Mình chưa lấy được dữ liệu điểm thưởng của bạn lúc này. Vui lòng thử lại sau.";
+    }
+
+    private static string BuildBookingFallbackAnswer(object businessContext)
+    {
+        if (businessContext is BookingService.Response.GetBookingsResponse bookings)
+        {
+            if (bookings.Data.Count == 0)
+            {
+                return "Hiện tại bạn chưa có booking nào trong khoảng thời gian gần đây.";
+            }
+
+            var nearestBooking = bookings.Data
+                .OrderBy(x => x.StartTime)
+                .First();
+
+            return $"Bạn hiện có {bookings.Data.Count} booking trong danh sách gần đây. Booking gần nhất là tại {nearestBooking.Branch.Name} vào {nearestBooking.StartTime:dd/MM/yyyy HH:mm}, trạng thái {nearestBooking.Status}.";
+        }
+
+        return "Mình chưa lấy được danh sách booking của bạn lúc này. Vui lòng thử lại sau.";
+    }
+
+    private static string BuildBookingDetailFallbackAnswer(object businessContext)
+    {
+        if (businessContext is BookingService.Response.GetBookingDetailResponse booking)
+        {
+            return $"Booking {booking.Id} của bạn đang ở trạng thái {booking.Status}, lịch rửa vào {booking.StartTime:dd/MM/yyyy HH:mm} tại {booking.Branch.Name}, tổng thanh toán {booking.FinalPrice:N0}.";
+        }
+
+        var message = ReadStringProperty(businessContext, "message");
+        return string.IsNullOrWhiteSpace(message)
+            ? "Mình chưa lấy được chi tiết booking này. Vui lòng kiểm tra lại mã booking."
+            : message;
     }
 
     private static string BuildVoucherFallbackAnswer(object businessContext)
@@ -348,6 +506,63 @@ public class Service : IService
         return "Tai khoan cua ban hien khong co voucher kha dung.";
     }
 
+    private static string BuildPromotionFallbackAnswer(object businessContext)
+    {
+        if (businessContext is BranchService.Response.GetUserAvailablePromotion promotions)
+        {
+            if (promotions.data.Count == 0)
+            {
+                return "Hiện tại chưa có chương trình khuyến mãi nào khả dụng cho tài khoản của bạn.";
+            }
+
+            var promotionNames = promotions.data
+                .Take(3)
+                .Select(x => x.Name);
+
+            return $"Hiện tại bạn có {promotions.data.Count} khuyến mãi khả dụng, gồm: {string.Join(", ", promotionNames)}.";
+        }
+
+        return "Mình chưa lấy được danh sách khuyến mãi lúc này. Vui lòng thử lại sau.";
+    }
+
+    private static string BuildBranchFallbackAnswer(object businessContext)
+    {
+        if (businessContext is BranchService.Response.GetBranchesResponse branches)
+        {
+            if (branches.Data.Count == 0)
+            {
+                return "Hiện tại chưa có chi nhánh nào đang hoạt động.";
+            }
+
+            var branchNames = branches.Data
+                .Take(3)
+                .Select(x => x.Name);
+
+            return $"AutoWashPro hiện có {branches.Data.Count} chi nhánh đang hoạt động. Một số chi nhánh là: {string.Join(", ", branchNames)}.";
+        }
+
+        return "Mình chưa lấy được danh sách chi nhánh lúc này. Vui lòng thử lại sau.";
+    }
+
+    private static string BuildFaqFallbackAnswer(object businessContext)
+    {
+        if (businessContext is not null)
+        {
+            var faqs = ReadStringCollection(businessContext, "faqs");
+            if (faqs.Count > 0)
+            {
+                return string.Join(" ", faqs);
+            }
+        }
+
+        return "Mình có thể hỗ trợ bạn về tài khoản, booking, voucher, điểm thưởng, khuyến mãi và chi nhánh của AutoWashPro.";
+    }
+
+    private static string BuildUnknownFallbackAnswer()
+    {
+        return "Mình chưa hiểu rõ câu hỏi này. Bạn có thể hỏi theo các nhóm như: thông tin tài khoản, booking, voucher, điểm thưởng, khuyến mãi hoặc chi nhánh.";
+    }
+
     private static int ReadIntProperty(object source, string propertyName)
     {
         var property = source.GetType().GetProperty(propertyName);
@@ -357,6 +572,12 @@ public class Service : IService
         }
 
         return 0;
+    }
+
+    private static string? ReadStringProperty(object source, string propertyName)
+    {
+        var property = source.GetType().GetProperty(propertyName);
+        return property?.GetValue(source)?.ToString();
     }
 
     private static List<string> ReadVoucherCodes(object source, string propertyName)
@@ -401,6 +622,27 @@ public class Service : IService
         return results;
     }
 
+    private static List<string> ReadStringCollection(object source, string propertyName)
+    {
+        var property = source.GetType().GetProperty(propertyName);
+        if (property?.GetValue(source) is not System.Collections.IEnumerable items)
+        {
+            return [];
+        }
+
+        var results = new List<string>();
+        foreach (var item in items)
+        {
+            var value = item?.ToString();
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                results.Add(value);
+            }
+        }
+
+        return results;
+    }
+
     private async Task<object> GetBookingDetailContextAsync(Guid? bookingId)
     {
         if (!bookingId.HasValue)
@@ -431,9 +673,9 @@ public class Service : IService
         {
             faqs = new[]
             {
-                "AutoWashPro ho tro dat lich rua xe, theo doi diem thuong, voucher va khuyen mai.",
-                "Nguoi dung co the dat lich, xem lich su booking, xem diem va voucher trong tai khoan.",
-                "Neu cau hoi can du lieu ca nhan cu the, assistant se chi tra loi dua tren du lieu nghiep vu duoc nap vao prompt."
+                "AutoWashPro hỗ trợ đặt lịch rửa xe, theo dõi điểm thưởng, voucher và khuyến mãi.",
+                "Người dùng có thể đặt lịch, xem lịch sử booking, xem điểm và voucher trong tài khoản.",
+                "Nếu câu hỏi cần dữ liệu cá nhân cụ thể, assistant sẽ chỉ trả lời dựa trên dữ liệu nghiệp vụ được nạp vào prompt."
             }
         };
     }
@@ -444,4 +686,6 @@ public class Service : IService
         var normalized = string.Join(" ", message.Split(' ', StringSplitOptions.RemoveEmptyEntries));
         return normalized.Length <= maxLength ? normalized : normalized[..maxLength].TrimEnd() + "...";
     }
+
+    private sealed record ChatAnswerResult(string Answer, string Source);
 }
