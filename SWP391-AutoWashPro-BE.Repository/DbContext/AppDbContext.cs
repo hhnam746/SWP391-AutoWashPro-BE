@@ -481,8 +481,13 @@ public class AppDbContext : DbContext
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
-            builder.HasIndex(x => x.Name).IsUnique();
-            builder.HasIndex(x => x.Level).IsUnique();
+            builder.HasIndex(x => x.Level)
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = false");
+
+            builder.HasIndex(x => x.Name)
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = false");
         });
 
         modelBuilder.Entity<Branch>(builder =>
