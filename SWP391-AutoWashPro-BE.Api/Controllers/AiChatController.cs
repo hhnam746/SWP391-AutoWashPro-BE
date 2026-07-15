@@ -19,9 +19,9 @@ public class AiChatController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Chat([FromBody] Request.ChatRequest request)
+    public async Task<IActionResult> Chat([FromBody] Request.ChatRequest request, CancellationToken cancellationToken)
     {
-        var result = await _aiService.ChatAsync(request);
+        var result = await _aiService.ChatAsync(request, cancellationToken);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Chat completed successfully", HttpContext.TraceIdentifier));
     }
 

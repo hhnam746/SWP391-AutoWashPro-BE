@@ -2,17 +2,20 @@ using System.Net.Http.Json;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace SWP391_AutoWashPro_BE.Service.AiService;
 
 public class GoogleAiStudioService
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<GoogleAiStudioService> _logger;
     private readonly GoogleAiStudioOptions _options = new();
 
-    public GoogleAiStudioService(HttpClient httpClient, IConfiguration configuration)
+    public GoogleAiStudioService(HttpClient httpClient, IConfiguration configuration, ILogger<GoogleAiStudioService> logger)
     {
         _httpClient = httpClient;
+        _logger = logger;
         configuration.GetSection(nameof(GoogleAiStudioOptions)).Bind(_options);
 
         _options.ApiKey ??= configuration["GOOGLE_AI_API_KEY"];
@@ -25,12 +28,12 @@ public class GoogleAiStudioService
             : _options.BaseUrl;
         _options.Model = string.IsNullOrWhiteSpace(_options.Model) ? "gemini-3.5-flash" : _options.Model;
         _options.Temperature ??= 0.2m;
-        _options.TimeoutSeconds ??= 180;
-        _options.MaxRetries ??= 2;
-        _options.RetryDelayMs ??= 1000;
+        _options.TimeoutSeconds ??= 8;
+        _options.MaxRetries ??= 0;
+        _options.RetryDelayMs ??= 500;
 
         _httpClient.BaseAddress = new Uri(_options.BaseUrl.TrimEnd('/') + "/");
-        _httpClient.Timeout = TimeSpan.FromSeconds(Math.Max(30, _options.TimeoutSeconds.Value));
+        _httpClient.Timeout = TimeSpan.FromSeconds(Math.Max(3, _options.TimeoutSeconds.Value));
     }
 
     public async Task<string> GenerateResponseAsync(string prompt, CancellationToken cancellationToken = default)
@@ -51,6 +54,7 @@ public class GoogleAiStudioService
             }
             catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Google AI Studio request failed for model {Model}.", model);
                 lastException = ex;
             }
         }
