@@ -139,33 +139,54 @@ public class Service : IService
             receiverUserId = request.UserId.Value;
         }
 
-        var receiverExists = await _dbContext.Users
-            .AnyAsync(x => x.Id == receiverUserId);
+        var (title, content) = NotificationTemplateProvider.GetTemplate(request.Type, request.Data);
+        await SendNotificationToUser(
+            receiverUserId,
+            Guid.NewGuid(),
+            request.Type,
+            title,
+            content,
+            request.Metadata);
+    }
 
+    public async Task SendNotificationToUser(
+        Guid userId,
+        Guid notificationId,
+        NotificationType type,
+        string title,
+        string content,
+        string? metadata,
+        CancellationToken cancellationToken = default)
+    {
+        var receiverExists = await _dbContext.Users
+            .AnyAsync(x => x.Id == userId, cancellationToken);
         if (!receiverExists)
         {
             throw new Exception("Receiver user not found");
         }
 
-        var (title, content) = NotificationTemplateProvider.GetTemplate(request.Type, request.Data);
-
-        var notification = new Repository.Entities.Notification()
+        var notification = await _dbContext.Notifications
+            .FirstOrDefaultAsync(x => x.Id == notificationId, cancellationToken);
+        if (notification == null)
         {
-            Id = Guid.NewGuid(),
-            UserId = receiverUserId,
-            Title = title,
-            Content = content,
-            Type = request.Type,
-            Metadata = request.Metadata,
-            CreatedAt = DateTimeOffset.UtcNow,
-            IsRead = false
-        };
+            notification = new Repository.Entities.Notification
+            {
+                Id = notificationId,
+                UserId = userId,
+                Title = title,
+                Content = content,
+                Type = type,
+                Metadata = metadata,
+                CreatedAt = DateTimeOffset.UtcNow,
+                IsRead = false
+            };
 
-        _dbContext.Notifications.Add(notification);
-        await _dbContext.SaveChangesAsync();
+            _dbContext.Notifications.Add(notification);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
 
-        await _hubContext.Clients.User(receiverUserId.ToString())
-            .SendAsync("ReceiveNotification", new Response.NotificationItem()
+        await _hubContext.Clients.User(userId.ToString())
+            .SendAsync("ReceiveNotification", new Response.NotificationItem
             {
                 Id = notification.Id,
                 Title = notification.Title,
@@ -173,7 +194,7 @@ public class Service : IService
                 Type = notification.Type,
                 IsRead = notification.IsRead,
                 MetaData = notification.Metadata ?? string.Empty,
-                CreatedAt = notification.CreatedAt,
-            });
+                CreatedAt = notification.CreatedAt
+            }, cancellationToken);
     }
 }

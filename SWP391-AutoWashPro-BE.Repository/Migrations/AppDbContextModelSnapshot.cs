@@ -262,6 +262,56 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.ToTable("conversation", (string)null);
                 });
 
+            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.CustomerDateOfBirthCorrection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("AdminUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("admin_user_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<DateOnly>("NewDateOfBirth")
+                        .HasColumnType("date")
+                        .HasColumnName("new_date_of_birth");
+
+                    b.Property<DateOnly?>("PreviousDateOfBirth")
+                        .HasColumnType("date")
+                        .HasColumnName("previous_date_of_birth");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminUserId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("CustomerId");
+
+                    b.ToTable("customer_date_of_birth_correction", (string)null);
+                });
+
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.CustomerProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -279,6 +329,14 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
+
+                    b.Property<DateOnly?>("DateOfBirth")
+                        .HasColumnType("date")
+                        .HasColumnName("date_of_birth");
+
+                    b.Property<DateTimeOffset?>("DateOfBirthSetAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("date_of_birth_set_at");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
@@ -390,6 +448,227 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("notification", (string)null);
+                });
+
+            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.PersonalizedPromotionRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<string>("CallToActionUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("call_to_action_url");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("EmailBodyTemplate")
+                        .HasColumnType("text")
+                        .HasColumnName("email_body_template");
+
+                    b.Property<string>("EmailSubjectTemplate")
+                        .HasColumnType("text")
+                        .HasColumnName("email_subject_template");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("NotificationContentTemplate")
+                        .HasColumnType("text")
+                        .HasColumnName("notification_content_template");
+
+                    b.Property<string>("NotificationTitleTemplate")
+                        .HasColumnType("text")
+                        .HasColumnName("notification_title_template");
+
+                    b.Property<int>("Priority")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("priority");
+
+                    b.Property<Guid>("PromotionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("promotion_id");
+
+                    b.Property<bool>("SendEmail")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("send_email");
+
+                    b.Property<bool>("SendInAppNotification")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("send_in_app_notification");
+
+                    b.Property<int?>("ThresholdDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("threshold_days");
+
+                    b.Property<string>("TriggerType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("trigger_type");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("VoucherValidityDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("voucher_validity_days");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PromotionId");
+
+                    b.HasIndex("ThresholdDays");
+
+                    b.HasIndex("TriggerType");
+
+                    b.HasIndex("IsActive", "TriggerType");
+
+                    b.ToTable("personalized_promotion_rule", (string)null);
+                });
+
+            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.PersonalizedVoucherIssuance", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("CycleKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("cycle_key");
+
+                    b.Property<int>("EmailAttemptCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("email_attempt_count");
+
+                    b.Property<DateTimeOffset?>("EmailLastAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("email_last_attempt_at");
+
+                    b.Property<string>("EmailLastError")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("email_last_error");
+
+                    b.Property<DateTimeOffset?>("EmailSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("email_sent_at");
+
+                    b.Property<string>("EmailStatus")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("email_status");
+
+                    b.Property<int>("NotificationAttemptCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("notification_attempt_count");
+
+                    b.Property<Guid?>("NotificationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("notification_id");
+
+                    b.Property<DateTimeOffset?>("NotificationLastAttemptAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("notification_last_attempt_at");
+
+                    b.Property<string>("NotificationLastError")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("notification_last_error");
+
+                    b.Property<DateTimeOffset?>("NotificationSentAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("notification_sent_at");
+
+                    b.Property<string>("NotificationStatus")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("notification_status");
+
+                    b.Property<Guid>("PromotionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("promotion_id");
+
+                    b.Property<Guid>("PromotionRuleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("promotion_rule_id");
+
+                    b.Property<string>("TriggerReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("trigger_reference");
+
+                    b.Property<string>("TriggerType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("trigger_type");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("VoucherId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("voucher_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("NotificationId")
+                        .IsUnique()
+                        .HasFilter("notification_id IS NOT NULL");
+
+                    b.HasIndex("PromotionId");
+
+                    b.HasIndex("PromotionRuleId");
+
+                    b.HasIndex("VoucherId")
+                        .IsUnique();
+
+                    b.HasIndex("EmailStatus", "EmailAttemptCount");
+
+                    b.HasIndex("NotificationStatus", "NotificationAttemptCount");
+
+                    b.HasIndex("CustomerId", "TriggerType", "CycleKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_personalized_voucher_issuance_customer_trigger_cycle");
+
+                    b.ToTable("personalized_voucher_issuance", (string)null);
                 });
 
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.PointTransaction", b =>
@@ -946,6 +1225,10 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<DateTimeOffset?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("verified_at");
+
                     b.Property<bool>("isVerify")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -1342,6 +1625,25 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.CustomerDateOfBirthCorrection", b =>
+                {
+                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.User", "AdminUser")
+                        .WithMany("DateOfBirthCorrections")
+                        .HasForeignKey("AdminUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.CustomerProfile", "Customer")
+                        .WithMany("DateOfBirthCorrections")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AdminUser");
+
+                    b.Navigation("Customer");
+                });
+
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.CustomerProfile", b =>
                 {
                     b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.Tier", "Tier")
@@ -1370,6 +1672,52 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.PersonalizedPromotionRule", b =>
+                {
+                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.Promotion", "Promotion")
+                        .WithMany("PersonalizedPromotionRules")
+                        .HasForeignKey("PromotionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Promotion");
+                });
+
+            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.PersonalizedVoucherIssuance", b =>
+                {
+                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.CustomerProfile", "Customer")
+                        .WithMany("PersonalizedVoucherIssuances")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.Promotion", "Promotion")
+                        .WithMany("PersonalizedVoucherIssuances")
+                        .HasForeignKey("PromotionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.PersonalizedPromotionRule", "PromotionRule")
+                        .WithMany("Issuances")
+                        .HasForeignKey("PromotionRuleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.Voucher", "Voucher")
+                        .WithOne("PersonalizedVoucherIssuance")
+                        .HasForeignKey("SWP391_AutoWashPro_BE.Repository.Entities.PersonalizedVoucherIssuance", "VoucherId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Promotion");
+
+                    b.Navigation("PromotionRule");
+
+                    b.Navigation("Voucher");
                 });
 
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.PointTransaction", b =>
@@ -1561,6 +1909,10 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                 {
                     b.Navigation("Bookings");
 
+                    b.Navigation("DateOfBirthCorrections");
+
+                    b.Navigation("PersonalizedVoucherIssuances");
+
                     b.Navigation("PointTransactions");
 
                     b.Navigation("Transactions");
@@ -1572,8 +1924,17 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.Navigation("Wallet");
                 });
 
+            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.PersonalizedPromotionRule", b =>
+                {
+                    b.Navigation("Issuances");
+                });
+
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Promotion", b =>
                 {
+                    b.Navigation("PersonalizedPromotionRules");
+
+                    b.Navigation("PersonalizedVoucherIssuances");
+
                     b.Navigation("PromotionTiers");
 
                     b.Navigation("Vouchers");
@@ -1603,6 +1964,8 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
 
                     b.Navigation("CustomerProfile");
 
+                    b.Navigation("DateOfBirthCorrections");
+
                     b.Navigation("Notifications");
 
                     b.Navigation("UpdatedSystemConfigs");
@@ -1625,6 +1988,8 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Voucher", b =>
                 {
                     b.Navigation("Bookings");
+
+                    b.Navigation("PersonalizedVoucherIssuance");
                 });
 #pragma warning restore 612, 618
         }

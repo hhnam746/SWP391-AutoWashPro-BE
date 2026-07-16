@@ -28,6 +28,12 @@ public class AppDbContext : DbContext
     private static readonly ValueConverter<NotificationType, string> NotificationTypeConverter =
         new(v => ToDbNotificationType(v), v => FromDbNotificationType(v));
 
+    private static readonly ValueConverter<PersonalizedVoucherTriggerType, string> PersonalizedVoucherTriggerTypeConverter =
+        new(v => ToDbPersonalizedVoucherTriggerType(v), v => FromDbPersonalizedVoucherTriggerType(v));
+
+    private static readonly ValueConverter<PersonalizedVoucherDeliveryStatus, string> PersonalizedVoucherDeliveryStatusConverter =
+        new(v => ToDbPersonalizedVoucherDeliveryStatus(v), v => FromDbPersonalizedVoucherDeliveryStatus(v));
+
     private static readonly ValueConverter<PointTransactionType, string> PointTransactionTypeConverter =
         new(v => ToDbPointTransactionType(v), v => FromDbPointTransactionType(v));
 
@@ -154,6 +160,7 @@ public class AppDbContext : DbContext
         NotificationType.SystemAlert => "system_alert",
         NotificationType.IdentityApproved => "identity_approved",
         NotificationType.IdentityRejected => "identity_rejected",
+        NotificationType.PersonalizedVoucher => "personalized_voucher",
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 
@@ -168,6 +175,45 @@ public class AppDbContext : DbContext
         "system_alert" => NotificationType.SystemAlert,
         "identity_approved" => NotificationType.IdentityApproved,
         "identity_rejected" => NotificationType.IdentityRejected,
+        "personalized_voucher" => NotificationType.PersonalizedVoucher,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static string ToDbPersonalizedVoucherTriggerType(PersonalizedVoucherTriggerType value) => value switch
+    {
+        PersonalizedVoucherTriggerType.Birthday => "birthday",
+        PersonalizedVoucherTriggerType.InactiveCustomer => "inactive_customer",
+        PersonalizedVoucherTriggerType.Welcome => "welcome",
+        PersonalizedVoucherTriggerType.NoFirstBooking => "no_first_booking",
+        PersonalizedVoucherTriggerType.TierUpgrade => "tier_upgrade",
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static PersonalizedVoucherTriggerType FromDbPersonalizedVoucherTriggerType(string value) => value switch
+    {
+        "birthday" => PersonalizedVoucherTriggerType.Birthday,
+        "inactive_customer" => PersonalizedVoucherTriggerType.InactiveCustomer,
+        "welcome" => PersonalizedVoucherTriggerType.Welcome,
+        "no_first_booking" => PersonalizedVoucherTriggerType.NoFirstBooking,
+        "tier_upgrade" => PersonalizedVoucherTriggerType.TierUpgrade,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static string ToDbPersonalizedVoucherDeliveryStatus(PersonalizedVoucherDeliveryStatus value) => value switch
+    {
+        PersonalizedVoucherDeliveryStatus.NotRequired => "not_required",
+        PersonalizedVoucherDeliveryStatus.Pending => "pending",
+        PersonalizedVoucherDeliveryStatus.Sent => "sent",
+        PersonalizedVoucherDeliveryStatus.Failed => "failed",
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static PersonalizedVoucherDeliveryStatus FromDbPersonalizedVoucherDeliveryStatus(string value) => value switch
+    {
+        "not_required" => PersonalizedVoucherDeliveryStatus.NotRequired,
+        "pending" => PersonalizedVoucherDeliveryStatus.Pending,
+        "sent" => PersonalizedVoucherDeliveryStatus.Sent,
+        "failed" => PersonalizedVoucherDeliveryStatus.Failed,
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 
@@ -274,6 +320,9 @@ public class AppDbContext : DbContext
     public DbSet<Transaction> Transactions { get; set; }
     public DbSet<PointTransaction> PointTransactions { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<PersonalizedPromotionRule> PersonalizedPromotionRules { get; set; }
+    public DbSet<PersonalizedVoucherIssuance> PersonalizedVoucherIssuances { get; set; }
+    public DbSet<CustomerDateOfBirthCorrection> CustomerDateOfBirthCorrections { get; set; }
     public DbSet<Conversation> Conversations { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
 
@@ -291,11 +340,13 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Phone).HasColumnName("phone").IsRequired();
             builder.Property(x => x.PasswordHash).HasColumnName("password_hash").IsRequired();
             builder.Property(x => x.Role).HasColumnName("role").HasConversion(UserRoleConverter)
+                .HasSentinel(UserRole.Customer)
                 .HasDefaultValue(UserRole.Customer).IsRequired();
             builder.Property(x => x.Status).HasColumnName("status").HasConversion(AccountStatusConverter)
                 .HasDefaultValue(AccountStatus.Pending).IsRequired();
             builder.Property(x => x.isVerify).HasColumnName("is_verify").HasDefaultValue(false).IsRequired();
             builder.Property(x => x.LastLoginAt).HasColumnName("last_login_at");
+            builder.Property(x => x.VerifiedAt).HasColumnName("verified_at");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
             builder.Property(x => x.Reason).HasColumnName("reason");
@@ -340,6 +391,8 @@ public class AppDbContext : DbContext
             builder.Property(x => x.TotalPoints).HasColumnName("total_points").HasDefaultValue(0).IsRequired();
             builder.Property(x => x.TotalWashes).HasColumnName("total_washes").HasDefaultValue(0).IsRequired();
             builder.Property(x => x.LastPointActivityAt).HasColumnName("last_point_activity_at");
+            builder.Property(x => x.DateOfBirth).HasColumnName("date_of_birth").HasColumnType("date");
+            builder.Property(x => x.DateOfBirthSetAt).HasColumnName("date_of_birth_set_at");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
@@ -355,6 +408,35 @@ public class AppDbContext : DbContext
             builder.HasOne(x => x.Tier)
                 .WithMany(x => x.CustomerProfiles)
                 .HasForeignKey(x => x.TierId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CustomerDateOfBirthCorrection>(builder =>
+        {
+            builder.ToTable("customer_date_of_birth_correction");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            builder.Property(x => x.CustomerId).HasColumnName("customer_id").IsRequired();
+            builder.Property(x => x.AdminUserId).HasColumnName("admin_user_id").IsRequired();
+            builder.Property(x => x.PreviousDateOfBirth).HasColumnName("previous_date_of_birth").HasColumnType("date");
+            builder.Property(x => x.NewDateOfBirth).HasColumnName("new_date_of_birth").HasColumnType("date").IsRequired();
+            builder.Property(x => x.Reason).HasColumnName("reason").HasColumnType("text").IsRequired();
+            builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            builder.HasIndex(x => x.CustomerId);
+            builder.HasIndex(x => x.AdminUserId);
+            builder.HasIndex(x => x.CreatedAt);
+
+            builder.HasOne(x => x.Customer)
+                .WithMany(x => x.DateOfBirthCorrections)
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.AdminUser)
+                .WithMany(x => x.DateOfBirthCorrections)
+                .HasForeignKey(x => x.AdminUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -667,6 +749,44 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<PersonalizedPromotionRule>(builder =>
+        {
+            builder.ToTable("personalized_promotion_rule");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            builder.Property(x => x.PromotionId).HasColumnName("promotion_id").IsRequired();
+            builder.Property(x => x.TriggerType).HasColumnName("trigger_type")
+                .HasConversion(PersonalizedVoucherTriggerTypeConverter).IsRequired();
+            builder.Property(x => x.ThresholdDays).HasColumnName("threshold_days");
+            builder.Property(x => x.VoucherValidityDays).HasColumnName("voucher_validity_days").IsRequired();
+            builder.Property(x => x.Priority).HasColumnName("priority").HasDefaultValue(0).IsRequired();
+            builder.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true).IsRequired();
+            builder.Property(x => x.SendInAppNotification).HasColumnName("send_in_app_notification")
+                .HasDefaultValue(false).IsRequired();
+            builder.Property(x => x.SendEmail).HasColumnName("send_email").HasDefaultValue(false).IsRequired();
+            builder.Property(x => x.NotificationTitleTemplate).HasColumnName("notification_title_template")
+                .HasColumnType("text");
+            builder.Property(x => x.NotificationContentTemplate).HasColumnName("notification_content_template")
+                .HasColumnType("text");
+            builder.Property(x => x.EmailSubjectTemplate).HasColumnName("email_subject_template")
+                .HasColumnType("text");
+            builder.Property(x => x.EmailBodyTemplate).HasColumnName("email_body_template").HasColumnType("text");
+            builder.Property(x => x.CallToActionUrl).HasColumnName("call_to_action_url").HasMaxLength(500);
+            builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            builder.HasIndex(x => x.PromotionId);
+            builder.HasIndex(x => x.TriggerType);
+            builder.HasIndex(x => x.ThresholdDays);
+            builder.HasIndex(x => new { x.IsActive, x.TriggerType });
+
+            builder.HasOne(x => x.Promotion)
+                .WithMany(x => x.PersonalizedPromotionRules)
+                .HasForeignKey(x => x.PromotionId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<Reward>(builder =>
         {
             builder.ToTable("reward");
@@ -755,6 +875,70 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<PersonalizedVoucherIssuance>(builder =>
+        {
+            builder.ToTable("personalized_voucher_issuance");
+            builder.HasKey(x => x.Id);
+
+            builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
+            builder.Property(x => x.CustomerId).HasColumnName("customer_id").IsRequired();
+            builder.Property(x => x.PromotionId).HasColumnName("promotion_id").IsRequired();
+            builder.Property(x => x.PromotionRuleId).HasColumnName("promotion_rule_id").IsRequired();
+            builder.Property(x => x.VoucherId).HasColumnName("voucher_id").IsRequired();
+            builder.Property(x => x.TriggerType).HasColumnName("trigger_type")
+                .HasConversion(PersonalizedVoucherTriggerTypeConverter).IsRequired();
+            builder.Property(x => x.CycleKey).HasColumnName("cycle_key").HasMaxLength(200).IsRequired();
+            builder.Property(x => x.TriggerReference).HasColumnName("trigger_reference").HasMaxLength(200);
+            builder.Property(x => x.NotificationId).HasColumnName("notification_id");
+            builder.Property(x => x.NotificationStatus).HasColumnName("notification_status")
+                .HasConversion(PersonalizedVoucherDeliveryStatusConverter).IsRequired();
+            builder.Property(x => x.NotificationAttemptCount).HasColumnName("notification_attempt_count")
+                .HasDefaultValue(0).IsRequired();
+            builder.Property(x => x.NotificationLastAttemptAt).HasColumnName("notification_last_attempt_at");
+            builder.Property(x => x.NotificationSentAt).HasColumnName("notification_sent_at");
+            builder.Property(x => x.NotificationLastError).HasColumnName("notification_last_error").HasMaxLength(200);
+            builder.Property(x => x.EmailStatus).HasColumnName("email_status")
+                .HasConversion(PersonalizedVoucherDeliveryStatusConverter).IsRequired();
+            builder.Property(x => x.EmailAttemptCount).HasColumnName("email_attempt_count")
+                .HasDefaultValue(0).IsRequired();
+            builder.Property(x => x.EmailLastAttemptAt).HasColumnName("email_last_attempt_at");
+            builder.Property(x => x.EmailSentAt).HasColumnName("email_sent_at");
+            builder.Property(x => x.EmailLastError).HasColumnName("email_last_error").HasMaxLength(200);
+            builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
+            builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+            builder.HasIndex(x => x.CustomerId);
+            builder.HasIndex(x => x.PromotionId);
+            builder.HasIndex(x => x.PromotionRuleId);
+            builder.HasIndex(x => x.VoucherId).IsUnique();
+            builder.HasIndex(x => x.NotificationId).IsUnique().HasFilter("notification_id IS NOT NULL");
+            builder.HasIndex(x => new { x.CustomerId, x.TriggerType, x.CycleKey })
+                .IsUnique()
+                .HasDatabaseName("UX_personalized_voucher_issuance_customer_trigger_cycle");
+            builder.HasIndex(x => new { x.NotificationStatus, x.NotificationAttemptCount });
+            builder.HasIndex(x => new { x.EmailStatus, x.EmailAttemptCount });
+
+            builder.HasOne(x => x.Customer)
+                .WithMany(x => x.PersonalizedVoucherIssuances)
+                .HasForeignKey(x => x.CustomerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.Promotion)
+                .WithMany(x => x.PersonalizedVoucherIssuances)
+                .HasForeignKey(x => x.PromotionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.PromotionRule)
+                .WithMany(x => x.Issuances)
+                .HasForeignKey(x => x.PromotionRuleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(x => x.Voucher)
+                .WithOne(x => x.PersonalizedVoucherIssuance)
+                .HasForeignKey<PersonalizedVoucherIssuance>(x => x.VoucherId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         modelBuilder.Entity<Booking>(builder =>
         {
             builder.ToTable("booking");
@@ -769,6 +953,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.StartTime).HasColumnName("start_time").IsRequired();
             builder.Property(x => x.EndTime).HasColumnName("end_time").IsRequired();
             builder.Property(x => x.Status).HasColumnName("status").HasConversion(BookingStatusConverter)
+                .HasSentinel(BookingStatus.Pending)
                 .HasDefaultValue(BookingStatus.Pending).IsRequired();
             builder.Property(x => x.BasePrice).HasColumnName("base_price").HasColumnType("numeric(12,2)").IsRequired();
             builder.Property(x => x.DiscountAmount).HasColumnName("discount_amount").HasColumnType("numeric(12,2)")
