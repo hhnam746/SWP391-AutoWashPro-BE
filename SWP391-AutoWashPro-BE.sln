@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SWP391-AutoWashPro-BE.Servi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SWP391-AutoWashPro-BE.Repository", "SWP391-AutoWashPro-BE.Repository\SWP391-AutoWashPro-BE.Repository.csproj", "{8091C7BA-C80B-4620-9D2D-827A4616A215}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SWP391-AutoWashPro-BE.Tests", "SWP391-AutoWashPro-BE.Tests\SWP391-AutoWashPro-BE.Tests.csproj", "{F7D03C7D-8247-46EA-9E95-924CC91790A0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{8091C7BA-C80B-4620-9D2D-827A4616A215}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8091C7BA-C80B-4620-9D2D-827A4616A215}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8091C7BA-C80B-4620-9D2D-827A4616A215}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F7D03C7D-8247-46EA-9E95-924CC91790A0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F7D03C7D-8247-46EA-9E95-924CC91790A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F7D03C7D-8247-46EA-9E95-924CC91790A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F7D03C7D-8247-46EA-9E95-924CC91790A0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

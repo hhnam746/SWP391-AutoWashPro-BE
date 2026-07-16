@@ -2,7 +2,7 @@ namespace SWP391_AutoWashPro_BE.Service.MailService;
 
 public interface IService
 {
-    public Task SendMail(MailContent mailContent);
+    public Task SendMail(MailContent mailContent, CancellationToken cancellationToken = default);
 }
 
 public class MailContent

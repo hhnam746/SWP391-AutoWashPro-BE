@@ -54,9 +54,11 @@ public class BookingController:ControllerBase
     }
 
     [HttpPost("{id}/check-in")]
-    public async Task<IActionResult> CheckInBooking([FromRoute]Guid id)
+    public async Task<IActionResult> CheckInBooking(
+        [FromRoute] Guid id,
+        CancellationToken cancellationToken)
     {
-        var result = await _service.CheckInBooking(id);
+        var result = await _service.CheckInBooking(id, cancellationToken);
         return Ok(result);
     }
 

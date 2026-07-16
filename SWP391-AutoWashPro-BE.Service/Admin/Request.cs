@@ -93,4 +93,10 @@ public class Request
     {
         public required string RejectReason { get; set; }
     }
+
+    public class CorrectCustomerDateOfBirthRequest
+    {
+        public DateOnly DateOfBirth { get; set; }
+        public required string Reason { get; set; }
+    }
 }

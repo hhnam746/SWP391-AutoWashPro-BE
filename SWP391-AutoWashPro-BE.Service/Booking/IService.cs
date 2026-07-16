@@ -8,7 +8,11 @@ public interface IService
     public Task<Response.CreateBookingResponse> CreateBooking (Request.CreateBookingRequest bookingRequest);
     public Task<Response.GetBookingsResponse> GetBookings(BookingStatus? status, DateOnly fromDate, DateOnly toDate, int page, int pageSize);
     public Task<Response.GetBookingDetailResponse> GetBookingById (Guid bookingId);
-    public Task<Response.CheckInBookingResponse> CheckInBooking (Guid Id);
-    public Task<Response.CheckInBookingResponse> CheckInBookingByAdmin(Guid bookingId);
+    public Task<Response.CheckInBookingResponse> CheckInBooking(
+        Guid Id,
+        CancellationToken cancellationToken = default);
+    public Task<Response.CheckInBookingResponse> CheckInBookingByAdmin(
+        Guid bookingId,
+        CancellationToken cancellationToken = default);
     public Task<Response.CancelBookingResponse> CancelBooking (Guid Id, Request.CancelBookingRequest bookingRequest);
 }
