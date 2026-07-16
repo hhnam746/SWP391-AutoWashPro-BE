@@ -85,9 +85,11 @@ public class AdminController : ControllerBase
     }
 
     [HttpPost("bookings/{bookingId:guid}/check-in")]
-    public async Task<IActionResult> CheckInBookingByAdmin([FromRoute] Guid bookingId)
+    public async Task<IActionResult> CheckInBookingByAdmin(
+        [FromRoute] Guid bookingId,
+        CancellationToken cancellationToken)
     {
-        var result = await _adminService.CheckInBookingByAdmin(bookingId);
+        var result = await _adminService.CheckInBookingByAdmin(bookingId, cancellationToken);
         return Ok(ApiResponseFactory.SuccessResponse(result, result.Message, HttpContext.TraceIdentifier));
     }
 
@@ -158,6 +160,19 @@ public class AdminController : ControllerBase
     {
         var result = await _adminService.UpdateUserStatusById(id, request);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Update user status", HttpContext.TraceIdentifier));
+    }
+
+    [HttpPatch("customers/{id:guid}/date-of-birth")]
+    public async Task<IActionResult> CorrectCustomerDateOfBirth(
+        [FromRoute] Guid id,
+        [FromBody] Request.CorrectCustomerDateOfBirthRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _adminService.CorrectCustomerDateOfBirth(id, request, cancellationToken);
+        return Ok(ApiResponseFactory.SuccessResponse(
+            result,
+            "Correct customer date of birth successfully",
+            HttpContext.TraceIdentifier));
     }
 
     [HttpGet("users/{id:guid}/status")]

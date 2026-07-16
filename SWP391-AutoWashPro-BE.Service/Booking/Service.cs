@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.Base;
+using PersonalizedVoucherService = SWP391_AutoWashPro_BE.Service.PersonalizedVoucher;
 
 namespace SWP391_AutoWashPro_BE.Service.Booking;
 
@@ -13,14 +15,23 @@ public class Service : IService
     private readonly IHttpContextAccessor _httpContext;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly Notification.IService _notificationService;
+    private readonly PersonalizedVoucherService.IAudienceService _personalizedVoucherAudienceService;
+    private readonly ILogger<Service> _logger;
 
-    public Service(AppDbContext dbContext, IHttpContextAccessor httpContext, IServiceScopeFactory serviceScopeFactory,
-        Notification.IService notificationService)
+    public Service(
+        AppDbContext dbContext,
+        IHttpContextAccessor httpContext,
+        IServiceScopeFactory serviceScopeFactory,
+        Notification.IService notificationService,
+        PersonalizedVoucherService.IAudienceService personalizedVoucherAudienceService,
+        ILogger<Service> logger)
     {
         _dbContext = dbContext;
         _httpContext = httpContext;
         _serviceScopeFactory = serviceScopeFactory;
         _notificationService = notificationService;
+        _personalizedVoucherAudienceService = personalizedVoucherAudienceService;
+        _logger = logger;
     }
 
 
@@ -363,12 +374,15 @@ public class Service : IService
         }
 
         //Discount Voucher
+        var nowUtc = DateTimeOffset.UtcNow;
         var voucherDiscountAmount = (decimal)0;
         Repository.Entities.Voucher? voucher = null;
+        Guid? excludedPromotionId = null;
 
         if (bookingRequest.VoucherId.HasValue)
         {
             voucher = await _dbContext.Vouchers
+                .Include(x => x.PersonalizedVoucherIssuance)
                 .FirstOrDefaultAsync(x =>
                     x.Id == bookingRequest.VoucherId.Value &&
                     x.CustomerId == customerProfile.Id);
@@ -379,7 +393,7 @@ public class Service : IService
             if (voucher.Status != VoucherStatus.Active)
                 throw new Exception("Voucher is inactive");
 
-            if (voucher.ExpiresAt < DateTimeOffset.UtcNow)
+            if (voucher.ExpiresAt < nowUtc)
                 throw new Exception("Voucher expired");
 
             if (voucher.UsedAt != null)
@@ -387,6 +401,15 @@ public class Service : IService
 
             if (voucher.DiscountValue <= 0)
                 throw new Exception("Voucher has no discount value");
+
+            if (voucher.PersonalizedVoucherIssuance != null &&
+                PersonalizedVoucherService.PersonalizationPolicy.IsAcquisitionTrigger(
+                    voucher.PersonalizedVoucherIssuance.TriggerType) &&
+                await _dbContext.Bookings.AnyAsync(x => x.CustomerId == customerProfile.Id))
+            {
+                throw new InvalidOperationException(
+                    "Welcome and no-first-booking vouchers can only be used for the customer's first booking.");
+            }
 
             if (voucher.DiscountType == DiscountType.FixedAmount)
             {
@@ -396,14 +419,24 @@ public class Service : IService
             {
                 voucherDiscountAmount += (basePrice * voucher.DiscountValue) / 100;
             }
+
+            excludedPromotionId = voucher.PromotionId;
         }
 
         //Discount by promotion
         decimal promotionDiscountAmount = 0;
 
+        var eligiblePromotions = _dbContext.Promotions
+            .Where(x =>
+                x.IsActive &&
+                !x.IsDeleted &&
+                x.StartDate <= nowUtc &&
+                x.EndDate > nowUtc &&
+                (!excludedPromotionId.HasValue || x.Id != excludedPromotionId.Value));
+
         // Global Promotions
-        var globalPromotions = await _dbContext.Promotions
-            .Where(x => x.IsActive == true && x.IsGlobal == true)
+        var globalPromotions = await eligiblePromotions
+            .Where(x => x.IsGlobal == true)
             .ToListAsync();
 
         foreach (var promotion in globalPromotions)
@@ -421,13 +454,14 @@ public class Service : IService
         }
 
         // Tier Promotion
-        var tierPromotion = await _dbContext.PromotionTiers
-            .Include(x => x.Promotion)
-            .FirstOrDefaultAsync(x => x.TierId == customerProfile.TierId);
+        var tierPromotion = await eligiblePromotions
+            .FirstOrDefaultAsync(x =>
+                x.PromotionTiers.Any(promotionTier =>
+                    promotionTier.TierId == customerProfile.TierId));
 
         if (tierPromotion != null)
         {
-            var promotion = tierPromotion.Promotion;
+            var promotion = tierPromotion;
 
             if (promotion.DiscountType == DiscountType.Percentage)
             {
@@ -865,7 +899,9 @@ public class Service : IService
         return result;
     }
 
-    public async Task<Response.CheckInBookingResponse> CheckInBooking(Guid Id)
+    public async Task<Response.CheckInBookingResponse> CheckInBooking(
+        Guid Id,
+        CancellationToken cancellationToken = default)
     {
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
@@ -893,10 +929,16 @@ public class Service : IService
                 "Booking not found, does not belong to the current customer, or is no longer confirmed.");
         }
 
-        return await ProcessCheckInBooking(booking, customerProfile, userIdGuid);
+        return await ProcessCheckInBooking(
+            booking,
+            customerProfile,
+            userIdGuid,
+            cancellationToken);
     }
 
-    public async Task<Response.CheckInBookingResponse> CheckInBookingByAdmin(Guid bookingId)
+    public async Task<Response.CheckInBookingResponse> CheckInBookingByAdmin(
+        Guid bookingId,
+        CancellationToken cancellationToken = default)
     {
         var booking = await _dbContext.Bookings
             .FirstOrDefaultAsync(x => x.Id == bookingId);
@@ -920,13 +962,18 @@ public class Service : IService
             throw new KeyNotFoundException("Customer profile not found.");
         }
 
-        return await ProcessCheckInBooking(booking, customerProfile, customerProfile.UserId);
+        return await ProcessCheckInBooking(
+            booking,
+            customerProfile,
+            customerProfile.UserId,
+            cancellationToken);
     }
 
     private async Task<Response.CheckInBookingResponse> ProcessCheckInBooking(
         Repository.Entities.Booking booking,
         Repository.Entities.CustomerProfile customerProfile,
-        Guid customerUserId)
+        Guid customerUserId,
+        CancellationToken cancellationToken)
     {
         var cancelTimeConfig = await _dbContext.SystemConfigs
                                    .FirstOrDefaultAsync(x => x.ConfigKey == "CancelTimeMinutes")
@@ -950,6 +997,7 @@ public class Service : IService
             throw new Exception("Check-in time has expired.");
         }
         var msg = "";
+        Guid? upgradedTierId = null;
         var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
         var voucher = await _dbContext.Vouchers.FirstOrDefaultAsync(x => x.Id == booking.VoucherId);
         if (wallet == null)
@@ -1018,6 +1066,7 @@ public class Service : IService
             {
                 customerProfile.TierId = nextTier.Id;
                 customerProfile.Tier = nextTier;
+                upgradedTierId = nextTier.Id;
                 var notification = new Repository.Entities.Notification()
                 {
                     Id = Guid.NewGuid(),
@@ -1100,7 +1149,30 @@ public class Service : IService
             // });
         }
 
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (upgradedTierId.HasValue)
+        {
+            try
+            {
+                await _personalizedVoucherAudienceService.ProcessTierUpgradeAsync(
+                    customerProfile.Id,
+                    upgradedTierId.Value,
+                    booking.Id,
+                    cancellationToken);
+            }
+            catch
+            {
+                _logger.LogWarning(
+                    "Tier upgrade personalization failed after check-in commit. CustomerId={CustomerId}, TriggerType={TriggerType}, CycleKey={CycleKey}, BookingId={BookingId}, ErrorCode={ErrorCode}.",
+                    customerProfile.Id,
+                    PersonalizedVoucherTriggerType.TierUpgrade,
+                    PersonalizedVoucherService.PersonalizationPolicy.CreateTierUpgradeCycleKey(
+                        upgradedTierId.Value),
+                    booking.Id,
+                    "TIER_UPGRADE_PERSONALIZATION_FAILED");
+            }
+        }
 
         var result = new Response.CheckInBookingResponse
         {

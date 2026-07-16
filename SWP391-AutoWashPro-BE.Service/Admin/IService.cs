@@ -21,6 +21,10 @@ public interface IService
     public Task<Response.GetUserByIdResponse> GetUserById(Guid userId);
     public Task<Response.GetUserStatusResponse> GetUserStatusById(Guid userId);
     public Task<string> UpdateUserStatusById(Guid userId, Request.UpdateUserByStatusRequest request);
+    public Task<string> CorrectCustomerDateOfBirth(
+        Guid userId,
+        Request.CorrectCustomerDateOfBirthRequest request,
+        CancellationToken cancellationToken = default);
 
     public Task<Base.Response.PageResult<Response.BookingResponse>> GetBookings(
         Request.GetBookingRequest request);
@@ -31,7 +35,9 @@ public interface IService
     public Task<Response.CompleteBookingByAdminResponse> CompleteBookingByAdmin(
         Guid bookingId,
         Request.CompleteBookingByAdminRequest request);
-    public Task<Booking.Response.CheckInBookingResponse> CheckInBookingByAdmin(Guid bookingId);
+    public Task<Booking.Response.CheckInBookingResponse> CheckInBookingByAdmin(
+        Guid bookingId,
+        CancellationToken cancellationToken = default);
     public Task<Response.CancelBookingByAdminResponse> CancelBookingByAdmin(
         Guid bookingId,
         Request.CancelBookingByAdminRequest request);

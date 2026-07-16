@@ -20,4 +20,8 @@ public class Promotion : BaseEntity, IAuditableEntity
 
     public ICollection<PromotionTier> PromotionTiers { get; set; } = new List<PromotionTier>();
     public ICollection<Voucher> Vouchers { get; set; } = new List<Voucher>();
+    public ICollection<PersonalizedPromotionRule> PersonalizedPromotionRules { get; set; } =
+        new List<PersonalizedPromotionRule>();
+    public ICollection<PersonalizedVoucherIssuance> PersonalizedVoucherIssuances { get; set; } =
+        new List<PersonalizedVoucherIssuance>();
 }
