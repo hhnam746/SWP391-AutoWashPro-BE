@@ -790,7 +790,7 @@ public class Service : IService
             .AsNoTracking()
             .Include(x => x.CustomerProfile)
             .ThenInclude(x => x!.Tier)
-            .Where(x => x.isVerify && x.Status == AccountStatus.Active &&
+            .Where(x => x.isVerify && x.Status == AccountStatus.Active || x.Status == AccountStatus.Locked &&
                         x.Role == UserRole.Customer &&
                         x.CustomerProfile != null);
 
