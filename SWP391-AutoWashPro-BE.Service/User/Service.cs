@@ -171,7 +171,7 @@ public class Service : IService
             if (profile.DateOfBirth.HasValue && profile.DateOfBirth.Value != request.DateOfBirth.Value)
             {
                 throw new InvalidOperationException(
-                    "Date of birth has already been set. Contact an administrator to request a correction.");
+                    "Date of birth can only be set once by the customer. Contact an administrator to request a correction.");
             }
 
             if (!profile.DateOfBirth.HasValue)
