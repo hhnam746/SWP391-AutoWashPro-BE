@@ -99,7 +99,10 @@ public class Service : IService
 
         // Lấy promotion theo tier
         var promotionIds = await _dbContext.PromotionTiers
-            .Where(x => x.TierId == customerProfile.TierId)
+            .Where(x =>
+                x.TierId == customerProfile.TierId &&
+                !x.IsDeleted &&
+                !x.Tier.IsDeleted)
             .Select(x => x.PromotionId)
             .ToListAsync();
 
@@ -144,7 +147,9 @@ public class Service : IService
             throw new Exception("Customer profile not found");
 
         var rewards = await _dbContext.Rewards
-            .Include(x => x.RewardTiers)
+            .Where(x => x.IsActive)
+            .Include(x => x.RewardTiers
+                .Where(rt => !rt.IsDeleted && !rt.Tier.IsDeleted))
             .ThenInclude(x => x.Tier)
             .ToListAsync();
 
@@ -162,9 +167,13 @@ public class Service : IService
 
                 IsRedeemable = x.QuantityAvailable > 0 &&
                                customerProfile.TotalPoints >= x.PointsRequired &&
-                               x.RewardTiers.Any(rt => rt.TierId == customerProfile.TierId),
+                               x.RewardTiers.Any(rt =>
+                                   rt.TierId == customerProfile.TierId &&
+                                   !rt.IsDeleted &&
+                                   !rt.Tier.IsDeleted),
 
                 AllowedTiers = x.RewardTiers
+                    .Where(rt => !rt.IsDeleted && !rt.Tier.IsDeleted)
                     .Select(rt => new Response.AllowedTierItem
                     {
                         Id = rt.Tier.Id,

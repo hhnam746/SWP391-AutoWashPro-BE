@@ -50,7 +50,11 @@ public class Service : IService
 
         var benefits = await _dbContext.RewardTiers
             .AsNoTracking()
-            .Where(x => x.TierId == customer.TierId)
+            .Where(x =>
+                x.TierId == customer.TierId &&
+                !x.IsDeleted &&
+                !x.Tier.IsDeleted &&
+                x.Reward.IsActive)
             .Select(x => x.Reward.Name)
             .Distinct()
             .ToListAsync();

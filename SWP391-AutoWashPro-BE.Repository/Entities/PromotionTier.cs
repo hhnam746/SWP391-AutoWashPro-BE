@@ -5,6 +5,7 @@ namespace SWP391_AutoWashPro_BE.Repository.Entities;
 public class PromotionTier : BaseEntity, IAuditableEntity
 {
     public Guid TierId { get; set; }
+    public bool IsDeleted { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
     public Guid PromotionId { get; set; }
