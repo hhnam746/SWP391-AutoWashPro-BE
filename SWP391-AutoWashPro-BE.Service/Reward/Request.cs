@@ -17,4 +17,18 @@ public class Request
         public bool IsActive { get; set; }
         public List<Guid> TierIds { get; set; } = [];
     }
+
+    public class UpdateRewardRequest
+    {
+        public string? Name { get; set; }
+        public RewardType? RewardType { get; set; }
+        public int? PointsRequired { get; set; }
+        public int? QuantityAvailable { get; set; }
+        public int? ValidDays { get; set; }
+        public string? Description { get; set; }
+        public DiscountType? DiscountType { get; set; }
+        public decimal? DiscountValue { get; set; }
+        public bool? IsActive { get; set; }
+        public List<Guid>? TierIds { get; set; }
+    }
 }

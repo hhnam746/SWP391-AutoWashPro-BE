@@ -13,6 +13,8 @@ public class Response
         public int QuantityAvailable { get; set; }
         public int ValidDays { get; set; }
         public string? Description { get; set; }
+        public DiscountType DiscountType { get; set; }
+        public decimal DiscountValue { get; set; }
         public bool IsActive { get; set; }
         public List<Guid> TierIds { get; set; } = new();
         public DateTimeOffset CreatedAt { get; set; }
