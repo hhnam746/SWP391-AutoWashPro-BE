@@ -6,7 +6,7 @@ public interface IService
         int pageIndex);
     public Task<string> CreateReward(Request.RewardRequest request);
 
-    public Task<string> UpdateReward(Guid id, Request.RewardRequest request);
+    public Task<string> UpdateReward(Guid id, Request.UpdateRewardRequest request);
     
     public Task<string> DeleteReward(Guid id);
     

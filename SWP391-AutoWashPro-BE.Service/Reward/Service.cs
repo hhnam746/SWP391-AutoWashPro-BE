@@ -40,8 +40,11 @@ public class Service : IService
             QuantityAvailable = x.QuantityAvailable,
             ValidDays = x.ValidDays,
             Description = x.Description,
+            DiscountType = x.DiscountType,
+            DiscountValue = x.DiscountValue,
             IsActive = x.IsActive,
             TierIds = x.RewardTiers
+                .Where(rt => !rt.Tier.IsDeleted)
                 .Select(rt => rt.TierId)
                 .ToList()
         });
@@ -65,13 +68,13 @@ public class Service : IService
         var exist = await _dbContext.Rewards.AnyAsync(x => x.Name == request.Name);
         if (exist)
         {
-            throw new Exception("Reward already exists");
+            throw new InvalidOperationException("Reward already exists");
         }
         
         
         if (request.TierIds == null || !request.TierIds.Any())
         {
-            throw new Exception("Please select at least one tier");
+            throw new ArgumentException("Please select at least one tier");
         }
       
         var tierIds = request.TierIds.Distinct().ToList();
@@ -81,19 +84,15 @@ public class Service : IService
 
         if (validTierCount != tierIds.Count)
         {
-            throw new Exception("One or more selected tiers are invalid or have been deleted.");
-        }
-        
-        if (request.DiscountValue <= 0)
-        {
-            throw new Exception("Discount value must be greater than 0.");
+            throw new ArgumentException("One or more selected tiers are invalid or have been deleted.");
         }
 
-        if (request.DiscountType == DiscountType.Percentage &&
-            request.DiscountValue > 100)
-        {
-            throw new Exception("Percentage discount cannot exceed 100.");
-        }
+        ValidateRewardValues(
+            request.PointsRequired,
+            request.QuantityAvailable,
+            request.ValidDays,
+            request.DiscountType,
+            request.DiscountValue);
 
         var newReward = new Repository.Entities.Reward()
         {
@@ -126,78 +125,105 @@ public class Service : IService
         return "Reward created successfully";
     }
 
-    public async Task<string> UpdateReward(Guid id, Request.RewardRequest request)
+    public async Task<string> UpdateReward(Guid id, Request.UpdateRewardRequest request)
     {
         var reward = await _dbContext.Rewards
             .FirstOrDefaultAsync(x => x.Id == id);
 
         if (reward == null)
         {
-            throw new Exception("Reward not found");
-        }
-        
-        var exist = await _dbContext.Rewards.AnyAsync(x =>
-            x.Id != id &&
-            x.Name == request.Name);
-
-        if (exist)
-        {
-            throw new Exception("Reward already exists");
-        }
-        
-        if (request.TierIds == null || !request.TierIds.Any())
-            throw new Exception("Please select at least one tier");
-
-        var tierIds = request.TierIds.Distinct().ToList();
-
-        var validTierCount = await _dbContext.Tiers
-            .CountAsync(t => tierIds.Contains(t.Id) && !t.IsDeleted);
-
-        if (validTierCount != tierIds.Count)
-        {
-            throw new Exception("One or more selected tiers are invalid or have been deleted.");
-        }
-        
-        if (request.DiscountValue <= 0)
-        {
-            throw new Exception("Discount value must be greater than 0.");
+            throw new KeyNotFoundException("Reward not found");
         }
 
-        if (request.DiscountType == DiscountType.Percentage &&
-            request.DiscountValue >= 100)
+        if (request.Name != null)
         {
-            throw new Exception("Percentage discount cannot exceed 100.");
-        }
-        
-        reward.Name = request.Name;
-        reward.RewardType = request.RewardType;
-        reward.PointsRequired = request.PointsRequired;
-        reward.QuantityAvailable = request.QuantityAvailable;
-        reward.ValidDays = request.ValidDays;
-        reward.DiscountType = request.DiscountType;
-        reward.DiscountValue = request.DiscountValue;
-        reward.Description = request.Description;
-        reward.IsActive = request.IsActive;
-        reward.UpdatedAt = DateTimeOffset.UtcNow;
+            var exist = await _dbContext.Rewards.AnyAsync(x =>
+                x.Id != id &&
+                x.Name == request.Name);
 
-        var oldRewardTiers = await _dbContext.RewardTiers
-            .Where(x => x.RewardId == reward.Id)
-            .ToListAsync();
-
-        _dbContext.RewardTiers.RemoveRange(oldRewardTiers);
-
-        foreach (var tierId in tierIds)
-        {
-            _dbContext.RewardTiers.Add(new RewardTier
+            if (exist)
             {
-                RewardId = reward.Id,
-                TierId = tierId,
-                CreatedAt = DateTimeOffset.UtcNow
-            });
+                throw new InvalidOperationException("Reward already exists");
+            }
+
+            reward.Name = request.Name;
         }
-        
+
+        if (request.RewardType.HasValue)
+            reward.RewardType = request.RewardType.Value;
+        if (request.PointsRequired.HasValue)
+            reward.PointsRequired = request.PointsRequired.Value;
+        if (request.QuantityAvailable.HasValue)
+            reward.QuantityAvailable = request.QuantityAvailable.Value;
+        if (request.ValidDays.HasValue)
+            reward.ValidDays = request.ValidDays.Value;
+        if (request.Description != null)
+            reward.Description = request.Description;
+        if (request.DiscountType.HasValue)
+            reward.DiscountType = request.DiscountType.Value;
+        if (request.DiscountValue.HasValue)
+            reward.DiscountValue = request.DiscountValue.Value;
+        if (request.IsActive.HasValue)
+            reward.IsActive = request.IsActive.Value;
+
+        ValidateRewardValues(
+            reward.PointsRequired,
+            reward.QuantityAvailable,
+            reward.ValidDays,
+            reward.DiscountType,
+            reward.DiscountValue);
+
+        if (request.TierIds != null)
+        {
+            if (!request.TierIds.Any())
+                throw new ArgumentException("Please select at least one tier");
+
+            var tierIds = request.TierIds.Distinct().ToList();
+            var validTierCount = await _dbContext.Tiers
+                .CountAsync(t => tierIds.Contains(t.Id) && !t.IsDeleted);
+
+            if (validTierCount != tierIds.Count)
+                throw new ArgumentException("One or more selected tiers are invalid or have been deleted.");
+
+            var oldRewardTiers = await _dbContext.RewardTiers
+                .Where(x => x.RewardId == reward.Id)
+                .ToListAsync();
+
+            _dbContext.RewardTiers.RemoveRange(oldRewardTiers);
+
+            foreach (var tierId in tierIds)
+            {
+                _dbContext.RewardTiers.Add(new RewardTier
+                {
+                    RewardId = reward.Id,
+                    TierId = tierId,
+                    CreatedAt = DateTimeOffset.UtcNow
+                });
+            }
+        }
+
+        reward.UpdatedAt = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync();
         return "Reward updated successfully";
+    }
+
+    private static void ValidateRewardValues(
+        int pointsRequired,
+        int quantityAvailable,
+        int validDays,
+        DiscountType discountType,
+        decimal discountValue)
+    {
+        if (pointsRequired <= 0)
+            throw new ArgumentException("Points required must be greater than 0.");
+        if (quantityAvailable < 0)
+            throw new ArgumentException("Quantity available cannot be negative.");
+        if (validDays <= 0)
+            throw new ArgumentException("Valid days must be greater than 0.");
+        if (discountValue <= 0)
+            throw new ArgumentException("Discount value must be greater than 0.");
+        if (discountType == DiscountType.Percentage && discountValue > 100)
+            throw new ArgumentException("Percentage discount cannot exceed 100.");
     }
 
     public async Task<string> DeleteReward(Guid id)
