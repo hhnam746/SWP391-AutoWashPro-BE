@@ -72,6 +72,7 @@ public class Service : IService
         var rule = await _dbContext.PersonalizedPromotionRules
             .Include(x => x.Promotion)
             .ThenInclude(x => x.PromotionTiers)
+            .ThenInclude(x => x.Tier)
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == promotionRuleId, cancellationToken);
 
@@ -93,7 +94,10 @@ public class Service : IService
         }
 
         var canUsePromotion = promotion.IsGlobal == true ||
-                              promotion.PromotionTiers.Any(x => x.TierId == customer.TierId);
+                              promotion.PromotionTiers.Any(x =>
+                                  x.TierId == customer.TierId &&
+                                  !x.IsDeleted &&
+                                  !x.Tier.IsDeleted);
         if (!canUsePromotion)
         {
             return Skipped("Customer tier is not eligible for the promotion.");

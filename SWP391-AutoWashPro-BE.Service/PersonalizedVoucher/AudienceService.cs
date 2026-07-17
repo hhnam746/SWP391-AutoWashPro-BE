@@ -347,6 +347,7 @@ public class AudienceService : IAudienceService
             .AsNoTracking()
             .Include(x => x.Promotion)
             .ThenInclude(x => x.PromotionTiers)
+            .ThenInclude(x => x.Tier)
             .Where(x =>
                 x.TriggerType == triggerType &&
                 x.IsActive &&
@@ -370,7 +371,10 @@ public class AudienceService : IAudienceService
 
     private static bool IsTierEligible(Repository.Entities.Promotion promotion, Guid tierId)
     {
-        return promotion.IsGlobal == true || promotion.PromotionTiers.Any(x => x.TierId == tierId);
+        return promotion.IsGlobal == true || promotion.PromotionTiers.Any(x =>
+            x.TierId == tierId &&
+            !x.IsDeleted &&
+            !x.Tier.IsDeleted);
     }
 
     private int BatchSize => Math.Max(1, _options.BatchSize);

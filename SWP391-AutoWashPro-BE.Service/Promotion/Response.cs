@@ -15,5 +15,6 @@ public class Response
         public DateTimeOffset EndDate { get; set; }
         public bool? IsGlobal { get; set; }
         public bool IsActive { get; set; }
+        public List<Guid> TierIds { get; set; } = [];
     }
 }

@@ -457,7 +457,9 @@ public class Service : IService
         var tierPromotion = await eligiblePromotions
             .FirstOrDefaultAsync(x =>
                 x.PromotionTiers.Any(promotionTier =>
-                    promotionTier.TierId == customerProfile.TierId));
+                    promotionTier.TierId == customerProfile.TierId &&
+                    !promotionTier.IsDeleted &&
+                    !promotionTier.Tier.IsDeleted));
 
         if (tierPromotion != null)
         {

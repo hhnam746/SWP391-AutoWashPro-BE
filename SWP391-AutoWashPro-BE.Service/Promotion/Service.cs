@@ -40,7 +40,11 @@ public class Service: IService
             StartDate = x.StartDate,
             EndDate = x.EndDate,
             IsGlobal = x.IsGlobal,
-            IsActive = x.IsActive
+            IsActive = x.IsActive,
+            TierIds = x.PromotionTiers
+                .Where(pt => !pt.IsDeleted && !pt.Tier.IsDeleted)
+                .Select(pt => pt.TierId)
+                .ToList()
         });
         var listResult = await selected.ToListAsync();
         var totalItems = listResult.Count;
@@ -111,6 +115,7 @@ public class Service: IService
                 {
                     PromotionId = newPromotion.Id,
                     TierId = tierId,
+                    IsDeleted = false,
                     CreatedAt = DateTimeOffset.UtcNow
                 });
             }
@@ -202,45 +207,59 @@ public class Service: IService
 
         if (promotion.DiscountType == DiscountType.Percentage && promotion.DiscountValue >= 100)
             throw new Exception("Percentage discount must be less than 100");
+        if (request.IsGlobal == false && request.TierIds == null)
+            throw new ArgumentException("Please select at least one tier when changing to a tier-specific promotion");
         if (promotion.IsGlobal == false && request.TierIds != null && !request.TierIds.Any())
-            throw new Exception("Please select at least one tier");
-        if (request.TierIds != null)
+            throw new ArgumentException("Please select at least one tier");
+
+        var shouldSynchronizeTierLinks = request.TierIds != null || request.IsGlobal == true;
+        if (shouldSynchronizeTierLinks)
         {
             if (promotion.IsGlobal == false)
             {
-                if (!request.TierIds.Any())
+                if (!request.TierIds!.Any())
                 {
-                    throw new Exception("Please select at least one tier");
+                    throw new ArgumentException("Please select at least one tier");
                 }
 
-                var tierIds = request.TierIds.Distinct().ToList();
+                var tierIds = request.TierIds!.Distinct().ToHashSet();
 
                 var validTierCount = await _dbContext.Tiers
                     .CountAsync(t => tierIds.Contains(t.Id) && !t.IsDeleted);
 
                 if (validTierCount != tierIds.Count)
                 {
-                    throw new Exception("One or more selected tiers are invalid or have been deleted.");
+                    throw new ArgumentException("One or more selected tiers are invalid or have been deleted.");
                 }
             }
 
-            var oldPromotionTiers = await _dbContext.PromotionTiers
+            var desiredTierIds = promotion.IsGlobal == false
+                ? request.TierIds!.Distinct().ToHashSet()
+                : [];
+            var existingPromotionTiers = await _dbContext.PromotionTiers
                 .Where(x => x.PromotionId == promotion.Id)
                 .ToListAsync();
 
-            _dbContext.PromotionTiers.RemoveRange(oldPromotionTiers);
-
-            if (promotion.IsGlobal == false)
+            var nowUtc = DateTimeOffset.UtcNow;
+            foreach (var promotionTier in existingPromotionTiers)
             {
-                foreach (var tierId in request.TierIds.Distinct())
+                var shouldBeActive = desiredTierIds.Remove(promotionTier.TierId);
+                if (promotionTier.IsDeleted == !shouldBeActive)
+                    continue;
+
+                promotionTier.IsDeleted = !shouldBeActive;
+                promotionTier.UpdatedAt = nowUtc;
+            }
+
+            foreach (var tierId in desiredTierIds)
+            {
+                _dbContext.PromotionTiers.Add(new PromotionTier
                 {
-                    _dbContext.PromotionTiers.Add(new PromotionTier
-                    {
-                        PromotionId = promotion.Id,
-                        TierId = tierId,
-                        CreatedAt = DateTimeOffset.UtcNow
-                    });
-                }
+                    PromotionId = promotion.Id,
+                    TierId = tierId,
+                    IsDeleted = false,
+                    CreatedAt = nowUtc
+                });
             }
         }
 

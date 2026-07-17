@@ -44,7 +44,7 @@ public class Service : IService
             DiscountValue = x.DiscountValue,
             IsActive = x.IsActive,
             TierIds = x.RewardTiers
-                .Where(rt => !rt.Tier.IsDeleted)
+                .Where(rt => !rt.IsDeleted && !rt.Tier.IsDeleted)
                 .Select(rt => rt.TierId)
                 .ToList()
         });
@@ -114,6 +114,7 @@ public class Service : IService
             {
                 RewardId = newReward.Id,
                 TierId = tierId,
+                IsDeleted = false,
                 CreatedAt = DateTimeOffset.UtcNow
             };
 
@@ -178,18 +179,27 @@ public class Service : IService
             if (!request.TierIds.Any())
                 throw new ArgumentException("Please select at least one tier");
 
-            var tierIds = request.TierIds.Distinct().ToList();
+            var tierIds = request.TierIds.Distinct().ToHashSet();
             var validTierCount = await _dbContext.Tiers
                 .CountAsync(t => tierIds.Contains(t.Id) && !t.IsDeleted);
 
             if (validTierCount != tierIds.Count)
                 throw new ArgumentException("One or more selected tiers are invalid or have been deleted.");
 
-            var oldRewardTiers = await _dbContext.RewardTiers
+            var existingRewardTiers = await _dbContext.RewardTiers
                 .Where(x => x.RewardId == reward.Id)
                 .ToListAsync();
 
-            _dbContext.RewardTiers.RemoveRange(oldRewardTiers);
+            var nowUtc = DateTimeOffset.UtcNow;
+            foreach (var rewardTier in existingRewardTiers)
+            {
+                var shouldBeActive = tierIds.Remove(rewardTier.TierId);
+                if (rewardTier.IsDeleted == !shouldBeActive)
+                    continue;
+
+                rewardTier.IsDeleted = !shouldBeActive;
+                rewardTier.UpdatedAt = nowUtc;
+            }
 
             foreach (var tierId in tierIds)
             {
@@ -197,7 +207,8 @@ public class Service : IService
                 {
                     RewardId = reward.Id,
                     TierId = tierId,
-                    CreatedAt = DateTimeOffset.UtcNow
+                    IsDeleted = false,
+                    CreatedAt = nowUtc
                 });
             }
         }
@@ -255,7 +266,8 @@ public class Service : IService
             throw new Exception("Customer not found");
 
         var reward = await _dbContext.Rewards
-            .Include(x => x.RewardTiers)
+            .Include(x => x.RewardTiers
+                .Where(rt => !rt.IsDeleted && !rt.Tier.IsDeleted))
             .FirstOrDefaultAsync(x => x.Id == rewardId);
 
         if (reward == null)
@@ -271,7 +283,10 @@ public class Service : IService
             throw new Exception("Not enough points");
 
         var canRedeem = reward.RewardTiers
-            .Any(x => x.TierId == customer.TierId);
+            .Any(x =>
+                x.TierId == customer.TierId &&
+                !x.IsDeleted &&
+                !x.Tier.IsDeleted);
 
         if (!canRedeem)
             throw new Exception("Your tier cannot redeem this reward");
