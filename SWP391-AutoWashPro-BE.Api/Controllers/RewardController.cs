@@ -38,7 +38,7 @@ public class RewardController: ControllerBase
     [HttpPut("admin/update-reward/{id}")]
     public async Task<IActionResult> UpdateReward(
         [FromRoute] Guid id,
-        [FromBody] Request.RewardRequest request)
+        [FromBody] Request.UpdateRewardRequest request)
     {
         var result = await _service.UpdateReward(id, request);
         return Ok(result);
