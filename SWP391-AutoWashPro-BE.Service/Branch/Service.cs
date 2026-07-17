@@ -63,7 +63,7 @@ public class Service : IService
 
         if (user == null)
             throw new Exception("User not found");
-        var query = _dbContext.Tiers.Where(x => true);
+        var query = _dbContext.Tiers.Where(x => x.IsDeleted == false);
         var selectedQuery = query.Select(x => new Response.TierItem
         {
             Id = x.Id,
