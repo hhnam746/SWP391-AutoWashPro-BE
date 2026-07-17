@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
+using System.Text;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.Base;
@@ -839,6 +841,152 @@ public class Service : IService
         return result;
     }
 
+    public async Task<Response.ChatbotBookingSearchResponse> SearchMyBookingsForChatbot(
+        string normalizedMessage,
+        DateOnly? bookingDate,
+        string? licensePlate,
+        BookingStatus? status,
+        bool hasBranchHint,
+        bool hasLicensePlateHint,
+        bool hasStatusHint,
+        int limit = 5)
+    {
+        var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
+
+        var user = await _dbContext.Users
+            .FirstOrDefaultAsync(x => x.Id == userIdGuid);
+
+        if (user == null)
+        {
+            throw new Exception("User not found");
+        }
+
+        var customerProfile = await _dbContext.CustomerProfiles
+            .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
+
+        if (customerProfile == null)
+        {
+            throw new Exception("Customer profile not found");
+        }
+
+        var requestedFilters = hasBranchHint || hasLicensePlateHint || hasStatusHint || bookingDate.HasValue;
+        var bookings = await _dbContext.Bookings
+            .AsNoTracking()
+            .Where(x => x.CustomerId == customerProfile.Id)
+            .Select(x => new
+            {
+                x.Id,
+                x.Status,
+                x.BookingDate,
+                x.StartTime,
+                x.EndTime,
+                BranchId = x.BranchId,
+                BranchName = x.Branch.Name,
+                BranchAddress = x.Branch.Address,
+                LicensePlate = x.Vehicle.LicensePlate,
+                x.FinalPrice
+            })
+            .ToListAsync();
+
+        string? matchedBranchName = null;
+        Guid? matchedBranchId = null;
+        if (hasBranchHint)
+        {
+            var matchedBranch = bookings
+                .Select(x => new
+                {
+                    x.BranchId,
+                    x.BranchName,
+                    NormalizedBranchName = NormalizeSearchText(x.BranchName)
+                })
+                .DistinctBy(x => x.BranchId)
+                .Where(x => normalizedMessage.Contains(x.NormalizedBranchName, StringComparison.Ordinal))
+                .OrderByDescending(x => x.NormalizedBranchName.Length)
+                .FirstOrDefault();
+
+            matchedBranchName = matchedBranch?.BranchName;
+            matchedBranchId = matchedBranch?.BranchId;
+        }
+
+        var matchedLicensePlate = hasLicensePlateHint ? NormalizePlate(licensePlate) : null;
+        var matchedStatus = hasStatusHint ? status : null;
+        var matchedBookingDate = bookingDate;
+        var hasResolvedFilters = matchedBranchId.HasValue ||
+                                 matchedBookingDate.HasValue ||
+                                 !string.IsNullOrWhiteSpace(matchedLicensePlate) ||
+                                 matchedStatus.HasValue;
+
+        if (requestedFilters && !hasResolvedFilters)
+        {
+            return new Response.ChatbotBookingSearchResponse
+            {
+                MatchedBranch = null,
+                MatchedLicensePlate = null,
+                MatchedStatus = null,
+                HasRequestedFilters = true,
+                HasResolvedFilters = false,
+                Message = "Mình chưa xác định được rõ chi nhánh, biển số hoặc trạng thái booking từ câu hỏi của bạn.",
+                TotalMatched = 0,
+                Items = []
+            };
+        }
+
+        var filteredBookings = bookings.AsEnumerable();
+        if (matchedBranchId.HasValue)
+        {
+            filteredBookings = filteredBookings.Where(x => x.BranchId == matchedBranchId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(matchedLicensePlate))
+        {
+            filteredBookings = filteredBookings.Where(x => PlateMatches(x.LicensePlate, matchedLicensePlate));
+        }
+
+        if (matchedBookingDate.HasValue)
+        {
+            filteredBookings = filteredBookings.Where(x => x.BookingDate == matchedBookingDate.Value);
+        }
+
+        if (matchedStatus.HasValue)
+        {
+            filteredBookings = filteredBookings.Where(x => x.Status == matchedStatus.Value);
+        }
+
+        var orderedBookings = filteredBookings
+            .OrderByDescending(x => x.StartTime)
+            .ToList();
+
+        var bookingItems = orderedBookings
+            .Take(limit)
+            .Select(x => new Response.ChatbotBookingItem
+            {
+                Id = x.Id,
+                Status = x.Status,
+                BookingDate = x.BookingDate,
+                StartTime = x.StartTime.ToOffset(DefaultUtcOffset),
+                EndTime = x.EndTime.ToOffset(DefaultUtcOffset),
+                BranchName = x.BranchName,
+                BranchAddress = x.BranchAddress,
+                LicensePlate = x.LicensePlate,
+                FinalPrice = x.FinalPrice
+            })
+            .ToList();
+
+        return new Response.ChatbotBookingSearchResponse
+        {
+            MatchedBranch = matchedBranchName,
+            MatchedLicensePlate = matchedLicensePlate,
+            MatchedStatus = matchedStatus,
+            HasRequestedFilters = requestedFilters,
+            HasResolvedFilters = hasResolvedFilters,
+            Message = requestedFilters && orderedBookings.Count == 0
+                ? "Bạn chưa có booking nào khớp với bộ lọc đang hỏi."
+                : null,
+            TotalMatched = orderedBookings.Count,
+            Items = bookingItems
+        };
+    }
+
     public async Task<Response.GetBookingDetailResponse> GetBookingById(Guid bookingId)
     {
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
@@ -899,6 +1047,66 @@ public class Service : IService
             FinalPrice = query.FinalPrice,
         };
         return result;
+    }
+
+    private static bool PlateMatches(string sourcePlate, string filterPlate)
+    {
+        var normalizedSource = NormalizePlate(sourcePlate);
+        if (string.IsNullOrWhiteSpace(normalizedSource) || string.IsNullOrWhiteSpace(filterPlate))
+        {
+            return false;
+        }
+
+        return normalizedSource.Contains(filterPlate, StringComparison.OrdinalIgnoreCase) ||
+               filterPlate.Contains(normalizedSource, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizePlate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value)
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                builder.Append(char.ToUpperInvariant(character));
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static string NormalizeSearchText(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var decomposed = value.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(decomposed.Length);
+
+        foreach (var character in decomposed)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(character);
+            if (category == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            builder.Append(character switch
+            {
+                'đ' => 'd',
+                _ => char.IsLetterOrDigit(character) || char.IsWhiteSpace(character) ? character : ' '
+            });
+        }
+
+        return string.Join(" ", builder.ToString()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
     public async Task<Response.CheckInBookingResponse> CheckInBooking(
