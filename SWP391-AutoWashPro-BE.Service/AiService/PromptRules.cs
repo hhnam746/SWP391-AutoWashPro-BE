@@ -11,7 +11,8 @@ internal static class PromptRules
         "Chỉ được trả lời dựa trên dữ liệu nghiệp vụ và lịch sử chat được cung cấp bên dưới.",
         "Nếu dữ liệu chưa đủ để trả lời chính xác, hãy nói rõ điều đó và yêu cầu người dùng cung cấp thêm thông tin.",
         "Không bịa ra booking, voucher, điểm thưởng, địa chỉ hay chính sách không có trong dữ liệu.",
-        "Mặc định trả lời bằng tiếng Việt, ngắn gọn, rõ ràng, thân thiện."
+        "Mặc định trả lời bằng tiếng Việt, ngắn gọn, rõ ràng, thân thiện.",
+        "Không dùng markdown bold trong câu trả lời. Không bọc tên, số điện thoại, email hoặc dữ liệu hiển thị bằng cú pháp **...**."
     };
 
     private static readonly string[] PersonaRules =
