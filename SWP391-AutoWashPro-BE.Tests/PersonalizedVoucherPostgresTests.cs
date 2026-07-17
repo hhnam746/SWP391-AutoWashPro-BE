@@ -135,6 +135,22 @@ public class PersonalizedVoucherPostgresTests
         Assert.Equal(Response.IssueStatus.Skipped, (await service.TryIssuePersonalizedVoucherAsync(
             seed.CustomerId, seed.RuleId, PersonalizedVoucherTriggerType.Birthday, "tier", null)).Status);
 
+        dbContext.PromotionTiers.Add(new PromotionTier
+        {
+            Id = Guid.NewGuid(),
+            PromotionId = promotion.Id,
+            TierId = seed.TierId,
+            IsDeleted = true,
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+        Assert.Equal(Response.IssueStatus.Skipped, (await service.TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "tier-soft-deleted",
+            null)).Status);
+
         Assert.Empty(dbContext.Vouchers);
     }
 
@@ -335,6 +351,7 @@ public class PersonalizedVoucherPostgresTests
     [Theory]
     [InlineData("inactive")]
     [InlineData("deleted")]
+    [InlineData("relation-deleted")]
     [InlineData("future")]
     [InlineData("expired")]
     public async Task Booking_DoesNotApplyIneligibleTierPromotion(string eligibilityState)
@@ -345,6 +362,7 @@ public class PersonalizedVoucherPostgresTests
         var nowUtc = DateTimeOffset.UtcNow;
         var isActive = eligibilityState != "inactive";
         var isDeleted = eligibilityState == "deleted";
+        var isTierLinkDeleted = eligibilityState == "relation-deleted";
         var startDate = eligibilityState == "future"
             ? nowUtc.AddDays(1)
             : nowUtc.AddDays(-2);
@@ -360,7 +378,8 @@ public class PersonalizedVoucherPostgresTests
             isDeleted,
             startDate,
             endDate,
-            seed.TierId);
+            seed.TierId,
+            isTierLinkDeleted);
         var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
 
         var response = await CreateBookingService(dbContext, seed.UserId).CreateBooking(
@@ -895,7 +914,8 @@ public class PersonalizedVoucherPostgresTests
         bool isDeleted,
         DateTimeOffset startDate,
         DateTimeOffset endDate,
-        Guid? tierId = null)
+        Guid? tierId = null,
+        bool isTierLinkDeleted = false)
     {
         var promotion = new Promotion
         {
@@ -919,6 +939,7 @@ public class PersonalizedVoucherPostgresTests
                 Id = Guid.NewGuid(),
                 PromotionId = promotion.Id,
                 TierId = tierId.Value,
+                IsDeleted = isTierLinkDeleted,
                 CreatedAt = DateTimeOffset.UtcNow
             });
         }

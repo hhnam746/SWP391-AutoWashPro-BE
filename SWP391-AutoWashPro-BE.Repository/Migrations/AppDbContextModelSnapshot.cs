@@ -811,6 +811,12 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
                     b.Property<Guid>("PromotionId")
                         .HasColumnType("uuid")
                         .HasColumnName("promotion_id");
@@ -915,6 +921,12 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
 
                     b.Property<Guid>("RewardId")
                         .HasColumnType("uuid")

@@ -738,6 +738,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
             builder.Property(x => x.PromotionId).HasColumnName("promotion_id").IsRequired();
             builder.Property(x => x.TierId).HasColumnName("tier_id").IsRequired();
+            builder.Property(x => x.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false).IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
@@ -822,6 +823,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
             builder.Property(x => x.RewardId).HasColumnName("reward_id").IsRequired();
             builder.Property(x => x.TierId).HasColumnName("tier_id").IsRequired();
+            builder.Property(x => x.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false).IsRequired();
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 

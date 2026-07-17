@@ -89,11 +89,11 @@ public class Service: IService
         }
         
         var tier = await _dbContext.Tiers
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
 
         if (tier == null)
         {
-            throw new Exception("Tier not found");
+            throw new KeyNotFoundException("Tier not found");
         }
 
         tier.Name = request.Name;
@@ -111,19 +111,37 @@ public class Service: IService
     public async Task<string> DeleteTier(Guid id)
     {
         var tier = await _dbContext.Tiers
-            .FirstOrDefaultAsync(x => x.Id == id);
+            .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
 
         if (tier == null)
         {
-            throw new Exception("Tier not found");
+            throw new KeyNotFoundException("Tier not found");
         }
         var assignedCustomers = await _dbContext.CustomerProfiles
             .CountAsync(cp => cp.TierId == id);
 
         if (assignedCustomers > 0)
         {
-            throw new Exception(
-                "Cannot delete this tier because customer are currently assigned to it. Please assign them to another tier before deleting."
+            throw new InvalidOperationException(
+                "Cannot delete this tier because customers are currently assigned to it. Please assign them to another tier before deleting."
+            );
+        }
+
+        var isUsedByActiveReward = await _dbContext.RewardTiers.AnyAsync(rewardTier =>
+            rewardTier.TierId == id &&
+            !rewardTier.IsDeleted &&
+            rewardTier.Reward.IsActive);
+        var isUsedByActivePromotion = await _dbContext.PromotionTiers.AnyAsync(promotionTier =>
+            promotionTier.TierId == id &&
+            !promotionTier.IsDeleted &&
+            promotionTier.Promotion.IsActive &&
+            promotionTier.Promotion.IsGlobal == false &&
+            !promotionTier.Promotion.IsDeleted);
+
+        if (isUsedByActiveReward || isUsedByActivePromotion)
+        {
+            throw new InvalidOperationException(
+                "Cannot delete this tier because active rewards or promotions are using it. Please reassign them to another tier before deleting."
             );
         }
 
