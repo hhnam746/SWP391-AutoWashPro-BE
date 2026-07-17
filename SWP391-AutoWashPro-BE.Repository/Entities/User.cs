@@ -13,6 +13,7 @@ public class User : BaseEntity, IAuditableEntity
     public bool isVerify { get; set; } = false;
     public string? Reason { get; set; }
     public DateTimeOffset? LastLoginAt { get; set; }
+    public DateTimeOffset? VerifiedAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
 
@@ -21,4 +22,6 @@ public class User : BaseEntity, IAuditableEntity
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     public ICollection<Conversation> Conversations { get; set; } = new List<Conversation>();
     public ICollection<SystemConfig> UpdatedSystemConfigs { get; set; } = new List<SystemConfig>();
+    public ICollection<CustomerDateOfBirthCorrection> DateOfBirthCorrections { get; set; } =
+        new List<CustomerDateOfBirthCorrection>();
 }

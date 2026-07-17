@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
@@ -22,17 +23,20 @@ public class Service : IService
     private readonly IHttpContextAccessor _httpContext;
     private readonly Notification.IService _notificationService;
     private readonly BookingService.IService _bookingService;
+    private readonly ILogger<Service> _logger;
 
     public Service(
         AppDbContext dbContext,
         IHttpContextAccessor httpContext,
         Notification.IService notificationService,
-        BookingService.IService bookingService)
+        BookingService.IService bookingService,
+        ILogger<Service> logger)
     {
         _dbContext = dbContext;
         _httpContext = httpContext;
         _notificationService = notificationService;
         _bookingService = bookingService;
+        _logger = logger;
     }
 
     public async Task<List<Response.BranchResponse>> GetBranches(bool? isActive, string? keyword)
@@ -510,9 +514,11 @@ public class Service : IService
         };
     }
 
-    public Task<BookingService.Response.CheckInBookingResponse> CheckInBookingByAdmin(Guid bookingId)
+    public Task<BookingService.Response.CheckInBookingResponse> CheckInBookingByAdmin(
+        Guid bookingId,
+        CancellationToken cancellationToken = default)
     {
-        return _bookingService.CheckInBookingByAdmin(bookingId);
+        return _bookingService.CheckInBookingByAdmin(bookingId, cancellationToken);
     }
 
     public async Task<Response.CompleteBookingByAdminResponse> CompleteBookingByAdmin(
@@ -707,7 +713,8 @@ public class Service : IService
 
         targetUser.isVerify = true;
         targetUser.Status =  AccountStatus.Active;
-        targetUser.UpdatedAt = DateTimeOffset.UtcNow;
+        targetUser.VerifiedAt = DateTimeOffset.UtcNow;
+        targetUser.UpdatedAt = targetUser.VerifiedAt;
         
         Console.WriteLine("Target: " + targetUser.isVerify);
 
@@ -783,7 +790,7 @@ public class Service : IService
             .AsNoTracking()
             .Include(x => x.CustomerProfile)
             .ThenInclude(x => x!.Tier)
-            .Where(x => x.isVerify && x.Status == AccountStatus.Active &&
+            .Where(x => x.isVerify && x.Status == AccountStatus.Active || x.Status == AccountStatus.Locked &&
                         x.Role == UserRole.Customer &&
                         x.CustomerProfile != null);
 
@@ -819,6 +826,7 @@ public class Service : IService
                 FirstName = x.CustomerProfile!.FirstName,
                 LastName = x.CustomerProfile.LastName,
                 Cccd = x.CustomerProfile.Cccd,
+                DateOfBirth = x.CustomerProfile.DateOfBirth,
                 TotalPoints = x.CustomerProfile.TotalPoints,
                 TotalWashes = x.CustomerProfile.TotalWashes,
                 FaceImageUrls = x.UserFaceImages
@@ -908,6 +916,7 @@ public class Service : IService
                 FirstName = x.CustomerProfile!.FirstName,
                 LastName = x.CustomerProfile.LastName,
                 Cccd = x.CustomerProfile.Cccd,
+                DateOfBirth = x.CustomerProfile.DateOfBirth,
                 TotalPoints = x.CustomerProfile.TotalPoints,
                 TotalWashes = x.CustomerProfile.TotalWashes,
                 FaceImageUrls = x.UserFaceImages
@@ -972,6 +981,7 @@ public class Service : IService
                     FirstName = x.CustomerProfile.FirstName,
                     LastName = x.CustomerProfile.LastName,
                     Cccd = x.CustomerProfile.Cccd,
+                    DateOfBirth = x.CustomerProfile.DateOfBirth,
                     TotalPoints = x.CustomerProfile.TotalPoints,
                     TotalWashes = x.CustomerProfile.TotalWashes,
                     FaceImageUrls = x.UserFaceImages
@@ -1103,6 +1113,67 @@ public class Service : IService
         await _dbContext.SaveChangesAsync();
 
         return "Update user status successfully";
+    }
+
+    public async Task<string> CorrectCustomerDateOfBirth(
+        Guid userId,
+        Request.CorrectCustomerDateOfBirthRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null)
+        {
+            throw new ArgumentException("Request body is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+        {
+            throw new ArgumentException("Correction reason is required.");
+        }
+
+        SWP391_AutoWashPro_BE.Service.User.DateOfBirthValidator.EnsureValid(request.DateOfBirth);
+        var adminUserId = ServiceClaimHelper.GetRequiredAdminId(_httpContext);
+
+        var customer = await _dbContext.CustomerProfiles
+            .Include(x => x.User)
+            .FirstOrDefaultAsync(
+                x => x.UserId == userId && x.User.Role == UserRole.Customer,
+                cancellationToken);
+
+        if (customer == null)
+        {
+            throw new KeyNotFoundException("Customer not found.");
+        }
+
+        if (customer.DateOfBirth == request.DateOfBirth)
+        {
+            return "No date of birth changes detected.";
+        }
+
+        var nowUtc = DateTimeOffset.UtcNow;
+        var correction = new CustomerDateOfBirthCorrection
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            AdminUserId = adminUserId,
+            PreviousDateOfBirth = customer.DateOfBirth,
+            NewDateOfBirth = request.DateOfBirth,
+            Reason = request.Reason.Trim(),
+            CreatedAt = nowUtc
+        };
+
+        customer.DateOfBirth = request.DateOfBirth;
+        customer.DateOfBirthSetAt ??= nowUtc;
+        customer.UpdatedAt = nowUtc;
+        _dbContext.CustomerDateOfBirthCorrections.Add(correction);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Admin {AdminUserId} corrected date of birth for CustomerId={CustomerId}. CorrectionId={CorrectionId}.",
+            adminUserId,
+            customer.Id,
+            correction.Id);
+
+        return "Customer date of birth corrected successfully.";
     }
 
     public async Task<Base.Response.PageResult<Response.BookingResponse>> GetBookings(

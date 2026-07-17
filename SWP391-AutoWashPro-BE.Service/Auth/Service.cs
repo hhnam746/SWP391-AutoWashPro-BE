@@ -151,6 +151,11 @@ public class Service : IService
             throw new ArgumentException("CCCD has already been used.");
         }
 
+        if (request.DateOfBirth.HasValue)
+        {
+            SWP391_AutoWashPro_BE.Service.User.DateOfBirthValidator.EnsureValid(request.DateOfBirth.Value);
+        }
+
 
         var user = new Repository.Entities.User()
         {
@@ -175,6 +180,8 @@ public class Service : IService
             FirstName = normalizedFirstName,
             LastName = normalizedLastName,
             Cccd = normalizedCccd,
+            DateOfBirth = request.DateOfBirth,
+            DateOfBirthSetAt = request.DateOfBirth.HasValue ? DateTimeOffset.UtcNow : null,
             CreatedAt = DateTimeOffset.UtcNow,
         };
 

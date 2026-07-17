@@ -76,6 +76,7 @@ public class Response
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public string? Cccd { get; set; }
+        public DateOnly? DateOfBirth { get; set; }
         public int TotalPoints { get; set; }
         public int TotalWashes { get; set; }
         public List<string> FaceImageUrls { get; set; } = new();

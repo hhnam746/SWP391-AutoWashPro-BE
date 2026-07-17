@@ -24,4 +24,5 @@ public class Voucher : BaseEntity, IAuditableEntity
     public DateTimeOffset? UpdatedAt { get; set; }
 
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+    public PersonalizedVoucherIssuance? PersonalizedVoucherIssuance { get; set; }
 }

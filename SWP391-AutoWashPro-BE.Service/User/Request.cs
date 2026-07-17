@@ -10,6 +10,7 @@ public class Request
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
         public string? Phone {  get; set; }
+        public DateOnly? DateOfBirth { get; set; }
     }
 
     public class ChangePasswordRequest

@@ -67,6 +67,7 @@ public class Service : IService
                 FirstName = customerProfile.FirstName,
                 LastName = customerProfile.LastName,
                 Cccd = customerProfile.Cccd,
+                DateOfBirth = customerProfile.DateOfBirth,
                 TierData = customerProfile!.Tier == null
                     ? null
                     : new Response.TierData
@@ -159,6 +160,24 @@ public class Service : IService
             if (user.Phone != phone)
             {
                 user.Phone = phone;
+                updated = true;
+            }
+        }
+
+        if (request.DateOfBirth.HasValue)
+        {
+            DateOfBirthValidator.EnsureValid(request.DateOfBirth.Value);
+
+            if (profile.DateOfBirth.HasValue && profile.DateOfBirth.Value != request.DateOfBirth.Value)
+            {
+                throw new InvalidOperationException(
+                    "Date of birth can only be set once by the customer. Contact an administrator to request a correction.");
+            }
+
+            if (!profile.DateOfBirth.HasValue)
+            {
+                profile.DateOfBirth = request.DateOfBirth.Value;
+                profile.DateOfBirthSetAt = DateTimeOffset.UtcNow;
                 updated = true;
             }
         }
@@ -271,6 +290,7 @@ public class Service : IService
                 FirstName = user.CustomerProfile.FirstName,
                 LastName = user.CustomerProfile.LastName,
                 Cccd = user.CustomerProfile.Cccd,
+                DateOfBirth = user.CustomerProfile.DateOfBirth,
                 TierData = user.CustomerProfile.Tier == null
                     ? null
                     : new Response.TierData()

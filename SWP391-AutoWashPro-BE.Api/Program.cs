@@ -33,6 +33,7 @@ using OtpService = SWP391_AutoWashPro_BE.Service.OtpService;
 using RedisOtpService = SWP391_AutoWashPro_BE.Service.RedisOtpService;
 using Transaction =  SWP391_AutoWashPro_BE.Service.Transaction;
 using AiService = SWP391_AutoWashPro_BE.Service.AiService;
+using PersonalizedVoucherService = SWP391_AutoWashPro_BE.Service.PersonalizedVoucher;
 
 Env.Load();
 
@@ -110,6 +111,12 @@ builder.Services.AddScoped<AiService.IService, AiService.Service>();
 builder.Services.AddScoped<AiService.IntentDetector>();
 builder.Services.AddScoped<AiService.PromptBuilder>();
 builder.Services.AddHttpClient<AiService.GoogleAiStudioService>();
+builder.Services.Configure<PersonalizedVoucherService.Options>(
+    builder.Configuration.GetSection(PersonalizedVoucherService.Options.SectionName));
+builder.Services.AddScoped<PersonalizedVoucherService.IService, PersonalizedVoucherService.Service>();
+builder.Services.AddScoped<PersonalizedVoucherService.IRuleService, PersonalizedVoucherService.RuleService>();
+builder.Services.AddScoped<PersonalizedVoucherService.IDeliveryService, PersonalizedVoucherService.DeliveryService>();
+builder.Services.AddScoped<PersonalizedVoucherService.IAudienceService, PersonalizedVoucherService.AudienceService>();
 
 //test thử discord
 builder.Services.Configure<DiscordService.DiscordAlertOptions>(
@@ -121,11 +128,23 @@ builder.Services.AddHttpClient<DiscordService.IService, DiscordService.Service>(
 var processBookingCron = builder.Configuration["Quartz:ProcessBookingCron"] ?? "0/15 * * * * ?";
 var processBookingReminderCron = builder.Configuration["Quartz:BookingReminderCron"] ?? "0/30 * * * * ?"; //30s quét 1 lần
 var processBookingCompletedCron = builder.Configuration["Quartz:BookingCompletedCron"] ?? "0/30 * * * * ?";
+var birthdayVoucherCron = builder.Configuration["Quartz:BirthdayVoucherCron"] ?? "0 0 1 * * ?";
+var inactiveCustomerVoucherCron = builder.Configuration["Quartz:InactiveCustomerVoucherCron"] ?? "0 15 1 * * ?";
+var acquisitionVoucherCron = builder.Configuration["Quartz:AcquisitionVoucherCron"] ?? "0 0/15 * * * ?";
+var personalizedVoucherDeliveryRetryCron =
+    builder.Configuration["Quartz:PersonalizedVoucherDeliveryRetryCron"] ?? "0 0/10 * * * ?";
+var personalizedVoucherTimeZone = TimeZoneInfo.FindSystemTimeZoneById(
+    builder.Configuration[$"{PersonalizedVoucherService.Options.SectionName}:TimeZoneId"] ??
+    "Asia/Ho_Chi_Minh");
 builder.Services.AddQuartz(options =>
 {
     var processBookingJobKey = new JobKey(nameof(ProcessBookingAutoCancelJob));
     var processBookingReminderJobKey = new JobKey(nameof(ProcessBookingReminderJob));
     var processBookingCompletedJobKey = new JobKey(nameof(ProcessBookingAutoCompleteJob));
+    var birthdayVoucherJobKey = new JobKey(nameof(ProcessBirthdayVoucherJob));
+    var inactiveCustomerVoucherJobKey = new JobKey(nameof(ProcessInactiveCustomerVoucherJob));
+    var acquisitionVoucherJobKey = new JobKey(nameof(ProcessAcquisitionVoucherJob));
+    var personalizedVoucherDeliveryRetryJobKey = new JobKey(nameof(RetryPersonalizedVoucherDeliveryJob));
 
     options.AddJob<ProcessBookingAutoCancelJob>(job => job
         .WithIdentity(processBookingJobKey));
@@ -135,6 +154,12 @@ builder.Services.AddQuartz(options =>
 
     options.AddJob<ProcessBookingAutoCompleteJob>(job => job
         .WithIdentity(processBookingCompletedJobKey));
+
+    options.AddJob<ProcessBirthdayVoucherJob>(job => job.WithIdentity(birthdayVoucherJobKey));
+    options.AddJob<ProcessInactiveCustomerVoucherJob>(job => job.WithIdentity(inactiveCustomerVoucherJobKey));
+    options.AddJob<ProcessAcquisitionVoucherJob>(job => job.WithIdentity(acquisitionVoucherJobKey));
+    options.AddJob<RetryPersonalizedVoucherDeliveryJob>(job =>
+        job.WithIdentity(personalizedVoucherDeliveryRetryJobKey));
 
     options.AddTrigger(trigger => trigger
         .ForJob(processBookingJobKey)
@@ -154,6 +179,34 @@ builder.Services.AddQuartz(options =>
         .WithIdentity($"{nameof(ProcessBookingAutoCompleteJob)}-trigger")
         .WithCronSchedule(processBookingCompletedCron, cron =>
             cron.WithMisfireHandlingInstructionDoNothing()));
+
+    options.AddTrigger(trigger => trigger
+        .ForJob(birthdayVoucherJobKey)
+        .WithIdentity($"{nameof(ProcessBirthdayVoucherJob)}-trigger")
+        .WithCronSchedule(birthdayVoucherCron, cron => cron
+            .InTimeZone(personalizedVoucherTimeZone)
+            .WithMisfireHandlingInstructionDoNothing()));
+
+    options.AddTrigger(trigger => trigger
+        .ForJob(inactiveCustomerVoucherJobKey)
+        .WithIdentity($"{nameof(ProcessInactiveCustomerVoucherJob)}-trigger")
+        .WithCronSchedule(inactiveCustomerVoucherCron, cron => cron
+            .InTimeZone(personalizedVoucherTimeZone)
+            .WithMisfireHandlingInstructionDoNothing()));
+
+    options.AddTrigger(trigger => trigger
+        .ForJob(acquisitionVoucherJobKey)
+        .WithIdentity($"{nameof(ProcessAcquisitionVoucherJob)}-trigger")
+        .WithCronSchedule(acquisitionVoucherCron, cron => cron
+            .InTimeZone(personalizedVoucherTimeZone)
+            .WithMisfireHandlingInstructionDoNothing()));
+
+    options.AddTrigger(trigger => trigger
+        .ForJob(personalizedVoucherDeliveryRetryJobKey)
+        .WithIdentity($"{nameof(RetryPersonalizedVoucherDeliveryJob)}-trigger")
+        .WithCronSchedule(personalizedVoucherDeliveryRetryCron, cron => cron
+            .InTimeZone(personalizedVoucherTimeZone)
+            .WithMisfireHandlingInstructionDoNothing()));
 });
 
 

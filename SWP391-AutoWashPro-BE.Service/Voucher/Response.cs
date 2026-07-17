@@ -4,6 +4,12 @@ namespace SWP391_AutoWashPro_BE.Service.Voucher;
 
 public class Response
 {
+    public enum VoucherSource
+    {
+        Reward,
+        Promotion
+    }
+
     public class VoucherResponse
     {
         public Guid Id { get; set; }
@@ -25,5 +31,13 @@ public class Response
         public string Message { get; set; } = null!;
         public decimal DiscountAmount { get; set; }
         public decimal FinalAmount { get; set; }
+    }
+
+    public class CustomerVoucherResponse : VoucherResponse
+    {
+        public string? PromotionName { get; set; }
+        public VoucherSource Source { get; set; }
+        public PersonalizedVoucherTriggerType? TriggerType { get; set; }
+        public string? CycleKey { get; set; }
     }
 }

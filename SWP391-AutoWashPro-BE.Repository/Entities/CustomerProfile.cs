@@ -16,6 +16,8 @@ public class CustomerProfile : BaseEntity, IAuditableEntity
     public int TotalPoints { get; set; }
     public int TotalWashes { get; set; }
     public DateTimeOffset? LastPointActivityAt { get; set; }
+    public DateOnly? DateOfBirth { get; set; }
+    public DateTimeOffset? DateOfBirthSetAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
 
@@ -26,4 +28,8 @@ public class CustomerProfile : BaseEntity, IAuditableEntity
     public ICollection<Voucher> Vouchers { get; set; } = new List<Voucher>();
     public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     public ICollection<PointTransaction> PointTransactions { get; set; } = new List<PointTransaction>();
+    public ICollection<PersonalizedVoucherIssuance> PersonalizedVoucherIssuances { get; set; } =
+        new List<PersonalizedVoucherIssuance>();
+    public ICollection<CustomerDateOfBirthCorrection> DateOfBirthCorrections { get; set; } =
+        new List<CustomerDateOfBirthCorrection>();
 }
