@@ -7,6 +7,15 @@ public interface IService
     public Task<Response.GetBookingSlotsResponse> GetBookingSlots (Guid BranchId, DateOnly Date);
     public Task<Response.CreateBookingResponse> CreateBooking (Request.CreateBookingRequest bookingRequest);
     public Task<Response.GetBookingsResponse> GetBookings(BookingStatus? status, DateOnly fromDate, DateOnly toDate, int page, int pageSize);
+    public Task<Response.ChatbotBookingSearchResponse> SearchMyBookingsForChatbot(
+        string normalizedMessage,
+        DateOnly? bookingDate,
+        string? licensePlate,
+        BookingStatus? status,
+        bool hasBranchHint,
+        bool hasLicensePlateHint,
+        bool hasStatusHint,
+        int limit = 5);
     public Task<Response.GetBookingDetailResponse> GetBookingById (Guid bookingId);
     public Task<Response.CheckInBookingResponse> CheckInBooking(
         Guid Id,

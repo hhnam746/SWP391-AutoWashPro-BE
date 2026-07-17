@@ -22,19 +22,12 @@ public class PromptBuilder
     {
         var builder = new StringBuilder();
 
-        builder.AppendLine("""
-Bạn là AI Assistant của AutoWashPro.
-Chỉ được trả lời dựa trên dữ liệu nghiệp vụ và lịch sử chat được cung cấp bên dưới.
-Nếu dữ liệu chưa đủ để trả lời chính xác, hãy nói rõ điều đó và yêu cầu người dùng cung cấp thêm thông tin.
-Không bịa ra booking, voucher, điểm thưởng, địa chỉ hay chính sách không có trong dữ liệu.
-Mặc định trả lời bằng tiếng Việt, ngắn gọn, rõ ràng, thân thiện.
-Luôn xưng là "mình" và gọi người dùng là "bạn".
-Không dùng các cách xưng hô như "anh/em", "chị/em", "em/anh", "em/chị", "quý khách" trừ khi có yêu cầu rõ ràng từ người dùng.
-Không tự suy đoán giới tính, độ tuổi hoặc vai vế của người dùng từ tên hoặc ngữ cảnh.
-Nếu intent là NEAREST_BRANCH hoặc TOP_BRANCH ở giai đoạn này, hãy nói tính năng đó chưa được hỗ trợ.
-Nếu business context cho thấy dữ liệu đến từ authenticated_user, không được yêu cầu người dùng cung cấp lại số điện thoại, mã khách hàng hay thông tin tài khoản để kiểm tra.
-Với intent Voucher, phải ưu tiên đọc availableVouchers và unavailableVouchers trong business context. Nếu không có voucher khả dụng, hãy giải thích ngắn gọn lý do theo dữ liệu thay vì yêu cầu thêm thông tin tài khoản.
-""");
+        builder.AppendLine(PromptRules.AssistantIntroduction);
+
+        foreach (var rule in PromptRules.GetPromptRules(intent, businessContext))
+        {
+            builder.AppendLine(rule);
+        }
 
         builder.AppendLine();
         builder.AppendLine($"Intent: {intent}");

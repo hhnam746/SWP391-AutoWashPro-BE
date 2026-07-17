@@ -39,6 +39,31 @@ public class Response
         public required Pagination Pagination { get; set; }
     }
 
+    public class ChatbotBookingSearchResponse
+    {
+        public string? MatchedBranch { get; set; }
+        public string? MatchedLicensePlate { get; set; }
+        public BookingStatus? MatchedStatus { get; set; }
+        public bool HasRequestedFilters { get; set; }
+        public bool HasResolvedFilters { get; set; }
+        public string? Message { get; set; }
+        public int TotalMatched { get; set; }
+        public required List<ChatbotBookingItem> Items { get; set; }
+    }
+
+    public class ChatbotBookingItem
+    {
+        public required Guid Id { get; set; }
+        public required BookingStatus Status { get; set; }
+        public required DateOnly BookingDate { get; set; }
+        public required DateTimeOffset StartTime { get; set; }
+        public required DateTimeOffset EndTime { get; set; }
+        public required string BranchName { get; set; }
+        public required string BranchAddress { get; set; }
+        public required string LicensePlate { get; set; }
+        public required decimal FinalPrice { get; set; }
+    }
+
     public class BookingItem
     {
         public required Guid Id { get; set; }

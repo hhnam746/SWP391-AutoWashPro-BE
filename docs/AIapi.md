@@ -56,9 +56,9 @@ Backend hien tai detect intent tu cau hoi cua user va ho tro tot nhat cho cac nh
 - `Loyalty`
   - Hoi diem thuong, hang thanh vien, thong tin loyalty
 - `Booking`
-  - Hoi danh sach booking gan day, booking sap toi
+  - Hoi danh sach booking gan day, booking sap toi, booking theo chi nhanh, bien so, trang thai
 - `BookingDetail`
-  - Hoi chi tiet 1 booking cu the, thuong kem `bookingId`
+  - Hoi chi tiet 1 booking cu the khi co `bookingId`
 - `Voucher`
   - Hoi voucher kha dung, voucher da het han, voucher da dung
 - `Promotion`
@@ -119,6 +119,20 @@ Backend hien tai detect intent tu cau hoi cua user va ho tro tot nhat cho cac nh
 {
   "conversationId": null,
   "message": "Lich su dat lich cua toi"
+}
+```
+
+```json
+{
+  "conversationId": null,
+  "message": "Booking cua toi o chi nhanh Thu Duc la gi?"
+}
+```
+
+```json
+{
+  "conversationId": null,
+  "message": "Cho toi xem booking cua xe bien so 51A-12345"
 }
 ```
 
@@ -206,7 +220,8 @@ Backend hien tai detect intent tu cau hoi cua user va ho tro tot nhat cho cac nh
   - branch
   - promotion
 - Neu user hoi nhung noi dung ngoai pham vi he thong, chatbot co the tra loi han che hoac bao khong du du lieu.
-- Cac cau hoi co `bookingId` nen truyen dung dinh dang `Guid` de backend detect intent chinh xac hon.
+- Khong bat buoc phai co `bookingId` neu user dang hoi danh sach booking theo chi nhanh, bien so hoac trang thai.
+- Neu can lay chi tiet 1 booking cu the bang ma, `bookingId` nen truyen dung dinh dang `Guid`.
 
 ### Bang keyword -> intent de test nhanh
 
@@ -216,8 +231,8 @@ Bang duoi day mo ta cac tu khoa backend hien dang dung de detect intent. Day kho
 | --- | --- | --- |
 | `UserProfile` | `thong tin`, `ho so`, `tai khoan`, `profile`, `ca nhan` | `Thong tin tai khoan cua toi la gi?` |
 | `Loyalty` | `diem`, `hang`, `loyalty`, `gold`, `silver`, `point` | `Toi con bao nhieu diem?` |
-| `BookingDetail` | `booking id`, `chi tiet dat lich`, `chi tiet booking`, `booking detail`, hoac co `Guid` | `Chi tiet booking 11111111-2222-3333-4444-555555555555` |
-| `Booking` | `lich su dat`, `lich su booking`, `dat lich`, `booking`, `don hang` | `Toi co booking nao sap toi khong?` |
+| `BookingDetail` | `booking id`, `ma booking`, hoac co `Guid` | `Chi tiet booking 11111111-2222-3333-4444-555555555555` |
+| `Booking` | `lich su dat`, `lich su booking`, `dat lich`, `booking`, `don hang`, `chi nhanh`, `bien so`, `sap toi`, `hoan thanh`, `da huy` | `Booking cua toi o chi nhanh Thu Duc` |
 | `Voucher` | `voucher`, `ma giam`, `coupon` | `Toi co voucher nao dang dung duoc?` |
 | `Promotion` | `khuyen mai`, `promotion`, `uu dai` | `Hien co uu dai nao khong?` |
 | `NearestBranch` | `chi nhanh gan nhat`, `gan nhat`, `nearest branch` | `Chi nhanh gan nhat o dau?` |
@@ -246,13 +261,15 @@ Thu tu uu tien hien tai:
 Vi du:
 
 - Neu cau hoi co `bookingId` hop le, backend se uu tien detect `BookingDetail`
+- Neu cau hoi co `chi tiet booking` nhung khong co `bookingId`, backend se xu ly nhu truy van danh sach booking va co the loc theo chi nhanh/bien so
 - Neu cau hoi vua co tu `chi nhanh` vua co `gan nhat`, backend se detect `NearestBranch`
 - Neu cau hoi qua chung chung va khong match keyword, intent co the la `Unknown`
 
 ### Khuyen nghi khi FE/tester tao prompt
 
 - Nen viet cau hoi ngan, ro, tap trung 1 y
-- Voi chi tiet booking, nen kem `bookingId`
+- Voi danh sach booking, FE co the cho user hoi bang ten chi nhanh, bien so xe, hoac trang thai ma khong can hien `bookingId`
+- Voi chi tiet booking theo ma cu the, nen kem `bookingId`
 - Voi voucher, nen hoi truc tiep nhu:
   - `Toi co voucher nao dang dung duoc?`
   - `Voucher nao cua toi da het han?`
