@@ -79,7 +79,7 @@ public class Service : IService
         detectStopwatch.Stop();
 
         var contextStopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var businessContext = await BuildBusinessContextAsync(userId, detection);
+        var businessContext = await BuildBusinessContextAsync(userId, detection, history);
         contextStopwatch.Stop();
 
         var answerStopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -219,14 +219,17 @@ public class Service : IService
         return recentMessages;
     }
 
-    private async Task<object> BuildBusinessContextAsync(Guid userId, IntentDetectionResult detection)
+    private async Task<object> BuildBusinessContextAsync(
+        Guid userId,
+        IntentDetectionResult detection,
+        IReadOnlyCollection<PromptHistoryItem> history)
     {
         return detection.Intent switch
         {
             ChatIntent.UserProfile => await _userService.GetProfile(),
             ChatIntent.Loyalty => await _loyaltyService.GetMyLoyaltyOverview(),
-            ChatIntent.Booking => await GetBookingSummaryAsync(),
-            ChatIntent.BookingDetail => await GetBookingDetailContextAsync(detection.BookingId),
+            ChatIntent.Booking => await GetBookingContextAsync(detection),
+            ChatIntent.BookingDetail => await GetBookingDetailContextAsync(detection, history),
             ChatIntent.Voucher => await BuildVoucherContextAsync(userId),
             ChatIntent.Promotion => await _branchService.GetPromotions(),
             ChatIntent.Branch => await _branchService.GetBranches(null, true),
@@ -237,10 +240,17 @@ public class Service : IService
         };
     }
 
-    private async Task<object> GetBookingSummaryAsync()
+    private async Task<object> GetBookingContextAsync(IntentDetectionResult detection)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        return await _bookingService.GetBookings(null, today.AddDays(-30), today.AddDays(30), 1, 10);
+        return await _bookingService.SearchMyBookingsForChatbot(
+            detection.NormalizedMessage,
+            detection.BookingDate,
+            detection.LicensePlate,
+            detection.BookingStatus,
+            detection.HasBranchHint,
+            detection.HasLicensePlateHint,
+            detection.HasStatusHint,
+            ResolveBookingLimit(detection.RequestedBookingCount, 5));
     }
 
     private async Task<ChatAnswerResult> GenerateAnswerAsync(
@@ -445,6 +455,50 @@ public class Service : IService
 
     private static string BuildBookingFallbackAnswer(object businessContext)
     {
+        if (businessContext is BookingService.Response.ChatbotBookingSearchResponse bookingSearch)
+        {
+            if (!string.IsNullOrWhiteSpace(bookingSearch.Message))
+            {
+                return bookingSearch.Message;
+            }
+
+            if (bookingSearch.Items.Count == 0)
+            {
+                return "Hiện tại bạn chưa có booking nào để hiển thị.";
+            }
+
+            var filterParts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(bookingSearch.MatchedBranch))
+            {
+                filterParts.Add($"chi nhánh {bookingSearch.MatchedBranch}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(bookingSearch.MatchedLicensePlate))
+            {
+                filterParts.Add($"biển số {bookingSearch.MatchedLicensePlate}");
+            }
+
+            if (bookingSearch.MatchedStatus.HasValue)
+            {
+                filterParts.Add($"trạng thái {bookingSearch.MatchedStatus.Value}");
+            }
+
+            var intro = filterParts.Count > 0
+                ? $"Mình tìm thấy {bookingSearch.TotalMatched} booking khớp với {string.Join(", ", filterParts)}:"
+                : $"Mình tìm thấy {bookingSearch.TotalMatched} booking gần đây của bạn:";
+
+            var lines = bookingSearch.Items
+                .Select((item, index) =>
+                    $"{index + 1}. {item.BranchName} - {item.LicensePlate} - {item.StartTime:HH:mm dd/MM/yyyy} đến {item.EndTime:HH:mm dd/MM/yyyy} - {item.Status} - {item.FinalPrice:N0}đ");
+
+            var remainCount = bookingSearch.TotalMatched - bookingSearch.Items.Count;
+            var remainText = remainCount > 0
+                ? $"{Environment.NewLine}Mình đang hiển thị {bookingSearch.Items.Count} booking gần nhất, còn thêm {remainCount} booking khớp."
+                : string.Empty;
+
+            return $"{intro}{Environment.NewLine}{string.Join(Environment.NewLine, lines)}{remainText}";
+        }
+
         if (businessContext is BookingService.Response.GetBookingsResponse bookings)
         {
             if (bookings.Data.Count == 0)
@@ -467,6 +521,11 @@ public class Service : IService
         if (businessContext is BookingService.Response.GetBookingDetailResponse booking)
         {
             return $"Booking {booking.Id} của bạn đang ở trạng thái {booking.Status}, lịch rửa vào {booking.StartTime:dd/MM/yyyy HH:mm} tại {booking.Branch.Name}, tổng thanh toán {booking.FinalPrice:N0}.";
+        }
+
+        if (businessContext is BookingService.Response.ChatbotBookingSearchResponse bookingSearch)
+        {
+            return BuildBookingFallbackAnswer(bookingSearch);
         }
 
         var message = ReadStringProperty(businessContext, "message");
@@ -643,28 +702,134 @@ public class Service : IService
         return results;
     }
 
-    private async Task<object> GetBookingDetailContextAsync(Guid? bookingId)
+    private async Task<object> GetBookingDetailContextAsync(
+        IntentDetectionResult detection,
+        IReadOnlyCollection<PromptHistoryItem> history)
     {
-        if (!bookingId.HasValue)
+        if (detection.BookingId.HasValue)
         {
-            return new
+            try
             {
-                message = "Khong tim thay booking id trong cau hoi hien tai. Hay yeu cau nguoi dung cung cap ma booking."
-            };
+                return await _bookingService.GetBookingById(detection.BookingId.Value);
+            }
+            catch (Exception ex) when (ex is KeyNotFoundException or ArgumentException or InvalidOperationException)
+            {
+                return new
+                {
+                    message = "Khong the tai chi tiet booking tu booking id da cung cap.",
+                    detection.BookingId
+                };
+            }
         }
 
-        try
+        var resolvedDetection = ResolveBookingFiltersFromHistory(detection, history);
+        var searchResult = await _bookingService.SearchMyBookingsForChatbot(
+            resolvedDetection.NormalizedMessage,
+            resolvedDetection.BookingDate,
+            resolvedDetection.LicensePlate,
+            resolvedDetection.BookingStatus,
+            resolvedDetection.HasBranchHint,
+            resolvedDetection.HasLicensePlateHint,
+            resolvedDetection.HasStatusHint,
+            ResolveBookingLimit(resolvedDetection.RequestedBookingCount, 5));
+
+        if (searchResult.TotalMatched == 1 && searchResult.Items.Count == 1)
         {
-            return await _bookingService.GetBookingById(bookingId.Value);
+            return await _bookingService.GetBookingById(searchResult.Items[0].Id);
         }
-        catch (Exception ex) when (ex is KeyNotFoundException or ArgumentException or InvalidOperationException)
+
+        if (searchResult.TotalMatched > 1)
         {
-            return new
+            if (!HasConcreteBookingFilters(resolvedDetection))
             {
-                message = "Khong the tai chi tiet booking tu booking id da cung cap.",
-                bookingId
-            };
+                return searchResult;
+            }
+
+            searchResult.Message =
+                $"Mình tìm thấy {searchResult.TotalMatched} booking phù hợp với mô tả hiện tại, nên chưa xác định được một booking duy nhất để mở chi tiết.";
+            return searchResult;
         }
+
+        if (!string.IsNullOrWhiteSpace(searchResult.Message))
+        {
+            return searchResult;
+        }
+
+        return new
+        {
+            message = "Mình chưa tìm thấy booking phù hợp để mở chi tiết. Bạn có thể bổ sung biển số, chi nhánh hoặc ngày booking."
+        };
+    }
+
+    private IntentDetectionResult ResolveBookingFiltersFromHistory(
+        IntentDetectionResult currentDetection,
+        IReadOnlyCollection<PromptHistoryItem> history)
+    {
+        if (currentDetection.BookingId.HasValue)
+        {
+            return currentDetection;
+        }
+
+        var resolvedDate = currentDetection.BookingDate;
+        var resolvedLicensePlate = currentDetection.LicensePlate;
+        var resolvedStatus = currentDetection.BookingStatus;
+        var hasBranchHint = currentDetection.HasBranchHint;
+        var hasLicensePlateHint = currentDetection.HasLicensePlateHint;
+        var hasStatusHint = currentDetection.HasStatusHint;
+
+        foreach (var historyItem in history
+                     .Where(x => x.Role == ChatMessageRole.User)
+                     .OrderByDescending(x => x.CreatedAt))
+        {
+            var previousDetection = _intentDetector.Detect(historyItem.Content);
+
+            resolvedDate ??= previousDetection.BookingDate;
+            resolvedLicensePlate ??= previousDetection.LicensePlate;
+            resolvedStatus ??= previousDetection.BookingStatus;
+            hasBranchHint |= previousDetection.HasBranchHint;
+            hasLicensePlateHint |= previousDetection.HasLicensePlateHint;
+            hasStatusHint |= previousDetection.HasStatusHint;
+
+            if (resolvedDate.HasValue &&
+                !string.IsNullOrWhiteSpace(resolvedLicensePlate) &&
+                resolvedStatus.HasValue)
+            {
+                break;
+            }
+        }
+
+        return currentDetection with
+        {
+            BookingDate = resolvedDate,
+            RequestedBookingCount = currentDetection.RequestedBookingCount ?? history
+                .Where(x => x.Role == ChatMessageRole.User)
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(x => _intentDetector.Detect(x.Content).RequestedBookingCount)
+                .FirstOrDefault(x => x.HasValue),
+            LicensePlate = resolvedLicensePlate,
+            BookingStatus = resolvedStatus,
+            HasBranchHint = hasBranchHint,
+            HasLicensePlateHint = hasLicensePlateHint,
+            HasStatusHint = hasStatusHint
+        };
+    }
+
+    private static bool HasConcreteBookingFilters(IntentDetectionResult detection)
+    {
+        return detection.BookingDate.HasValue ||
+               !string.IsNullOrWhiteSpace(detection.LicensePlate) ||
+               detection.BookingStatus.HasValue ||
+               detection.HasBranchHint;
+    }
+
+    private static int ResolveBookingLimit(int? requestedBookingCount, int defaultLimit)
+    {
+        if (!requestedBookingCount.HasValue)
+        {
+            return defaultLimit;
+        }
+
+        return Math.Clamp(requestedBookingCount.Value, 1, 20);
     }
 
     private static object BuildFaqContext()
@@ -674,8 +839,7 @@ public class Service : IService
             faqs = new[]
             {
                 "AutoWashPro hỗ trợ đặt lịch rửa xe, theo dõi điểm thưởng, voucher và khuyến mãi.",
-                "Người dùng có thể đặt lịch, xem lịch sử booking, xem điểm và voucher trong tài khoản.",
-                "Nếu câu hỏi cần dữ liệu cá nhân cụ thể, assistant sẽ chỉ trả lời dựa trên dữ liệu nghiệp vụ được nạp vào prompt."
+                "Người dùng có thể đặt lịch, xem lịch sử booking, xem điểm và voucher trong tài khoản."
             }
         };
     }

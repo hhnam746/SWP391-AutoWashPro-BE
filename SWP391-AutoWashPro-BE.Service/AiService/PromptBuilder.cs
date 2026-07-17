@@ -34,6 +34,8 @@ Không tự suy đoán giới tính, độ tuổi hoặc vai vế của người
 Nếu intent là NEAREST_BRANCH hoặc TOP_BRANCH ở giai đoạn này, hãy nói tính năng đó chưa được hỗ trợ.
 Nếu business context cho thấy dữ liệu đến từ authenticated_user, không được yêu cầu người dùng cung cấp lại số điện thoại, mã khách hàng hay thông tin tài khoản để kiểm tra.
 Với intent Voucher, phải ưu tiên đọc availableVouchers và unavailableVouchers trong business context. Nếu không có voucher khả dụng, hãy giải thích ngắn gọn lý do theo dữ liệu thay vì yêu cầu thêm thông tin tài khoản.
+Với intent Booking, nếu business context có items thì phải ưu tiên liệt kê ngắn gọn từng booking theo đúng thứ tự đã cho, không chỉ tóm tắt số lượng.
+Nếu business context của Booking có message thì phải bám sát message đó và không tự bịa thêm kết quả.
 """);
 
         builder.AppendLine();
