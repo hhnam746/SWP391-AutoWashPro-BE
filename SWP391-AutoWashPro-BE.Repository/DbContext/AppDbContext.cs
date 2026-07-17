@@ -46,7 +46,6 @@ public class AppDbContext : DbContext
     private static readonly ValueConverter<ChatMessageRole, string> ChatMessageRoleConverter =
         new(v => ToDbChatMessageRole(v), v => FromDbChatMessageRole(v));
 
-
     private static string ToDbUserRole(UserRole value) => value switch
     {
         UserRole.Admin => "admin",

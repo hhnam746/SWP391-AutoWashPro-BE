@@ -1917,6 +1917,7 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Conversation", b =>
                 {
                     b.Navigation("ChatMessages");
+
                 });
 
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.CustomerProfile", b =>

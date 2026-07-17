@@ -21,8 +21,14 @@
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     </ItemGroup>
     
-    <ItemGroup>
-      <ProjectReference Include="..\SWP391-AutoWashPro-BE.Repository\SWP391-AutoWashPro-BE.Repository.csproj" />
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SWP391-AutoWashPro-BE.Repository\SWP391-AutoWashPro-BE.Repository.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>SWP391-AutoWashPro-BE.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
 
 </Project>
