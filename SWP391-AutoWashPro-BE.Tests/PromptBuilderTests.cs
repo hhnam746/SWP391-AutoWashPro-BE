@@ -22,6 +22,7 @@ public class PromptBuilderTests
         Assert.Contains("Nếu dữ liệu chưa đủ để trả lời chính xác, hãy nói rõ điều đó và yêu cầu người dùng cung cấp thêm thông tin.", result);
         Assert.Contains("Không bịa ra booking, voucher, điểm thưởng, địa chỉ hay chính sách không có trong dữ liệu.", result);
         Assert.Contains("Mặc định trả lời bằng tiếng Việt, ngắn gọn, rõ ràng, thân thiện.", result);
+        Assert.Contains("Không dùng markdown bold trong câu trả lời. Không bọc tên, số điện thoại, email hoặc dữ liệu hiển thị bằng cú pháp **...**.", result);
         Assert.Contains("Luôn xưng là \"mình\" và gọi người dùng là \"bạn\".", result);
         Assert.Contains("Không dùng các cách xưng hô như \"anh/em\", \"chị/em\", \"em/anh\", \"em/chị\", \"quý khách\" trừ khi có yêu cầu rõ ràng từ người dùng.", result);
         Assert.Contains("Không tự suy đoán giới tính, độ tuổi hoặc vai vế của người dùng từ tên hoặc ngữ cảnh.", result);

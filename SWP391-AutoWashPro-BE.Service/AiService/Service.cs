@@ -92,6 +92,8 @@ public class Service : IService
             requestCancellationToken);
         answerStopwatch.Stop();
 
+        var sanitizedAnswer = MarkdownBoldSanitizer.RemoveBoldMarkers(answerResult.Answer);
+
         var userMessage = new ChatMessage
         {
             ConversationId = conversation.Id,
@@ -105,7 +107,7 @@ public class Service : IService
         {
             ConversationId = conversation.Id,
             Role = ChatMessageRole.Assistant,
-            Content = answerResult.Answer,
+            Content = sanitizedAnswer,
             Intent = detection.Intent,
             CreatedAt = now
         };
@@ -114,7 +116,7 @@ public class Service : IService
 
         _dbContext.ChatMessages.Add(userMessage);
         _dbContext.ChatMessages.Add(assistantMessage);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
         totalStopwatch.Stop();
         _logger.LogInformation(
@@ -130,7 +132,7 @@ public class Service : IService
         return new Response.ChatResponse
         {
             ConversationId = conversation.Id,
-            Answer = answerResult.Answer,
+            Answer = sanitizedAnswer,
             CreatedAt = assistantMessage.CreatedAt,
             Intent = detection.Intent
         };

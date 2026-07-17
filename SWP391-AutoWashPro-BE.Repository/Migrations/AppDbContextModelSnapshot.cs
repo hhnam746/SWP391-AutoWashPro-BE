@@ -217,6 +217,78 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.ToTable("chat_message", (string)null);
                 });
 
+            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.ChatRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<Guid>("AssistantMessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assistant_message_id");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("cancelled_at");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTimeOffset?>("FailedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("failed_at");
+
+                    b.Property<string>("FailureReason")
+                        .HasColumnType("text")
+                        .HasColumnName("failure_reason");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserMessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_message_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssistantMessageId")
+                        .IsUnique();
+
+                    b.HasIndex("ConversationId");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UserMessageId")
+                        .IsUnique();
+
+                    b.ToTable("chat_run", (string)null);
+                });
+
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Conversation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1616,6 +1688,33 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                     b.Navigation("Conversation");
                 });
 
+            modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.ChatRun", b =>
+                {
+                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.ChatMessage", "AssistantMessage")
+                        .WithMany()
+                        .HasForeignKey("AssistantMessageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.Conversation", "Conversation")
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.ChatMessage", "UserMessage")
+                        .WithMany()
+                        .HasForeignKey("UserMessageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AssistantMessage");
+
+                    b.Navigation("Conversation");
+
+                    b.Navigation("UserMessage");
+                });
+
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Conversation", b =>
                 {
                     b.HasOne("SWP391_AutoWashPro_BE.Repository.Entities.User", "User")
@@ -1905,6 +2004,7 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.Conversation", b =>
                 {
                     b.Navigation("ChatMessages");
+
                 });
 
             modelBuilder.Entity("SWP391_AutoWashPro_BE.Repository.Entities.CustomerProfile", b =>
