@@ -265,10 +265,14 @@ public class Service : IService
         if (customer == null)
             throw new Exception("Customer not found");
 
+        // var reward = await _dbContext.Rewards
+        //     .Include(x => x.RewardTiers
+        //         .Where(rt => !rt.IsDeleted))
+        //     .FirstOrDefaultAsync(x => x.Id == rewardId);
         var reward = await _dbContext.Rewards
-            .Include(x => x.RewardTiers
-                .Where(rt => !rt.IsDeleted && !rt.Tier.IsDeleted))
-            .FirstOrDefaultAsync(x => x.Id == rewardId);
+            .Include(r => r.RewardTiers)
+            .ThenInclude(rt => rt.Tier)
+            .FirstOrDefaultAsync(r => r.Id == rewardId);
 
         if (reward == null)
             throw new Exception("Reward not found");
