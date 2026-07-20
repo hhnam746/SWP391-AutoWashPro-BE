@@ -1260,7 +1260,7 @@ public class Service : IService
 
         var bookingDetail = query
             .OrderByDescending(x => x.BookingDate)
-            .ThenBy(x => x.StartTime)
+            .ThenByDescending(x => x.StartTime)
             .Select(x => new Response.BookingResponse
             {
                 Id = x.Id,
