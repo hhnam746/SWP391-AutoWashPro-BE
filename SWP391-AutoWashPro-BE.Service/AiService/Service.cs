@@ -221,6 +221,7 @@ public class Service : IService
         return recentMessages;
     }
 
+    //build businessContext
     private async Task<object> BuildBusinessContextAsync(
         Guid userId,
         IntentDetectionResult detection,
