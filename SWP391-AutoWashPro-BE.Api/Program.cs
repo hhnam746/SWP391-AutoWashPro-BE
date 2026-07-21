@@ -129,12 +129,12 @@ var processBookingCron = builder.Configuration["Quartz:ProcessBookingCron"] ?? "
 var processBookingReminderCron = builder.Configuration["Quartz:BookingReminderCron"] ?? "0/30 * * * * ?"; //30s quét 1 lần
 var processBookingCompletedCron = builder.Configuration["Quartz:BookingCompletedCron"] ?? "0/30 * * * * ?";
 
-var defaultBirthdayVoucherCron = builder.Environment.IsDevelopment()
-    ? "0/5 * * * * ?" //0,5 s 1 lần
-    : "0 0 1 * * ?";
+// var defaultBirthdayVoucherCron = builder.Environment.IsDevelopment()
+//     ? "0/5 * * * * ?" //0,5 s 1 lần
+//     : "0 0 1 * * ?";
 
-var birthdayVoucherCron = builder.Configuration["Quartz:BirthdayVoucherCron"] ?? defaultBirthdayVoucherCron;
-// var birthdayVoucherCron = builder.Configuration["Quartz:BirthdayVoucherCron"] ?? "0 0 1 * * ?";
+// var birthdayVoucherCron = builder.Configuration["Quartz:BirthdayVoucherCron"] ?? defaultBirthdayVoucherCron;
+var birthdayVoucherCron = builder.Configuration["Quartz:BirthdayVoucherCron"] ?? "0/5 * * * * ?";
 var inactiveCustomerVoucherCron = builder.Configuration["Quartz:InactiveCustomerVoucherCron"] ?? "0 15 1 * * ?";
 var acquisitionVoucherCron = builder.Configuration["Quartz:AcquisitionVoucherCron"] ?? "0 0/15 * * * ?";
 var personalizedVoucherDeliveryRetryCron =
