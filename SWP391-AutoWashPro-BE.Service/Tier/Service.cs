@@ -81,7 +81,7 @@ public class Service: IService
         var exist = await _dbContext.Tiers.AnyAsync(x =>
             x.Id != id &&
             !x.IsDeleted &&
-            (x.Name == request.Name || x.Level == request.Level));
+            x.Name == request.Name);
 
         if (exist)
         {
@@ -91,13 +91,58 @@ public class Service: IService
         var tier = await _dbContext.Tiers
             .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted);
 
+        // if (tier == null)
+        // {
+        //     throw new KeyNotFoundException("Tier not found");
+        // }
+
         if (tier == null)
         {
             throw new KeyNotFoundException("Tier not found");
         }
 
+        // Chỉ kiểm tra khi thay đổi điều kiện lên hạng
+        if (tier.RequiredWashes != request.RequiredWashes)
+        {
+            // Không cho sửa nếu đã có khách hàng thuộc tier này
+            var hasCustomer = await _dbContext.CustomerProfiles
+                .AnyAsync(x => x.TierId == id);
+
+            if (hasCustomer)
+            {
+                throw new InvalidOperationException(
+                    "Cannot change the minimum required washes because customers are already assigned to this tier.");
+            }
+
+            // Lấy hạng thấp hơn gần nhất
+            var lowerTier = await _dbContext.Tiers
+                .Where(x => !x.IsDeleted && x.Level < tier.Level)
+                .OrderByDescending(x => x.Level)
+                .FirstOrDefaultAsync();
+
+            if (lowerTier != null &&
+                request.RequiredWashes <= lowerTier.RequiredWashes)
+            {
+                throw new InvalidOperationException(
+                    $"Required washes must be greater than {lowerTier.Name}.");
+            }
+
+            // Lấy hạng cao hơn gần nhất
+            var upperTier = await _dbContext.Tiers
+                .Where(x => !x.IsDeleted && x.Level > tier.Level)
+                .OrderBy(x => x.Level)
+                .FirstOrDefaultAsync();
+
+            if (upperTier != null &&
+                request.RequiredWashes >= upperTier.RequiredWashes)
+            {
+                throw new InvalidOperationException(
+                    $"Required washes must be less than {upperTier.Name}.");
+            }
+        }
+
         tier.Name = request.Name;
-        tier.Level = request.Level;
+        // tier.Level = request.Level;
         tier.RequiredWashes = request.RequiredWashes;
         tier.PriorityBookingDays = request.PriorityBookingDays;
         tier.Description = request.Description;
