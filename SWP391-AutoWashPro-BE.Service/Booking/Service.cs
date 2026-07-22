@@ -1268,6 +1268,20 @@ public class Service : IService
 
             customerProfile.TotalWashes += 1;
             customerProfile.TotalPoints += bonusPoint;
+            var earnPointTransaction = new Repository.Entities.PointTransaction
+            {
+                Id = Guid.NewGuid(),
+                CustomerId = customerProfile.Id,
+                Customer = customerProfile,
+                BookingId = booking.Id,
+                Booking = booking,
+                Points = bonusPoint,
+                TransactionType = PointTransactionType.Earn,
+                Description = $"Earned {bonusPoint} points from booking.",
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            _dbContext.PointTransactions.Add(earnPointTransaction);
             var currentTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level);
             var nextTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level + 1);
 
