@@ -313,6 +313,7 @@ public class Service : IService
         {
             CustomerId = customer.Id,
             RewardId = reward.Id,
+            Name = reward.Name,
 
             Code = Guid.NewGuid()
                 .ToString("N")[..8]

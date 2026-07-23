@@ -11,9 +11,7 @@ public class Voucher : BaseEntity, IAuditableEntity
     public Guid? RewardId { get; set; }
     public Reward? Reward { get; set; }
 
-    public Guid? PromotionId { get; set; }
-    public Promotion? Promotion { get; set; }
-
+    public string Name { get; set; } = null!;
     public string Code { get; set; } = null!;
     public VoucherStatus Status { get; set; } = VoucherStatus.Active;
     public DiscountType DiscountType { get; set; }

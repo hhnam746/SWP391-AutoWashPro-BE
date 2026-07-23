@@ -42,8 +42,7 @@ public class DeliveryService : IDeliveryService
         var issuance = await _dbContext.PersonalizedVoucherIssuances
             .Include(x => x.Customer)
             .ThenInclude(x => x.User)
-            .Include(x => x.Promotion)
-            .Include(x => x.PromotionRule)
+            .Include(x => x.VoucherRule)
             .Include(x => x.Voucher)
             .FirstOrDefaultAsync(x => x.Id == issuanceId, cancellationToken);
         if (issuance == null)
@@ -119,7 +118,7 @@ public class DeliveryService : IDeliveryService
         PersonalizedVoucherIssuance issuance,
         CancellationToken cancellationToken)
     {
-        var rule = issuance.PromotionRule;
+        var rule = issuance.VoucherRule;
         if (!rule.SendInAppNotification || !issuance.NotificationId.HasValue)
         {
             issuance.NotificationStatus = PersonalizedVoucherDeliveryStatus.NotRequired;
@@ -141,8 +140,7 @@ public class DeliveryService : IDeliveryService
             var metadata = JsonSerializer.Serialize(new
             {
                 issuance.VoucherId,
-                issuance.PromotionId,
-                RuleId = issuance.PromotionRuleId,
+                issuance.VoucherRuleId,
                 issuance.TriggerType,
                 issuance.CycleKey
             });
@@ -179,7 +177,7 @@ public class DeliveryService : IDeliveryService
         PersonalizedVoucherIssuance issuance,
         CancellationToken cancellationToken)
     {
-        var rule = issuance.PromotionRule;
+        var rule = issuance.VoucherRule;
         if (!rule.SendEmail)
         {
             issuance.EmailStatus = PersonalizedVoucherDeliveryStatus.NotRequired;
@@ -239,22 +237,21 @@ public class DeliveryService : IDeliveryService
         return TemplateRenderer.Render(
             template,
             customerName,
-            issuance.Promotion.Name,
+            issuance.Voucher.Name,
             issuance.Voucher.DiscountType,
             issuance.Voucher.DiscountValue,
             issuance.Voucher.Code,
             expiresAt,
-            issuance.PromotionRule.CallToActionUrl ?? string.Empty,
+            issuance.VoucherRule.CallToActionUrl ?? string.Empty,
             htmlEncodeValues);
     }
 
     private void LogDeliveryFailure(PersonalizedVoucherIssuance issuance, string errorCode)
     {
         _logger.LogWarning(
-            "Personalized voucher delivery failed. CustomerId={CustomerId}, PromotionId={PromotionId}, RuleId={RuleId}, TriggerType={TriggerType}, CycleKey={CycleKey}, VoucherId={VoucherId}, ErrorCode={ErrorCode}.",
+            "Personalized voucher delivery failed. CustomerId={CustomerId}, VoucherRuleId={VoucherRuleId}, TriggerType={TriggerType}, CycleKey={CycleKey}, VoucherId={VoucherId}, ErrorCode={ErrorCode}.",
             issuance.CustomerId,
-            issuance.PromotionId,
-            issuance.PromotionRuleId,
+            issuance.VoucherRuleId,
             issuance.TriggerType,
             issuance.CycleKey,
             issuance.VoucherId,

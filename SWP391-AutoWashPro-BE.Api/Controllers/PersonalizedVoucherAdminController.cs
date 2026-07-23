@@ -18,7 +18,7 @@ public class PersonalizedVoucherAdminController : ControllerBase
         _ruleService = ruleService;
     }
 
-    [HttpGet("personalized-promotion-rules")]
+    [HttpGet("personalized-voucher-rules")]
     public async Task<IActionResult> GetRules(
         [FromQuery] Request.GetRulesRequest request,
         CancellationToken cancellationToken)
@@ -26,11 +26,11 @@ public class PersonalizedVoucherAdminController : ControllerBase
         var result = await _ruleService.GetRulesAsync(request, cancellationToken);
         return Ok(ApiResponseFactory.SuccessResponse(
             result,
-            "Get personalized promotion rules",
+            "Get personalized voucher rules",
             HttpContext.TraceIdentifier));
     }
 
-    [HttpPost("personalized-promotion-rules")]
+    [HttpPost("personalized-voucher-rules")]
     public async Task<IActionResult> CreateRule(
         [FromBody] Request.RuleRequest request,
         CancellationToken cancellationToken)
@@ -38,11 +38,11 @@ public class PersonalizedVoucherAdminController : ControllerBase
         var result = await _ruleService.CreateRuleAsync(request, cancellationToken);
         return Ok(ApiResponseFactory.SuccessResponse(
             result,
-            "Create personalized promotion rule successfully",
+            "Create personalized voucher rule successfully",
             HttpContext.TraceIdentifier));
     }
 
-    [HttpPut("personalized-promotion-rules/{id:guid}")]
+    [HttpPut("personalized-voucher-rules/{id:guid}")]
     public async Task<IActionResult> UpdateRule(
         [FromRoute] Guid id,
         [FromBody] Request.RuleRequest request,
@@ -51,11 +51,11 @@ public class PersonalizedVoucherAdminController : ControllerBase
         var result = await _ruleService.UpdateRuleAsync(id, request, cancellationToken);
         return Ok(ApiResponseFactory.SuccessResponse(
             result,
-            "Update personalized promotion rule successfully",
+            "Update personalized voucher rule successfully",
             HttpContext.TraceIdentifier));
     }
 
-    [HttpPatch("personalized-promotion-rules/{id:guid}/status")]
+    [HttpPatch("personalized-voucher-rules/{id:guid}/status")]
     public async Task<IActionResult> UpdateRuleStatus(
         [FromRoute] Guid id,
         [FromBody] Request.UpdateRuleStatusRequest request,
@@ -64,7 +64,7 @@ public class PersonalizedVoucherAdminController : ControllerBase
         var result = await _ruleService.UpdateRuleStatusAsync(id, request, cancellationToken);
         return Ok(ApiResponseFactory.SuccessResponse(
             result,
-            "Update personalized promotion rule status successfully",
+            "Update personalized voucher rule status successfully",
             HttpContext.TraceIdentifier));
     }
 

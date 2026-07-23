@@ -22,12 +22,12 @@ public class Response
     public class RuleResponse
     {
         public Guid Id { get; set; }
-        public Guid PromotionId { get; set; }
-        public string PromotionName { get; set; } = null!;
+        public string VoucherName { get; set; } = null!;
         public PersonalizedVoucherTriggerType TriggerType { get; set; }
+        public DiscountType DiscountType { get; set; }
+        public decimal DiscountValue { get; set; }
         public int? ThresholdDays { get; set; }
         public int VoucherValidityDays { get; set; }
-        public int Priority { get; set; }
         public bool IsActive { get; set; }
         public bool SendInAppNotification { get; set; }
         public bool SendEmail { get; set; }
@@ -42,9 +42,8 @@ public class Response
 
     public class ReportItem
     {
-        public Guid PromotionId { get; set; }
-        public Guid PromotionRuleId { get; set; }
-        public string CampaignName { get; set; } = null!;
+        public Guid VoucherRuleId { get; set; }
+        public string VoucherName { get; set; } = null!;
         public PersonalizedVoucherTriggerType TriggerType { get; set; }
         public int IssuedCount { get; set; }
         public int ActiveCount { get; set; }

@@ -319,7 +319,7 @@ public class AppDbContext : DbContext
     public DbSet<Transaction> Transactions { get; set; }
     public DbSet<PointTransaction> PointTransactions { get; set; }
     public DbSet<Notification> Notifications { get; set; }
-    public DbSet<PersonalizedPromotionRule> PersonalizedPromotionRules { get; set; }
+    public DbSet<PersonalizedVoucherRule> PersonalizedVoucherRules { get; set; }
     public DbSet<PersonalizedVoucherIssuance> PersonalizedVoucherIssuances { get; set; }
     public DbSet<CustomerDateOfBirthCorrection> CustomerDateOfBirthCorrections { get; set; }
     public DbSet<Conversation> Conversations { get; set; }
@@ -698,6 +698,46 @@ public class AppDbContext : DbContext
                     Description = "Bonus points earned after checkout completed.",
                     CreatedAt = defaultConfigCreatedAt,
                 },
+                new()
+                {
+                    Id = Guid.Parse("9e5a54f8-1697-47c8-be81-8234b3b58e60"),
+                    ConfigKey = Constants.PersonalizedVoucherConfigKeys.Birthday,
+                    ConfigValue = "true",
+                    Description = "Enable Birthday personalized voucher issuance.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+                new()
+                {
+                    Id = Guid.Parse("d9f365ae-bc06-4240-b6c4-c12a75252ea2"),
+                    ConfigKey = Constants.PersonalizedVoucherConfigKeys.InactiveCustomer,
+                    ConfigValue = "true",
+                    Description = "Enable Inactive Customer personalized voucher issuance.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+                new()
+                {
+                    Id = Guid.Parse("756be207-9f48-4229-8365-974f13aafca0"),
+                    ConfigKey = Constants.PersonalizedVoucherConfigKeys.Welcome,
+                    ConfigValue = "true",
+                    Description = "Enable Welcome personalized voucher issuance.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+                new()
+                {
+                    Id = Guid.Parse("2baf2ec3-21a5-46af-a917-7ed386ab9c9f"),
+                    ConfigKey = Constants.PersonalizedVoucherConfigKeys.NoFirstBooking,
+                    ConfigValue = "true",
+                    Description = "Enable No First Booking personalized voucher issuance.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+                new()
+                {
+                    Id = Guid.Parse("9c0d3e70-6afe-4944-8dbf-ecee2500fd0a"),
+                    ConfigKey = Constants.PersonalizedVoucherConfigKeys.TierUpgrade,
+                    ConfigValue = "true",
+                    Description = "Enable Tier Upgrade personalized voucher issuance.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
             };
 
             builder.HasData(systemConfigs);
@@ -752,18 +792,21 @@ public class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.Entity<PersonalizedPromotionRule>(builder =>
+        modelBuilder.Entity<PersonalizedVoucherRule>(builder =>
         {
-            builder.ToTable("personalized_promotion_rule");
+            builder.ToTable("personalized_voucher_rule");
             builder.HasKey(x => x.Id);
 
             builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
-            builder.Property(x => x.PromotionId).HasColumnName("promotion_id").IsRequired();
+            builder.Property(x => x.VoucherName).HasColumnName("voucher_name").HasMaxLength(200).IsRequired();
             builder.Property(x => x.TriggerType).HasColumnName("trigger_type")
                 .HasConversion(PersonalizedVoucherTriggerTypeConverter).IsRequired();
+            builder.Property(x => x.DiscountType).HasColumnName("discount_type")
+                .HasConversion(DiscountTypeConverter).IsRequired();
+            builder.Property(x => x.DiscountValue).HasColumnName("discount_value").HasColumnType("numeric(12,2)")
+                .IsRequired();
             builder.Property(x => x.ThresholdDays).HasColumnName("threshold_days");
             builder.Property(x => x.VoucherValidityDays).HasColumnName("voucher_validity_days").IsRequired();
-            builder.Property(x => x.Priority).HasColumnName("priority").HasDefaultValue(0).IsRequired();
             builder.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true).IsRequired();
             builder.Property(x => x.SendInAppNotification).HasColumnName("send_in_app_notification")
                 .HasDefaultValue(false).IsRequired();
@@ -779,15 +822,13 @@ public class AppDbContext : DbContext
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
-            builder.HasIndex(x => x.PromotionId);
             builder.HasIndex(x => x.TriggerType);
             builder.HasIndex(x => x.ThresholdDays);
             builder.HasIndex(x => new { x.IsActive, x.TriggerType });
-
-            builder.HasOne(x => x.Promotion)
-                .WithMany(x => x.PersonalizedPromotionRules)
-                .HasForeignKey(x => x.PromotionId)
-                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasIndex(x => x.TriggerType)
+                .IsUnique()
+                .HasFilter("is_active = true")
+                .HasDatabaseName("UX_personalized_voucher_rule_active_trigger");
         });
 
         modelBuilder.Entity<Reward>(builder =>
@@ -845,7 +886,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
             builder.Property(x => x.CustomerId).HasColumnName("customer_id").IsRequired();
             builder.Property(x => x.RewardId).HasColumnName("reward_id");
-            builder.Property(x => x.PromotionId).HasColumnName("promotion_id");
+            builder.Property(x => x.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
             builder.Property(x => x.Code).HasColumnName("code").IsRequired();
             builder.Property(x => x.Status).HasColumnName("status").HasConversion(VoucherStatusConverter)
                 .HasDefaultValue(VoucherStatus.Active).IsRequired();
@@ -873,10 +914,6 @@ public class AppDbContext : DbContext
                 .HasForeignKey(x => x.RewardId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasOne(x => x.Promotion)
-                .WithMany(x => x.Vouchers)
-                .HasForeignKey(x => x.PromotionId)
-                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<PersonalizedVoucherIssuance>(builder =>
@@ -886,8 +923,7 @@ public class AppDbContext : DbContext
 
             builder.Property(x => x.Id).HasColumnName("id").HasDefaultValueSql("gen_random_uuid()");
             builder.Property(x => x.CustomerId).HasColumnName("customer_id").IsRequired();
-            builder.Property(x => x.PromotionId).HasColumnName("promotion_id").IsRequired();
-            builder.Property(x => x.PromotionRuleId).HasColumnName("promotion_rule_id").IsRequired();
+            builder.Property(x => x.VoucherRuleId).HasColumnName("voucher_rule_id").IsRequired();
             builder.Property(x => x.VoucherId).HasColumnName("voucher_id").IsRequired();
             builder.Property(x => x.TriggerType).HasColumnName("trigger_type")
                 .HasConversion(PersonalizedVoucherTriggerTypeConverter).IsRequired();
@@ -912,8 +948,7 @@ public class AppDbContext : DbContext
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.CustomerId);
-            builder.HasIndex(x => x.PromotionId);
-            builder.HasIndex(x => x.PromotionRuleId);
+            builder.HasIndex(x => x.VoucherRuleId);
             builder.HasIndex(x => x.VoucherId).IsUnique();
             builder.HasIndex(x => x.NotificationId).IsUnique().HasFilter("notification_id IS NOT NULL");
             builder.HasIndex(x => new { x.CustomerId, x.TriggerType, x.CycleKey })
@@ -927,14 +962,9 @@ public class AppDbContext : DbContext
                 .HasForeignKey(x => x.CustomerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasOne(x => x.Promotion)
-                .WithMany(x => x.PersonalizedVoucherIssuances)
-                .HasForeignKey(x => x.PromotionId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(x => x.PromotionRule)
+            builder.HasOne(x => x.VoucherRule)
                 .WithMany(x => x.Issuances)
-                .HasForeignKey(x => x.PromotionRuleId)
+                .HasForeignKey(x => x.VoucherRuleId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasOne(x => x.Voucher)
