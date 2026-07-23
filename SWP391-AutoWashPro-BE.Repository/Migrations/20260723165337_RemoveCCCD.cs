@@ -1,15 +1,11 @@
-using Microsoft.EntityFrameworkCore.Migrations;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using SWP391_AutoWashPro_BE.Repository;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace SWP391_AutoWashPro_BE.Repository.Migrations
 {
     /// <inheritdoc />
-    [DbContext(typeof(AppDbContext))]
-    [Migration("20260722000000_RemoveCccd")]
-    public partial class RemoveCccd : Migration
+    public partial class RemoveCCCD : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
