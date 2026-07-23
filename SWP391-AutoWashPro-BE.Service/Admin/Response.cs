@@ -75,7 +75,6 @@ public class Response
         public Guid Id { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
-        public string? Cccd { get; set; }
         public DateOnly? DateOfBirth { get; set; }
         public int TotalPoints { get; set; }
         public int TotalWashes { get; set; }

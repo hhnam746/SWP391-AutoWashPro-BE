@@ -140,7 +140,6 @@ public class ChatbotBookingSearchTests
             Tier = tier,
             FirstName = "An",
             LastName = "Nguyen",
-            Cccd = "123456789012",
             CreatedAt = DateTimeOffset.UtcNow
         };
 

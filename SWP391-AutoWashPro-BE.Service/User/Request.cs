@@ -24,8 +24,6 @@ public class Request
     {
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
-        // public string? Cccd { get; set; }
-        
         [MinLength(3, ErrorMessage = "At least 3 face images are required.")]
         public List<IFormFile>? FaceImages { get; set; } = new();
     }

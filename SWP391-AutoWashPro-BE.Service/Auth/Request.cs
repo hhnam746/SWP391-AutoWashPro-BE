@@ -17,8 +17,6 @@ public class Request
 
         public required string LastName { get; set; }
 
-        public required string Cccd { get; set; }
-
         public DateOnly? DateOfBirth { get; set; }
         
         [MinLength(3, ErrorMessage = "At least 3 face images are required.")]

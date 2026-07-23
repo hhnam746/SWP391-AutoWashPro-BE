@@ -125,7 +125,6 @@ user_id uuid [not null, unique]
 tier_id uuid [not null]
 first_name varchar [not null]
 last_name varchar [not null]
-cccd varchar [unique]
 total_points integer [not null, default: 0]
 total_washes integer [not null, default: 0]
 last_point_activity_at timestamptz
@@ -138,7 +137,6 @@ updated_at timestamptz [not null, default: `now()`]
 indexes {
 user_id
 tier_id
-cccd
 }
 }
 

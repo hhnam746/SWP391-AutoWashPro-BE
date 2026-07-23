@@ -66,7 +66,6 @@ public class Service : IService
                 Id = customerProfile.Id,
                 FirstName = customerProfile.FirstName,
                 LastName = customerProfile.LastName,
-                Cccd = customerProfile.Cccd,
                 DateOfBirth = customerProfile.DateOfBirth,
                 TierData = customerProfile!.Tier == null
                     ? null
@@ -289,7 +288,6 @@ public class Service : IService
                 Id = user.CustomerProfile!.Id,
                 FirstName = user.CustomerProfile.FirstName,
                 LastName = user.CustomerProfile.LastName,
-                Cccd = user.CustomerProfile.Cccd,
                 DateOfBirth = user.CustomerProfile.DateOfBirth,
                 TierData = user.CustomerProfile.Tier == null
                     ? null
@@ -350,16 +348,8 @@ public class Service : IService
             user.CustomerProfile.LastName = normalizedLastName;
         }
 
-        // if (!string.IsNullOrWhiteSpace(request.Cccd))
-        // {
-        //     var normalizedCccd = request.Cccd.Trim();
-        //     user.CustomerProfile.Cccd = normalizedCccd;
-        // }
-
-
         if (string.IsNullOrWhiteSpace(request.FirstName) &&
             string.IsNullOrWhiteSpace(request.LastName) &&
-            // string.IsNullOrWhiteSpace(request.Cccd) &&
             (request.FaceImages == null || !request.FaceImages.Any()))
         {
             throw new ArgumentException("At least one verification field must be provided.");

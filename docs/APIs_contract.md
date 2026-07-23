@@ -298,7 +298,6 @@ Request
   "password": "string",
   "firstName": "Nguyen",
   "lastName": "An",
-  "cccd": "012345678901",
   "faceImages": [
     {
       "imageUrl": "https://storage/app/face-1.jpg"
@@ -485,7 +484,6 @@ Response `200 OK`
     "id": "guid",
     "firstName": "Nguyen",
     "lastName": "An",
-    "cccd": "012345678901",
     "tier": {
       "id": "guid",
       "name": "Silver",
@@ -508,7 +506,6 @@ Request
 {
   "firstName": "Nguyen",
   "lastName": "Anh",
-  "cccd": "012345678901"
 }
 ```
 
@@ -519,14 +516,12 @@ Response `200 OK`
   "profileId": "guid",
   "firstName": "Nguyen",
   "lastName": "Anh",
-  "cccd": "012345678901"
 }
 ```
 
 Notes
 
 - Không cập nhật ảnh mặt trong endpoint này.
-- `cccd` unique nếu có truyền.
 
 ### `PATCH /api/v1/me/password`
 
@@ -1359,7 +1354,6 @@ Response `200 OK`
     "id": "guid",
     "firstName": "Nguyen",
     "lastName": "An",
-    "cccd": "012345678901",
     "tier": {
       "id": "guid",
       "name": "Silver",
