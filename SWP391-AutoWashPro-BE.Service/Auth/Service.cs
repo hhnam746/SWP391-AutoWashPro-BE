@@ -45,16 +45,10 @@ public class Service : IService
             throw new ArgumentException("At least 3 face images are required.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.Cccd))
-        {
-            throw new ArgumentException("CCCD is required.");
-        }
-
         var normalizedEmail = request.Email.Trim();
         var normalizedPhone = request.Phone.Trim();
         var normalizedFirstName = request.FirstName.Trim();
         var normalizedLastName = request.LastName.Trim();
-        var normalizedCccd = request.Cccd.Trim();
         var normalizedPassWord = request.Password.Trim();
 
         if (!IsValidEmail(normalizedEmail))
@@ -65,11 +59,6 @@ public class Service : IService
         if (!IsValidPhoneNumber(normalizedPhone))
         {
             throw new ArgumentException("Invalid phone number format.");
-        }
-
-        if (!IsValidCccd(normalizedCccd))
-        {
-            throw new ArgumentException("Invalid CCCD format.");
         }
 
         if (!IsValidPassword(normalizedPassWord))
@@ -141,16 +130,6 @@ public class Service : IService
             }
         }
 
-        // Check duplicate CCCD
-        bool isCccdUsed = await _dbContext.CustomerProfiles
-            .AsNoTracking()
-            .AnyAsync(x => x.Cccd == normalizedCccd);
-
-        if (isCccdUsed)
-        {
-            throw new ArgumentException("CCCD has already been used.");
-        }
-
         if (request.DateOfBirth.HasValue)
         {
             SWP391_AutoWashPro_BE.Service.User.DateOfBirthValidator.EnsureValid(request.DateOfBirth.Value);
@@ -179,7 +158,6 @@ public class Service : IService
             TierId = defaultTier.Id,
             FirstName = normalizedFirstName,
             LastName = normalizedLastName,
-            Cccd = normalizedCccd,
             DateOfBirth = request.DateOfBirth,
             DateOfBirthSetAt = request.DateOfBirth.HasValue ? DateTimeOffset.UtcNow : null,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -869,20 +847,6 @@ public class Service : IService
             // Pattern: 10-15 digits, can include +, -, space, ()
             string pattern = @"^[0-9+\-\s()]{10,15}$";
             return Regex.IsMatch(phoneNumber, pattern);
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private bool IsValidCccd(string cccd)
-    {
-        try
-        {
-            // Vietnam CCCD is commonly stored as exactly 12 digits.
-            const string pattern = @"^\d{12}$";
-            return Regex.IsMatch(cccd, pattern);
         }
         catch
         {

@@ -183,7 +183,6 @@ public class BirthdayProfileRulesTests
             Tier = tier,
             FirstName = "Anh",
             LastName = "Nguyen",
-            Cccd = "123456789012",
             DateOfBirth = dateOfBirth,
             DateOfBirthSetAt = dateOfBirth.HasValue ? DateTimeOffset.UtcNow.AddDays(-1) : null,
             CreatedAt = DateTimeOffset.UtcNow
@@ -250,7 +249,6 @@ public class BirthdayProfileRulesTests
             Password = "Strong@123",
             FirstName = "Anh",
             LastName = "Nguyen",
-            Cccd = $"{Random.Shared.NextInt64(100000000000, 999999999999)}",
             DateOfBirth = dateOfBirth,
             FaceImages =
             [

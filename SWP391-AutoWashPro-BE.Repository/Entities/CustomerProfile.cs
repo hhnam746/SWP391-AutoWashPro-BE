@@ -12,7 +12,6 @@ public class CustomerProfile : BaseEntity, IAuditableEntity
 
     public string FirstName { get; set; } = null!;
     public string LastName { get; set; } = null!;
-    public string? Cccd { get; set; }
     public int TotalPoints { get; set; }
     public int TotalWashes { get; set; }
     public DateTimeOffset? LastPointActivityAt { get; set; }

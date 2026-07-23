@@ -419,7 +419,6 @@ public class Service : IService
 
             var phone = string.IsNullOrWhiteSpace(profile.Phone) ? "Chưa cập nhật" : profile.Phone;
             var email = string.IsNullOrWhiteSpace(profile.Email) ? "Chưa cập nhật" : profile.Email;
-            var cccd = string.IsNullOrWhiteSpace(profile.ProfileData?.Cccd) ? "Chưa cập nhật" : profile.ProfileData.Cccd;
             var tierDescription = profile.ProfileData?.TierData is { } tierData
                 ? $"{tierData.Name} (Cấp độ {tierData.Level})"
                 : "Chưa có hạng thành viên";
@@ -430,7 +429,6 @@ public class Service : IService
                 $"Họ và tên: {displayName}{Environment.NewLine}" +
                 $"Số điện thoại: {phone}{Environment.NewLine}" +
                 $"Email: {email}{Environment.NewLine}" +
-                $"Số CCCD: {cccd}{Environment.NewLine}" +
                 $"Hạng thành viên: {tierDescription}{Environment.NewLine}" +
                 $"Tổng điểm tích lũy: {profile.TotalPoints} điểm{Environment.NewLine}" +
                 $"Tổng số lần rửa xe: {profile.TotalWashes} lần{Environment.NewLine}{Environment.NewLine}" +

@@ -15,7 +15,6 @@ Request
   "password": "string",
   "firstName": "Nguyen",
   "lastName": "An",
-  "cccd": "012345678901",
   "faceImages": ["<file-1>", "<file-2>", "<file-3>"]
 }
 ```
@@ -104,7 +103,6 @@ Response `200 OK`
       "id": "guid",
       "firstName": "Nguyen",
       "lastName": "An",
-      "cccd": "012345678901",
       "tierData": {
         "id": "guid",
         "name": "Silver",
@@ -140,7 +138,6 @@ Request
 {
   "firstName": "Nguyen",
   "lastName": "An",
-  "cccd": "012345678901"
 }
 ```
 
@@ -160,7 +157,7 @@ Response `200 OK`
 Notes
 
 - Content-Type: `application/json`.
-- `firstName`, `lastName`, `cccd` are optional, but at least 1 field must be provided.
+- `firstName`, `lastName` are optional, but at least 1 field must be provided.
 - API returns `ApiResponse` wrapper.
 
 ---
@@ -262,7 +259,6 @@ Response `200 OK`
           "id": "guid",
           "firstName": "Nguyen",
           "lastName": "An",
-          "cccd": "012345678901",
           "totalPoints": 100,
           "totalWashes": 5,
           "tierData": {
@@ -359,7 +355,6 @@ Response `200 OK`
       "id": "guid",
       "firstName": "Nguyen",
       "lastName": "An",
-      "cccd": "012345678901",
       "totalPoints": 100,
       "totalWashes": 5,
       "tierData": {

@@ -149,7 +149,6 @@ public class BirthdayVoucherAudienceTests
             Tier = tier,
             FirstName = "Birthday",
             LastName = "Customer",
-            Cccd = $"{Random.Shared.NextInt64(100000000000, 999999999999)}",
             DateOfBirth = dateOfBirth,
             DateOfBirthSetAt = nowUtc,
             CreatedAt = nowUtc

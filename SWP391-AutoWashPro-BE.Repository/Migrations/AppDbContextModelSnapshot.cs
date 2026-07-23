@@ -320,10 +320,6 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("gen_random_uuid()");
 
-                    b.Property<string>("Cccd")
-                        .HasColumnType("text")
-                        .HasColumnName("cccd");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -380,9 +376,6 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Cccd")
-                        .IsUnique();
 
                     b.HasIndex("TierId");
 

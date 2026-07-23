@@ -37,7 +37,7 @@ ________________
 CUSTOMER
 1. Authentication & Profile
 Main Flow:
-* Register: Nhập thông tin cá nhân (họ tên, SĐT, email, CCCD) → Upload tối thiểu 3 ảnh khuôn mặt → Upload tối thiểu 2 biển số xe → Hệ thống verify → Tạo tài khoản
+* Register: Nhập thông tin cá nhân (họ tên, SĐT, email) → Upload tối thiểu 3 ảnh khuôn mặt → Upload tối thiểu 2 biển số xe → Hệ thống verify → Tạo tài khoản
 * Login: Nhập email/SĐT + mật khẩu → Xác thực → Vào app
 * Forgot password: Nhập email → Nhận OTP → Đặt lại mật khẩu
 * Update profile: Chỉnh sửa thông tin cá nhân (không bao gồm ảnh mặt) → Lưu
