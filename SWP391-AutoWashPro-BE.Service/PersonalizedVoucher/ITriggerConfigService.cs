@@ -2,13 +2,9 @@ using SWP391_AutoWashPro_BE.Repository.Enums;
 
 namespace SWP391_AutoWashPro_BE.Service.PersonalizedVoucher;
 
-public interface IService
+public interface ITriggerConfigService
 {
-    Task<Response.IssueResult> TryIssuePersonalizedVoucherAsync(
-        Guid customerId,
-        Guid voucherRuleId,
+    Task<bool> IsEnabledAsync(
         PersonalizedVoucherTriggerType triggerType,
-        string cycleKey,
-        string? triggerReference,
         CancellationToken cancellationToken = default);
 }

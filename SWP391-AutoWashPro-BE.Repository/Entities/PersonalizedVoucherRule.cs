@@ -3,14 +3,14 @@ using SWP391_AutoWashPro_BE.Repository.Enums;
 
 namespace SWP391_AutoWashPro_BE.Repository.Entities;
 
-public class PersonalizedPromotionRule : BaseEntity, IAuditableEntity
+public class PersonalizedVoucherRule : BaseEntity, IAuditableEntity
 {
-    public Guid PromotionId { get; set; }
-    public Promotion Promotion { get; set; } = null!;
+    public string VoucherName { get; set; } = null!;
     public PersonalizedVoucherTriggerType TriggerType { get; set; }
+    public DiscountType DiscountType { get; set; }
+    public decimal DiscountValue { get; set; }
     public int? ThresholdDays { get; set; }
     public int VoucherValidityDays { get; set; }
-    public int Priority { get; set; }
     public bool IsActive { get; set; }
     public bool SendInAppNotification { get; set; }
     public bool SendEmail { get; set; }

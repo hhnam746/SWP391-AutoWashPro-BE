@@ -7,7 +7,7 @@ public static class RuleValidator
     private static readonly string[] InactiveEmailPlaceholders =
     {
         "{CustomerName}",
-        "{PromotionName}",
+        "{VoucherName}",
         "{Discount}",
         "{ExpiresAt}",
         "{BookingUrl}"
@@ -15,19 +15,29 @@ public static class RuleValidator
 
     public static void Validate(Request.RuleRequest request)
     {
-        if (request.PromotionId == Guid.Empty)
+        if (string.IsNullOrWhiteSpace(request.VoucherName))
         {
-            throw new ArgumentException("PromotionId is required.");
+            throw new ArgumentException("VoucherName is required.");
+        }
+
+        if (request.VoucherName.Trim().Length > 200)
+        {
+            throw new ArgumentException("VoucherName cannot exceed 200 characters.");
+        }
+
+        if (request.DiscountValue <= 0)
+        {
+            throw new ArgumentException("DiscountValue must be greater than 0.");
+        }
+
+        if (request.DiscountType == DiscountType.Percentage && request.DiscountValue > 100)
+        {
+            throw new ArgumentException("Percentage DiscountValue cannot exceed 100.");
         }
 
         if (request.VoucherValidityDays <= 0)
         {
             throw new ArgumentException("VoucherValidityDays must be greater than 0.");
-        }
-
-        if (request.Priority < 0)
-        {
-            throw new ArgumentException("Priority cannot be negative.");
         }
 
         var requiresThreshold = request.TriggerType is

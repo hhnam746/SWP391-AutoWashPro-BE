@@ -33,19 +33,6 @@ public static class PersonalizationPolicy
 
     public static string CreateTierUpgradeCycleKey(Guid tierId) => $"{TierUpgradeCyclePrefix}:{tierId}";
 
-    public static T? SelectInactiveRule<T>(
-        IEnumerable<T> rules,
-        int inactiveDays,
-        Func<T, int?> thresholdSelector,
-        Func<T, int> prioritySelector)
-    {
-        return rules
-            .Where(x => thresholdSelector(x).HasValue && thresholdSelector(x)!.Value <= inactiveDays)
-            .OrderByDescending(x => thresholdSelector(x))
-            .ThenByDescending(prioritySelector)
-            .FirstOrDefault();
-    }
-
     public static bool IsAcquisitionTrigger(PersonalizedVoucherTriggerType triggerType) =>
         triggerType is PersonalizedVoucherTriggerType.Welcome or
             PersonalizedVoucherTriggerType.NoFirstBooking;

@@ -36,6 +36,7 @@ public class Service: IService
         {
             Id = y.Id,
             Code = y.Code,
+            VoucherName = y.Name,
             RewardName = y.Reward != null ? y.Reward.Name : null,
             Status = y.Status,
             DiscountType = y.DiscountType,
@@ -90,11 +91,11 @@ public class Service: IService
             {
                 Id = x.Id,
                 Code = x.Code,
+                VoucherName = x.Name,
                 RewardName = x.Reward != null ? x.Reward.Name : null,
-                PromotionName = x.Promotion != null ? x.Promotion.Name : null,
-                Source = x.RewardId.HasValue
-                    ? Response.VoucherSource.Reward
-                    : Response.VoucherSource.Promotion,
+                Source = x.PersonalizedVoucherIssuance != null
+                    ? Response.VoucherSource.Personalized
+                    : Response.VoucherSource.Reward,
                 TriggerType = x.PersonalizedVoucherIssuance != null
                     ? x.PersonalizedVoucherIssuance.TriggerType
                     : null,
@@ -138,7 +139,7 @@ public class Service: IService
         if (voucher.Status != VoucherStatus.Active)
             throw new Exception("Voucher is inactive");
 
-        if (voucher.ExpiresAt < DateTimeOffset.UtcNow)
+        if (voucher.ExpiresAt <= DateTimeOffset.UtcNow)
             throw new Exception("Voucher expired");
 
         if (voucher.UsedAt != null)
@@ -169,6 +170,7 @@ public class Service: IService
         {
             VoucherId = voucher.Id,
             Code = voucher.Code,
+            VoucherName = voucher.Name,
             RewardName = voucher.Reward?.Name,
             IsValid = true,
             Message = "Voucher is valid",

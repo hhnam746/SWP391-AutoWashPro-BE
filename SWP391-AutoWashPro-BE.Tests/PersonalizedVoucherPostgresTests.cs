@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using SWP391_AutoWashPro_BE.Repository;
+using SWP391_AutoWashPro_BE.Repository.Constants;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.PersonalizedVoucher;
@@ -17,7 +18,7 @@ namespace SWP391_AutoWashPro_BE.Tests;
 public class PersonalizedVoucherPostgresTests
 {
     [Fact]
-    public async Task Issue_CreatesPromotionVoucherWithoutChangingPointsOrRewardQuantity()
+    public async Task Issue_CreatesStandaloneVoucherWithoutChangingPointsOrRewardQuantity()
     {
         await using var dbContext = await CreateCleanDbContextAsync();
         var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
@@ -34,8 +35,19 @@ public class PersonalizedVoucherPostgresTests
         Assert.Equal(Response.IssueStatus.Issued, result.Status);
         var voucher = await dbContext.Vouchers.SingleAsync(x => x.Id == result.VoucherId);
         Assert.Null(voucher.RewardId);
-        Assert.Equal(seed.PromotionId, voucher.PromotionId);
-        Assert.True(voucher.ExpiresAt <= seed.PromotionEndDate);
+        Assert.Equal("Test Birthday Voucher", voucher.Name);
+        Assert.Equal(DiscountType.Percentage, voucher.DiscountType);
+        Assert.Equal(15, voucher.DiscountValue);
+        Assert.True(voucher.ExpiresAt > DateTimeOffset.UtcNow.AddDays(13));
+        var voucherPage = await new SWP391_AutoWashPro_BE.Service.Voucher.Service(
+                dbContext,
+                CreateHttpContextAccessor(seed.UserId))
+            .GetMyVouchers(10, 1);
+        var voucherResponse = Assert.Single(voucherPage.Items);
+        Assert.Equal(voucher.Name, voucherResponse.VoucherName);
+        Assert.Equal(
+            SWP391_AutoWashPro_BE.Service.Voucher.Response.VoucherSource.Personalized,
+            voucherResponse.Source);
         Assert.Equal(1000, await dbContext.CustomerProfiles
             .Where(x => x.Id == seed.CustomerId)
             .Select(x => x.TotalPoints)
@@ -111,44 +123,30 @@ public class PersonalizedVoucherPostgresTests
     }
 
     [Fact]
-    public async Task Issue_SkipsInactiveExpiredAndTierMismatchedPromotion()
+    public async Task Issue_SkipsDisabledAndInvalidTriggerConfig()
     {
         await using var dbContext = await CreateCleanDbContextAsync();
         var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
         var service = CreateIssuanceService(dbContext);
-        var promotion = await dbContext.Promotions.SingleAsync(x => x.Id == seed.PromotionId);
+        var config = await dbContext.SystemConfigs.SingleAsync(x =>
+            x.ConfigKey == PersonalizedVoucherConfigKeys.Birthday);
 
-        promotion.IsActive = false;
-        await dbContext.SaveChangesAsync();
-        Assert.Equal(Response.IssueStatus.Skipped, (await service.TryIssuePersonalizedVoucherAsync(
-            seed.CustomerId, seed.RuleId, PersonalizedVoucherTriggerType.Birthday, "inactive", null)).Status);
-
-        promotion.IsActive = true;
-        promotion.EndDate = DateTimeOffset.UtcNow.AddMinutes(-1);
-        await dbContext.SaveChangesAsync();
-        Assert.Equal(Response.IssueStatus.Skipped, (await service.TryIssuePersonalizedVoucherAsync(
-            seed.CustomerId, seed.RuleId, PersonalizedVoucherTriggerType.Birthday, "expired", null)).Status);
-
-        promotion.EndDate = DateTimeOffset.UtcNow.AddDays(30);
-        promotion.IsGlobal = false;
-        await dbContext.SaveChangesAsync();
-        Assert.Equal(Response.IssueStatus.Skipped, (await service.TryIssuePersonalizedVoucherAsync(
-            seed.CustomerId, seed.RuleId, PersonalizedVoucherTriggerType.Birthday, "tier", null)).Status);
-
-        dbContext.PromotionTiers.Add(new PromotionTier
-        {
-            Id = Guid.NewGuid(),
-            PromotionId = promotion.Id,
-            TierId = seed.TierId,
-            IsDeleted = true,
-            CreatedAt = DateTimeOffset.UtcNow
-        });
+        config.ConfigValue = "false";
         await dbContext.SaveChangesAsync();
         Assert.Equal(Response.IssueStatus.Skipped, (await service.TryIssuePersonalizedVoucherAsync(
             seed.CustomerId,
             seed.RuleId,
             PersonalizedVoucherTriggerType.Birthday,
-            "tier-soft-deleted",
+            "disabled",
+            null)).Status);
+
+        config.ConfigValue = "\"not-a-boolean\"";
+        await dbContext.SaveChangesAsync();
+        Assert.Equal(Response.IssueStatus.Skipped, (await service.TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "invalid",
             null)).Status);
 
         Assert.Empty(dbContext.Vouchers);
@@ -173,7 +171,7 @@ public class PersonalizedVoucherPostgresTests
     }
 
     [Fact]
-    public async Task InactiveBatch_SkipsNullLoginSelectsLargestThresholdAndDoesNotRepeat()
+    public async Task InactiveBatch_SkipsNullLoginUsesConfiguredThresholdAndDoesNotRepeat()
     {
         await using var dbContext = await CreateCleanDbContextAsync();
         var seed = await SeedAsync(
@@ -182,22 +180,16 @@ public class PersonalizedVoucherPostgresTests
             lastLoginAt: DateTimeOffset.UtcNow.AddDays(-40),
             thresholdDays: 30);
         await AddCustomerAsync(dbContext, seed.TierId, lastLoginAt: null);
-        dbContext.PersonalizedPromotionRules.Add(CreateRule(
-            seed.PromotionId,
-            PersonalizedVoucherTriggerType.InactiveCustomer,
-            thresholdDays: 7,
-            priority: 100));
-        await dbContext.SaveChangesAsync();
         var audienceService = CreateAudienceService(dbContext, new RecordingDeliveryService());
 
         Assert.Equal(1, await audienceService.ProcessInactiveCustomersAsync());
         Assert.Equal(0, await audienceService.ProcessInactiveCustomersAsync());
 
         var issuance = await dbContext.PersonalizedVoucherIssuances
-            .Include(x => x.PromotionRule)
+            .Include(x => x.VoucherRule)
             .SingleAsync();
         Assert.Equal(seed.CustomerId, issuance.CustomerId);
-        Assert.Equal(30, issuance.PromotionRule.ThresholdDays);
+        Assert.Equal(30, issuance.VoucherRule.ThresholdDays);
     }
 
     [Fact]
@@ -209,11 +201,10 @@ public class PersonalizedVoucherPostgresTests
             PersonalizedVoucherTriggerType.Welcome,
             verifiedAt: DateTimeOffset.UtcNow.AddDays(-10),
             userCreatedAt: DateTimeOffset.UtcNow.AddDays(-20));
-        dbContext.PersonalizedPromotionRules.Add(CreateRule(
-            seed.PromotionId,
+        dbContext.PersonalizedVoucherRules.Add(CreateRule(
             PersonalizedVoucherTriggerType.NoFirstBooking,
             thresholdDays: 7,
-            priority: 100));
+            voucherName: "No First Booking Voucher"));
         await dbContext.SaveChangesAsync();
         var audienceService = CreateAudienceService(dbContext, new RecordingDeliveryService());
 
@@ -318,7 +309,7 @@ public class PersonalizedVoucherPostgresTests
 
         var voucher = await dbContext.Vouchers.SingleAsync();
         Assert.Equal(reward.Id, voucher.RewardId);
-        Assert.Null(voucher.PromotionId);
+        Assert.Equal(reward.Name, voucher.Name);
         Assert.Equal(2, reward.QuantityAvailable);
         Assert.Equal(900, (await dbContext.CustomerProfiles.SingleAsync()).TotalPoints);
     }
@@ -328,7 +319,6 @@ public class PersonalizedVoucherPostgresTests
     {
         await using var dbContext = await CreateCleanDbContextAsync();
         var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
-        await SetPromotionActiveAsync(dbContext, seed.PromotionId, false);
         var nowUtc = DateTimeOffset.UtcNow;
         await AddPromotionAsync(
             dbContext,
@@ -358,7 +348,6 @@ public class PersonalizedVoucherPostgresTests
     {
         await using var dbContext = await CreateCleanDbContextAsync();
         var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
-        await SetPromotionActiveAsync(dbContext, seed.PromotionId, false);
         var nowUtc = DateTimeOffset.UtcNow;
         var isActive = eligibilityState != "inactive";
         var isDeleted = eligibilityState == "deleted";
@@ -393,7 +382,6 @@ public class PersonalizedVoucherPostgresTests
     {
         await using var dbContext = await CreateCleanDbContextAsync();
         var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
-        await SetPromotionActiveAsync(dbContext, seed.PromotionId, false);
         var nowUtc = DateTimeOffset.UtcNow;
         var tierPromotion = await AddPromotionAsync(
             dbContext,
@@ -427,7 +415,6 @@ public class PersonalizedVoucherPostgresTests
     {
         await using var dbContext = await CreateCleanDbContextAsync();
         var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
-        await SetPromotionActiveAsync(dbContext, seed.PromotionId, false);
         var nowUtc = DateTimeOffset.UtcNow;
         await AddPromotionAsync(
             dbContext,
@@ -457,7 +444,7 @@ public class PersonalizedVoucherPostgresTests
     }
 
     [Fact]
-    public async Task Booking_WithoutVoucher_StillAutoAppliesBirthdayPromotion()
+    public async Task Booking_WithoutVoucher_DoesNotApplyPersonalizedVoucherRuleAsPromotion()
     {
         await using var dbContext = await CreateCleanDbContextAsync();
         var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
@@ -466,11 +453,11 @@ public class PersonalizedVoucherPostgresTests
         var response = await CreateBookingService(dbContext, seed.UserId).CreateBooking(
             CreateBookingRequest(bookingData, voucherId: null, minute: 0));
 
-        await AssertBookingPricingAsync(dbContext, response, expectedDiscount: 15000);
+        await AssertBookingPricingAsync(dbContext, response, expectedDiscount: 0);
     }
 
     [Fact]
-    public async Task Booking_WithBirthdayVoucher_ExcludesItsSourcePromotion()
+    public async Task Booking_WithBirthdayVoucher_AppliesStandaloneVoucherDiscount()
     {
         await using var dbContext = await CreateCleanDbContextAsync();
         var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
@@ -489,7 +476,7 @@ public class PersonalizedVoucherPostgresTests
     }
 
     [Fact]
-    public async Task Booking_WithPromotionVoucher_StillStacksUnrelatedPromotion()
+    public async Task Booking_WithPersonalizedVoucher_StacksEligiblePromotion()
     {
         await using var dbContext = await CreateCleanDbContextAsync();
         var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
@@ -523,6 +510,16 @@ public class PersonalizedVoucherPostgresTests
         await using var dbContext = await CreateCleanDbContextAsync();
         var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
         var reward = await AddRewardAsync(dbContext, seed.TierId, quantity: 1);
+        var nowUtc = DateTimeOffset.UtcNow;
+        await AddPromotionAsync(
+            dbContext,
+            DiscountType.FixedAmount,
+            15000,
+            isGlobal: true,
+            isActive: true,
+            isDeleted: false,
+            nowUtc.AddDays(-1),
+            nowUtc.AddDays(1));
         var rewardService = new SWP391_AutoWashPro_BE.Service.Reward.Service(
             dbContext,
             new RecordingNotificationService(),
@@ -534,8 +531,43 @@ public class PersonalizedVoucherPostgresTests
         var response = await CreateBookingService(dbContext, seed.UserId).CreateBooking(
             CreateBookingRequest(bookingData, rewardVoucher.Id, minute: 0));
 
-        Assert.Null(rewardVoucher.PromotionId);
         await AssertBookingPricingAsync(dbContext, response, expectedDiscount: 40000);
+    }
+
+    [Fact]
+    public async Task CheckInSuccess_MarksPersonalizedVoucherUsedAndSetsUsedAt()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(dbContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:CHECK-IN",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var bookingService = CreateBookingService(dbContext, seed.UserId);
+        var bookingResponse = await bookingService.CreateBooking(
+            CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0));
+        var booking = await dbContext.Bookings.SingleAsync(x => x.Id == bookingResponse.Id);
+        booking.Status = BookingStatus.Confirmed;
+        booking.StartTime = DateTimeOffset.UtcNow.AddMinutes(-1);
+        booking.EndTime = DateTimeOffset.UtcNow.AddMinutes(14);
+        dbContext.SystemConfigs.Add(new SystemConfig
+        {
+            Id = Guid.NewGuid(),
+            ConfigKey = "CancelTimeMinutes",
+            ConfigValue = "30",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        await bookingService.CheckInBookingByAdmin(booking.Id);
+
+        var voucher = await dbContext.Vouchers.SingleAsync(x => x.Id == issueResult.VoucherId);
+        Assert.Equal(VoucherStatus.Used, voucher.Status);
+        Assert.NotNull(voucher.UsedAt);
+        Assert.NotNull(voucher.UpdatedAt);
     }
 
     [Theory]
@@ -554,7 +586,7 @@ public class PersonalizedVoucherPostgresTests
         {
             Id = Guid.NewGuid(),
             CustomerId = seed.CustomerId,
-            PromotionId = seed.PromotionId,
+            Name = "Invalid test voucher",
             Code = $"INVALID-{Guid.NewGuid():N}",
             Status = invalidState == "invalid-status" ? VoucherStatus.Used : VoucherStatus.Active,
             DiscountType = DiscountType.Percentage,
@@ -644,8 +676,12 @@ public class PersonalizedVoucherPostgresTests
 
     private static PersonalizedVoucherService CreateIssuanceService(AppDbContext dbContext)
     {
+        var triggerConfigService = new TriggerConfigService(
+            dbContext,
+            NullLogger<TriggerConfigService>.Instance);
         return new PersonalizedVoucherService(
             dbContext,
+            triggerConfigService,
             NullLogger<PersonalizedVoucherService>.Instance);
     }
 
@@ -653,10 +689,14 @@ public class PersonalizedVoucherPostgresTests
         AppDbContext dbContext,
         IDeliveryService deliveryService)
     {
+        var triggerConfigService = new TriggerConfigService(
+            dbContext,
+            NullLogger<TriggerConfigService>.Instance);
         return new AudienceService(
             dbContext,
             CreateIssuanceService(dbContext),
             deliveryService,
+            triggerConfigService,
             Microsoft.Extensions.Options.Options.Create(new SWP391_AutoWashPro_BE.Service.PersonalizedVoucher.Options
             {
                 BatchSize = 100,
@@ -696,7 +736,7 @@ public class PersonalizedVoucherPostgresTests
     private static async Task ResetDatabaseAsync(AppDbContext dbContext)
     {
         await dbContext.Database.EnsureDeletedAsync();
-        await dbContext.Database.MigrateAsync();
+        await dbContext.Database.EnsureCreatedAsync();
     }
 
     private static string RequireConnectionString()
@@ -763,58 +803,41 @@ public class PersonalizedVoucherPostgresTests
             DateOfBirthSetAt = dateOfBirth.HasValue ? DateTimeOffset.UtcNow : null,
             CreatedAt = user.CreatedAt
         };
-        var promotion = new Promotion
-        {
-            Id = Guid.NewGuid(),
-            Name = $"Test Promotion {Guid.NewGuid():N}",
-            DiscountType = DiscountType.Percentage,
-            DiscountValue = 15,
-            StartDate = DateTimeOffset.UtcNow.AddDays(-1),
-            EndDate = DateTimeOffset.UtcNow.AddDays(30),
-            IsGlobal = true,
-            IsActive = true,
-            IsDeleted = false,
-            CreatedAt = DateTimeOffset.UtcNow
-        };
         var rule = CreateRule(
-            promotion.Id,
             triggerType,
             thresholdDays,
-            priority: 10,
-            sendNotification,
-            sendEmail);
+            voucherName: $"Test {triggerType} Voucher",
+            sendNotification: sendNotification,
+            sendEmail: sendEmail);
 
         dbContext.Users.Add(user);
         dbContext.CustomerProfiles.Add(customer);
-        dbContext.Promotions.Add(promotion);
-        dbContext.PersonalizedPromotionRules.Add(rule);
+        dbContext.PersonalizedVoucherRules.Add(rule);
         await dbContext.SaveChangesAsync();
 
         return new SeedData(
             user.Id,
             customer.Id,
             tier.Id,
-            promotion.Id,
-            rule.Id,
-            promotion.EndDate);
+            rule.Id);
     }
 
-    private static PersonalizedPromotionRule CreateRule(
-        Guid promotionId,
+    private static PersonalizedVoucherRule CreateRule(
         PersonalizedVoucherTriggerType triggerType,
         int? thresholdDays,
-        int priority,
+        string? voucherName = null,
         bool sendNotification = false,
         bool sendEmail = false)
     {
-        return new PersonalizedPromotionRule
+        return new PersonalizedVoucherRule
         {
             Id = Guid.NewGuid(),
-            PromotionId = promotionId,
+            VoucherName = voucherName ?? $"Test {triggerType} Voucher",
             TriggerType = triggerType,
+            DiscountType = DiscountType.Percentage,
+            DiscountValue = 15,
             ThresholdDays = thresholdDays,
             VoucherValidityDays = 14,
-            Priority = priority,
             IsActive = true,
             SendInAppNotification = sendNotification,
             SendEmail = sendEmail,
@@ -824,7 +847,7 @@ public class PersonalizedVoucherPostgresTests
                 : null,
             EmailSubjectTemplate = sendEmail ? "Voucher {VoucherCode}" : null,
             EmailBodyTemplate = sendEmail
-                ? "Hello {CustomerName}, {PromotionName} gives {Discount} until {ExpiresAt}. " +
+                ? "Hello {CustomerName}, {VoucherName} gives {Discount} until {ExpiresAt}. " +
                   "Book at {BookingUrl}. Code {VoucherCode}."
                 : null,
             CallToActionUrl = sendEmail ? "https://example.test/booking" : null,
@@ -893,16 +916,6 @@ public class PersonalizedVoucherPostgresTests
         });
         await dbContext.SaveChangesAsync();
         return reward;
-    }
-
-    private static async Task SetPromotionActiveAsync(
-        AppDbContext dbContext,
-        Guid promotionId,
-        bool isActive)
-    {
-        var promotion = await dbContext.Promotions.SingleAsync(x => x.Id == promotionId);
-        promotion.IsActive = isActive;
-        await dbContext.SaveChangesAsync();
     }
 
     private static async Task<Promotion> AddPromotionAsync(
@@ -1051,9 +1064,7 @@ public class PersonalizedVoucherPostgresTests
         Guid UserId,
         Guid CustomerId,
         Guid TierId,
-        Guid PromotionId,
-        Guid RuleId,
-        DateTimeOffset PromotionEndDate);
+        Guid RuleId);
 
     private sealed record BookingPrerequisites(Guid BranchId, Guid VehicleId);
 

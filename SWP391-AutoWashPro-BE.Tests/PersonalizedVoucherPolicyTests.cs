@@ -46,28 +46,6 @@ public class PersonalizedVoucherPolicyTests
     }
 
     [Fact]
-    public void InactiveRule_ChoosesLargestSatisfiedThresholdThenPriority()
-    {
-        var rules = new[]
-        {
-            new CandidateRule(7, 100),
-            new CandidateRule(30, 1),
-            new CandidateRule(30, 5),
-            new CandidateRule(60, 100)
-        };
-
-        var selected = PersonalizationPolicy.SelectInactiveRule(
-            rules,
-            45,
-            x => x.ThresholdDays,
-            x => x.Priority);
-
-        Assert.NotNull(selected);
-        Assert.Equal(30, selected.ThresholdDays);
-        Assert.Equal(5, selected.Priority);
-    }
-
-    [Fact]
     public void AcquisitionTrigger_WelcomeHasPrecedence()
     {
         Assert.Equal(
@@ -83,7 +61,7 @@ public class PersonalizedVoucherPolicyTests
     public void InactiveTemplate_RequiresOfferExpiryAndCallToActionPlaceholders()
     {
         var request = CreateInactiveRuleRequest(
-            "Hello {CustomerName}: {PromotionName}, {Discount}, expires {ExpiresAt}.");
+            "Hello {CustomerName}: {VoucherName}, {Discount}, expires {ExpiresAt}.");
 
         var exception = Assert.Throws<ArgumentException>(() => RuleValidator.Validate(request));
         Assert.Contains("{BookingUrl}", exception.Message);
@@ -93,10 +71,38 @@ public class PersonalizedVoucherPolicyTests
     }
 
     [Fact]
+    public void RuleValidator_RejectsBlankVoucherName()
+    {
+        var request = CreateInactiveRuleRequest(
+            "Hello {CustomerName}: {VoucherName}, {Discount}, expires {ExpiresAt}. Book at {BookingUrl}.");
+        request.VoucherName = " ";
+
+        var exception = Assert.Throws<ArgumentException>(() => RuleValidator.Validate(request));
+
+        Assert.Contains("VoucherName", exception.Message);
+    }
+
+    [Theory]
+    [InlineData(DiscountType.FixedAmount, 0)]
+    [InlineData(DiscountType.Percentage, 0)]
+    [InlineData(DiscountType.Percentage, 101)]
+    public void RuleValidator_RejectsInvalidDiscount(
+        DiscountType discountType,
+        decimal discountValue)
+    {
+        var request = CreateInactiveRuleRequest(
+            "Hello {CustomerName}: {VoucherName}, {Discount}, expires {ExpiresAt}. Book at {BookingUrl}.");
+        request.DiscountType = discountType;
+        request.DiscountValue = discountValue;
+
+        Assert.Throws<ArgumentException>(() => RuleValidator.Validate(request));
+    }
+
+    [Fact]
     public void TemplateRenderer_RendersAllSupportedValuesAndEncodesHtmlValues()
     {
         var rendered = TemplateRenderer.Render(
-            "{CustomerName}|{PromotionName}|{Discount}|{VoucherCode}|{ExpiresAt}|{BookingUrl}",
+            "{CustomerName}|{VoucherName}|{PromotionName}|{Discount}|{VoucherCode}|{ExpiresAt}|{BookingUrl}",
             "A <B>",
             "Summer & Wash",
             DiscountType.Percentage,
@@ -107,7 +113,7 @@ public class PersonalizedVoucherPolicyTests
             true);
 
         Assert.Equal(
-            "A &lt;B&gt;|Summer &amp; Wash|15%|PV-123|31/07/2026 23:59|https://example.com/book?a=1&amp;b=2",
+            "A &lt;B&gt;|Summer &amp; Wash|Summer &amp; Wash|15%|PV-123|31/07/2026 23:59|https://example.com/book?a=1&amp;b=2",
             rendered);
     }
 
@@ -115,11 +121,12 @@ public class PersonalizedVoucherPolicyTests
     {
         return new Request.RuleRequest
         {
-            PromotionId = Guid.NewGuid(),
+            VoucherName = "Inactive Customer Voucher",
             TriggerType = PersonalizedVoucherTriggerType.InactiveCustomer,
+            DiscountType = DiscountType.Percentage,
+            DiscountValue = 15,
             ThresholdDays = 30,
             VoucherValidityDays = 14,
-            Priority = 1,
             IsActive = true,
             SendEmail = true,
             EmailSubjectTemplate = "We miss you, {CustomerName}",
@@ -128,5 +135,4 @@ public class PersonalizedVoucherPolicyTests
         };
     }
 
-    private sealed record CandidateRule(int ThresholdDays, int Priority);
 }

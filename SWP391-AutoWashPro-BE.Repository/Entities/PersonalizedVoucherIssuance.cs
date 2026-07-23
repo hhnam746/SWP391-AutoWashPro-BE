@@ -7,10 +7,8 @@ public class PersonalizedVoucherIssuance : BaseEntity, IAuditableEntity
 {
     public Guid CustomerId { get; set; }
     public CustomerProfile Customer { get; set; } = null!;
-    public Guid PromotionId { get; set; }
-    public Promotion Promotion { get; set; } = null!;
-    public Guid PromotionRuleId { get; set; }
-    public PersonalizedPromotionRule PromotionRule { get; set; } = null!;
+    public Guid VoucherRuleId { get; set; }
+    public PersonalizedVoucherRule VoucherRule { get; set; } = null!;
     public Guid VoucherId { get; set; }
     public Voucher Voucher { get; set; } = null!;
     public PersonalizedVoucherTriggerType TriggerType { get; set; }

@@ -13,25 +13,30 @@ public class Service : IService
         "UX_personalized_voucher_issuance_customer_trigger_cycle";
 
     private readonly AppDbContext _dbContext;
+    private readonly ITriggerConfigService _triggerConfigService;
     private readonly ILogger<Service> _logger;
 
-    public Service(AppDbContext dbContext, ILogger<Service> logger)
+    public Service(
+        AppDbContext dbContext,
+        ITriggerConfigService triggerConfigService,
+        ILogger<Service> logger)
     {
         _dbContext = dbContext;
+        _triggerConfigService = triggerConfigService;
         _logger = logger;
     }
 
     public async Task<Response.IssueResult> TryIssuePersonalizedVoucherAsync(
         Guid customerId,
-        Guid promotionRuleId,
+        Guid voucherRuleId,
         PersonalizedVoucherTriggerType triggerType,
         string cycleKey,
         string? triggerReference,
         CancellationToken cancellationToken = default)
     {
-        if (customerId == Guid.Empty || promotionRuleId == Guid.Empty)
+        if (customerId == Guid.Empty || voucherRuleId == Guid.Empty)
         {
-            throw new ArgumentException("CustomerId and promotionRuleId are required.");
+            throw new ArgumentException("CustomerId and voucherRuleId are required.");
         }
 
         if (string.IsNullOrWhiteSpace(cycleKey) || cycleKey.Length > 200)
@@ -49,6 +54,11 @@ public class Service : IService
         if (existing != null)
         {
             return AlreadyIssued(existing);
+        }
+
+        if (!await _triggerConfigService.IsEnabledAsync(triggerType, cancellationToken))
+        {
+            return Skipped("Personalized voucher trigger is disabled or misconfigured.");
         }
 
         var nowUtc = DateTimeOffset.UtcNow;
@@ -69,67 +79,41 @@ public class Service : IService
             return Skipped("Customer account is not active and verified.");
         }
 
-        var rule = await _dbContext.PersonalizedPromotionRules
-            .Include(x => x.Promotion)
-            .ThenInclude(x => x.PromotionTiers)
-            .ThenInclude(x => x.Tier)
+        var rule = await _dbContext.PersonalizedVoucherRules
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == promotionRuleId, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Id == voucherRuleId, cancellationToken);
 
         if (rule == null)
         {
-            return Skipped("Personalized promotion rule not found.");
+            return Skipped("Personalized voucher rule not found.");
         }
 
         if (!rule.IsActive || rule.TriggerType != triggerType)
         {
-            return Skipped("Personalized promotion rule is inactive or does not match the trigger.");
+            return Skipped("Personalized voucher rule is inactive or does not match the trigger.");
         }
 
-        var promotion = rule.Promotion;
-        if (!promotion.IsActive || promotion.IsDeleted ||
-            promotion.StartDate > nowUtc || promotion.EndDate <= nowUtc)
+        if (rule.VoucherValidityDays <= 0 || rule.DiscountValue <= 0)
         {
-            return Skipped("Promotion is inactive or outside its validity period.");
+            return Skipped("Voucher rule configuration is invalid.");
         }
 
-        var canUsePromotion = promotion.IsGlobal == true ||
-                              promotion.PromotionTiers.Any(x =>
-                                  x.TierId == customer.TierId &&
-                                  !x.IsDeleted &&
-                                  !x.Tier.IsDeleted);
-        if (!canUsePromotion)
+        if (rule.DiscountType == DiscountType.Percentage && rule.DiscountValue > 100)
         {
-            return Skipped("Customer tier is not eligible for the promotion.");
-        }
-
-        if (rule.VoucherValidityDays <= 0)
-        {
-            return Skipped("Voucher validity configuration is invalid.");
-        }
-
-        var expiresAt = nowUtc.AddDays(rule.VoucherValidityDays);
-        if (expiresAt > promotion.EndDate)
-        {
-            expiresAt = promotion.EndDate;
-        }
-
-        if (expiresAt <= nowUtc)
-        {
-            return Skipped("Voucher would expire immediately.");
+            return Skipped("Voucher percentage discount configuration is invalid.");
         }
 
         var voucher = new Repository.Entities.Voucher
         {
             Id = Guid.NewGuid(),
             CustomerId = customer.Id,
-            PromotionId = promotion.Id,
             RewardId = null,
+            Name = rule.VoucherName,
             Code = $"PV-{Guid.NewGuid():N}".ToUpperInvariant(),
             Status = VoucherStatus.Active,
-            DiscountType = promotion.DiscountType,
-            DiscountValue = promotion.DiscountValue,
-            ExpiresAt = expiresAt,
+            DiscountType = rule.DiscountType,
+            DiscountValue = rule.DiscountValue,
+            ExpiresAt = nowUtc.AddDays(rule.VoucherValidityDays),
             CreatedAt = nowUtc
         };
 
@@ -137,8 +121,7 @@ public class Service : IService
         {
             Id = Guid.NewGuid(),
             CustomerId = customer.Id,
-            PromotionId = promotion.Id,
-            PromotionRuleId = rule.Id,
+            VoucherRuleId = rule.Id,
             VoucherId = voucher.Id,
             TriggerType = triggerType,
             CycleKey = normalizedCycleKey,
@@ -170,9 +153,9 @@ public class Service : IService
             if (existing != null)
             {
                 _logger.LogInformation(
-                    "Personalized voucher issuance already exists. CustomerId={CustomerId}, PromotionId={PromotionId}, TriggerType={TriggerType}, CycleKey={CycleKey}, VoucherId={VoucherId}.",
+                    "Personalized voucher issuance already exists. CustomerId={CustomerId}, VoucherRuleId={VoucherRuleId}, TriggerType={TriggerType}, CycleKey={CycleKey}, VoucherId={VoucherId}.",
                     customerId,
-                    existing.PromotionId,
+                    existing.VoucherRuleId,
                     triggerType,
                     normalizedCycleKey,
                     existing.VoucherId);
@@ -183,9 +166,8 @@ public class Service : IService
         }
 
         _logger.LogInformation(
-            "Personalized voucher issued. CustomerId={CustomerId}, PromotionId={PromotionId}, PromotionRuleId={PromotionRuleId}, TriggerType={TriggerType}, CycleKey={CycleKey}, VoucherId={VoucherId}.",
+            "Personalized voucher issued. CustomerId={CustomerId}, VoucherRuleId={VoucherRuleId}, TriggerType={TriggerType}, CycleKey={CycleKey}, VoucherId={VoucherId}.",
             customerId,
-            promotion.Id,
             rule.Id,
             triggerType,
             normalizedCycleKey,

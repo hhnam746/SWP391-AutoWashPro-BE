@@ -36,7 +36,8 @@ public class BirthdayVoucherAudienceTests
         Assert.Equal($"BIRTHDAY:{localToday.Year}", issuance.CycleKey);
         Assert.Equal(localToday.ToString("yyyy-MM-dd"), issuance.TriggerReference);
         Assert.Equal(issuance.VoucherId, voucher.Id);
-        Assert.Equal(seed.PromotionId, voucher.PromotionId);
+        Assert.Equal(seed.RuleId, issuance.VoucherRuleId);
+        Assert.Equal("Birthday Test Voucher", voucher.Name);
         Assert.Equal(new[] { issuance.Id }, deliveryService.DispatchedIssuanceIds);
     }
 
@@ -55,13 +56,63 @@ public class BirthdayVoucherAudienceTests
         Assert.Empty(deliveryService.DispatchedIssuanceIds);
     }
 
+    [Fact]
+    public async Task ProcessBirthdayAsync_CustomersAcrossTiersReceiveTheSameTriggerVoucher()
+    {
+        await using var dbContext = CreateDbContext();
+        var localToday = GetLocalToday();
+        await SeedAsync(dbContext, new DateOnly(1995, localToday.Month, localToday.Day));
+        var nowUtc = DateTimeOffset.UtcNow;
+        var secondTier = new Tier
+        {
+            Id = Guid.NewGuid(),
+            Name = "Different Birthday Tier",
+            Level = 2,
+            RequiredWashes = 20,
+            PriorityBookingDays = 2,
+            CreatedAt = nowUtc
+        };
+        var secondUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = $"birthday-tier-{Guid.NewGuid():N}@example.test",
+            Phone = $"08{Random.Shared.NextInt64(10000000, 99999999)}",
+            PasswordHash = "test-password-hash",
+            Role = UserRole.Customer,
+            Status = AccountStatus.Active,
+            isVerify = true,
+            CreatedAt = nowUtc
+        };
+        var secondCustomer = new CustomerProfile
+        {
+            Id = Guid.NewGuid(),
+            UserId = secondUser.Id,
+            User = secondUser,
+            TierId = secondTier.Id,
+            Tier = secondTier,
+            FirstName = "Other",
+            LastName = "Tier",
+            DateOfBirth = new DateOnly(1990, localToday.Month, localToday.Day),
+            DateOfBirthSetAt = nowUtc,
+            CreatedAt = nowUtc
+        };
+        dbContext.AddRange(secondTier, secondUser, secondCustomer);
+        await dbContext.SaveChangesAsync();
+
+        var processed = await CreateAudienceService(
+            dbContext,
+            new RecordingDeliveryService()).ProcessBirthdayAsync();
+
+        Assert.Equal(2, processed);
+        Assert.Equal(2, await dbContext.Vouchers.CountAsync());
+        Assert.Equal(2, await dbContext.PersonalizedVoucherIssuances.CountAsync());
+    }
+
     [Theory]
-    [InlineData(false, true, true)]
-    [InlineData(true, false, true)]
-    [InlineData(true, true, false)]
-    public async Task ProcessBirthdayAsync_IneligibleRulePromotionOrCustomer_DoesNotIssueVoucher(
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task ProcessBirthdayAsync_IneligibleRuleOrCustomer_DoesNotIssueVoucher(
         bool ruleIsActive,
-        bool promotionIsActive,
         bool customerIsVerified)
     {
         await using var dbContext = CreateDbContext();
@@ -70,7 +121,6 @@ public class BirthdayVoucherAudienceTests
             dbContext,
             new DateOnly(1995, localToday.Month, localToday.Day),
             ruleIsActive,
-            promotionIsActive,
             customerIsVerified);
         var deliveryService = new RecordingDeliveryService();
 
@@ -95,8 +145,12 @@ public class BirthdayVoucherAudienceTests
         AppDbContext dbContext,
         IDeliveryService deliveryService)
     {
+        var triggerConfigService = new TriggerConfigService(
+            dbContext,
+            NullLogger<TriggerConfigService>.Instance);
         var issuanceService = new PersonalizedVoucherService(
             dbContext,
+            triggerConfigService,
             NullLogger<PersonalizedVoucherService>.Instance);
         var options = Microsoft.Extensions.Options.Options.Create(new PersonalizedVoucherOptions
         {
@@ -108,17 +162,18 @@ public class BirthdayVoucherAudienceTests
             dbContext,
             issuanceService,
             deliveryService,
+            triggerConfigService,
             options,
             NullLogger<AudienceService>.Instance);
     }
 
-    private static async Task<(Guid CustomerId, Guid PromotionId)> SeedAsync(
+    private static async Task<(Guid CustomerId, Guid RuleId)> SeedAsync(
         AppDbContext dbContext,
         DateOnly dateOfBirth,
         bool ruleIsActive = true,
-        bool promotionIsActive = true,
         bool customerIsVerified = true)
     {
+        await dbContext.Database.EnsureCreatedAsync();
         var nowUtc = DateTimeOffset.UtcNow;
         var tier = new Tier
         {
@@ -153,36 +208,23 @@ public class BirthdayVoucherAudienceTests
             DateOfBirthSetAt = nowUtc,
             CreatedAt = nowUtc
         };
-        var promotion = new Promotion
+        var rule = new PersonalizedVoucherRule
         {
             Id = Guid.NewGuid(),
-            Name = "Birthday Test Promotion",
-            Description = "Unit test promotion",
+            VoucherName = "Birthday Test Voucher",
+            TriggerType = PersonalizedVoucherTriggerType.Birthday,
             DiscountType = DiscountType.Percentage,
             DiscountValue = 15,
-            StartDate = nowUtc.AddDays(-1),
-            EndDate = nowUtc.AddDays(30),
-            IsGlobal = true,
-            IsActive = promotionIsActive,
-            CreatedAt = nowUtc
-        };
-        var rule = new PersonalizedPromotionRule
-        {
-            Id = Guid.NewGuid(),
-            PromotionId = promotion.Id,
-            Promotion = promotion,
-            TriggerType = PersonalizedVoucherTriggerType.Birthday,
             VoucherValidityDays = 14,
-            Priority = 1,
             IsActive = ruleIsActive,
             SendInAppNotification = false,
             SendEmail = false,
             CreatedAt = nowUtc
         };
 
-        dbContext.AddRange(tier, user, customer, promotion, rule);
+        dbContext.AddRange(tier, user, customer, rule);
         await dbContext.SaveChangesAsync();
-        return (customer.Id, promotion.Id);
+        return (customer.Id, rule.Id);
     }
 
     private static DateOnly GetLocalToday() => DateOnly.FromDateTime(

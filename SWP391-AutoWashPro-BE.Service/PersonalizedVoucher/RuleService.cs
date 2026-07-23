@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Linq.Expressions;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
@@ -8,6 +9,28 @@ namespace SWP391_AutoWashPro_BE.Service.PersonalizedVoucher;
 
 public class RuleService : IRuleService
 {
+    private static readonly Expression<Func<PersonalizedVoucherRule, Response.RuleResponse>> RuleProjection =
+        rule => new Response.RuleResponse
+        {
+            Id = rule.Id,
+            VoucherName = rule.VoucherName,
+            TriggerType = rule.TriggerType,
+            DiscountType = rule.DiscountType,
+            DiscountValue = rule.DiscountValue,
+            ThresholdDays = rule.ThresholdDays,
+            VoucherValidityDays = rule.VoucherValidityDays,
+            IsActive = rule.IsActive,
+            SendInAppNotification = rule.SendInAppNotification,
+            SendEmail = rule.SendEmail,
+            NotificationTitleTemplate = rule.NotificationTitleTemplate,
+            NotificationContentTemplate = rule.NotificationContentTemplate,
+            EmailSubjectTemplate = rule.EmailSubjectTemplate,
+            EmailBodyTemplate = rule.EmailBodyTemplate,
+            CallToActionUrl = rule.CallToActionUrl,
+            CreatedAt = rule.CreatedAt,
+            UpdatedAt = rule.UpdatedAt
+        };
+
     private readonly AppDbContext _dbContext;
     private readonly TimeZoneInfo _timeZone;
 
@@ -26,7 +49,7 @@ public class RuleService : IRuleService
             throw new ArgumentException("PageIndex and PageSize must be greater than 0.");
         }
 
-        var query = _dbContext.PersonalizedPromotionRules.AsNoTracking();
+        var query = _dbContext.PersonalizedVoucherRules.AsNoTracking();
         if (request.TriggerType.HasValue)
         {
             query = query.Where(x => x.TriggerType == request.TriggerType.Value);
@@ -40,30 +63,12 @@ public class RuleService : IRuleService
         var totalItems = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderBy(x => x.TriggerType)
-            .ThenByDescending(x => x.Priority)
+            .ThenByDescending(x => x.IsActive)
+            .ThenByDescending(x => x.CreatedAt)
             .ThenBy(x => x.Id)
             .Skip((request.PageIndex - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(x => new Response.RuleResponse
-            {
-                Id = x.Id,
-                PromotionId = x.PromotionId,
-                PromotionName = x.Promotion.Name,
-                TriggerType = x.TriggerType,
-                ThresholdDays = x.ThresholdDays,
-                VoucherValidityDays = x.VoucherValidityDays,
-                Priority = x.Priority,
-                IsActive = x.IsActive,
-                SendInAppNotification = x.SendInAppNotification,
-                SendEmail = x.SendEmail,
-                NotificationTitleTemplate = x.NotificationTitleTemplate,
-                NotificationContentTemplate = x.NotificationContentTemplate,
-                EmailSubjectTemplate = x.EmailSubjectTemplate,
-                EmailBodyTemplate = x.EmailBodyTemplate,
-                CallToActionUrl = x.CallToActionUrl,
-                CreatedAt = x.CreatedAt,
-                UpdatedAt = x.UpdatedAt
-            })
+            .Select(RuleProjection)
             .ToListAsync(cancellationToken);
 
         return new Base.Response.PageResult<Response.RuleResponse>
@@ -80,11 +85,10 @@ public class RuleService : IRuleService
         CancellationToken cancellationToken = default)
     {
         RuleValidator.Validate(request);
-        await EnsurePromotionExistsAsync(request.PromotionId, cancellationToken);
-        await EnsureRuleDoesNotExistAsync(null, request, cancellationToken);
+        await EnsureSingleActiveRuleAsync(null, request.TriggerType, request.IsActive, cancellationToken);
 
         var nowUtc = DateTimeOffset.UtcNow;
-        var rule = new PersonalizedPromotionRule
+        var rule = new PersonalizedVoucherRule
         {
             Id = Guid.NewGuid(),
             CreatedAt = nowUtc
@@ -92,7 +96,7 @@ public class RuleService : IRuleService
 
         ApplyRequest(rule, request, nowUtc);
         rule.UpdatedAt = null;
-        _dbContext.PersonalizedPromotionRules.Add(rule);
+        _dbContext.PersonalizedVoucherRules.Add(rule);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return await GetRuleResponseAsync(rule.Id, cancellationToken);
@@ -104,16 +108,15 @@ public class RuleService : IRuleService
         CancellationToken cancellationToken = default)
     {
         RuleValidator.Validate(request);
-        await EnsurePromotionExistsAsync(request.PromotionId, cancellationToken);
-        await EnsureRuleDoesNotExistAsync(id, request, cancellationToken);
 
-        var rule = await _dbContext.PersonalizedPromotionRules
+        var rule = await _dbContext.PersonalizedVoucherRules
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (rule == null)
         {
-            throw new KeyNotFoundException("Personalized promotion rule not found.");
+            throw new KeyNotFoundException("Personalized voucher rule not found.");
         }
 
+        await EnsureSingleActiveRuleAsync(id, request.TriggerType, request.IsActive, cancellationToken);
         ApplyRequest(rule, request, DateTimeOffset.UtcNow);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -125,13 +128,14 @@ public class RuleService : IRuleService
         Request.UpdateRuleStatusRequest request,
         CancellationToken cancellationToken = default)
     {
-        var rule = await _dbContext.PersonalizedPromotionRules
+        var rule = await _dbContext.PersonalizedVoucherRules
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (rule == null)
         {
-            throw new KeyNotFoundException("Personalized promotion rule not found.");
+            throw new KeyNotFoundException("Personalized voucher rule not found.");
         }
 
+        await EnsureSingleActiveRuleAsync(id, rule.TriggerType, request.IsActive, cancellationToken);
         rule.IsActive = request.IsActive;
         rule.UpdatedAt = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -168,21 +172,21 @@ public class RuleService : IRuleService
         var rows = await query
             .GroupBy(x => new
             {
-                x.PromotionId,
-                x.PromotionRuleId,
-                CampaignName = x.Promotion.Name,
+                x.VoucherRuleId,
+                VoucherName = x.Voucher.Name,
                 x.TriggerType
             })
             .Select(group => new
             {
-                group.Key.PromotionId,
-                group.Key.PromotionRuleId,
-                group.Key.CampaignName,
+                group.Key.VoucherRuleId,
+                group.Key.VoucherName,
                 group.Key.TriggerType,
                 IssuedCount = group.Count(),
-                ActiveCount = group.Count(x => x.Voucher.Status == VoucherStatus.Active && x.Voucher.ExpiresAt > nowUtc),
+                ActiveCount = group.Count(x =>
+                    x.Voucher.Status == VoucherStatus.Active && x.Voucher.ExpiresAt > nowUtc),
                 UsedCount = group.Count(x => x.Voucher.Status == VoucherStatus.Used),
-                ExpiredCount = group.Count(x => x.Voucher.Status == VoucherStatus.Expired || x.Voucher.ExpiresAt <= nowUtc),
+                ExpiredCount = group.Count(x =>
+                    x.Voucher.Status == VoucherStatus.Expired || x.Voucher.ExpiresAt <= nowUtc),
                 NotificationPendingCount = group.Count(x =>
                     x.NotificationStatus == PersonalizedVoucherDeliveryStatus.Pending),
                 NotificationSentCount = group.Count(x =>
@@ -196,14 +200,13 @@ public class RuleService : IRuleService
                     x.EmailStatus == PersonalizedVoucherDeliveryStatus.Failed)
             })
             .OrderBy(x => x.TriggerType)
-            .ThenBy(x => x.CampaignName)
+            .ThenBy(x => x.VoucherName)
             .ToListAsync(cancellationToken);
 
         return rows.Select(x => new Response.ReportItem
         {
-            PromotionId = x.PromotionId,
-            PromotionRuleId = x.PromotionRuleId,
-            CampaignName = x.CampaignName,
+            VoucherRuleId = x.VoucherRuleId,
+            VoucherName = x.VoucherName,
             TriggerType = x.TriggerType,
             IssuedCount = x.IssuedCount,
             ActiveCount = x.ActiveCount,
@@ -221,75 +224,55 @@ public class RuleService : IRuleService
         }).ToList();
     }
 
-    private async Task<Response.RuleResponse> GetRuleResponseAsync(Guid id, CancellationToken cancellationToken)
-    {
-        var response = await _dbContext.PersonalizedPromotionRules
-            .AsNoTracking()
-            .Where(x => x.Id == id)
-            .Select(x => new Response.RuleResponse
-            {
-                Id = x.Id,
-                PromotionId = x.PromotionId,
-                PromotionName = x.Promotion.Name,
-                TriggerType = x.TriggerType,
-                ThresholdDays = x.ThresholdDays,
-                VoucherValidityDays = x.VoucherValidityDays,
-                Priority = x.Priority,
-                IsActive = x.IsActive,
-                SendInAppNotification = x.SendInAppNotification,
-                SendEmail = x.SendEmail,
-                NotificationTitleTemplate = x.NotificationTitleTemplate,
-                NotificationContentTemplate = x.NotificationContentTemplate,
-                EmailSubjectTemplate = x.EmailSubjectTemplate,
-                EmailBodyTemplate = x.EmailBodyTemplate,
-                CallToActionUrl = x.CallToActionUrl,
-                CreatedAt = x.CreatedAt,
-                UpdatedAt = x.UpdatedAt
-            })
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return response ?? throw new KeyNotFoundException("Personalized promotion rule not found.");
-    }
-
-    private async Task EnsurePromotionExistsAsync(Guid promotionId, CancellationToken cancellationToken)
-    {
-        var exists = await _dbContext.Promotions
-            .AsNoTracking()
-            .AnyAsync(x => x.Id == promotionId && !x.IsDeleted, cancellationToken);
-        if (!exists)
-        {
-            throw new KeyNotFoundException("Promotion not found.");
-        }
-    }
-
-    private async Task EnsureRuleDoesNotExistAsync(
-        Guid? currentRuleId,
-        Request.RuleRequest request,
+    private async Task<Response.RuleResponse> GetRuleResponseAsync(
+        Guid id,
         CancellationToken cancellationToken)
     {
-        var exists = await _dbContext.PersonalizedPromotionRules.AsNoTracking().AnyAsync(
-            x => (!currentRuleId.HasValue || x.Id != currentRuleId.Value) &&
-                 x.PromotionId == request.PromotionId &&
-                 x.TriggerType == request.TriggerType &&
-                 x.ThresholdDays == request.ThresholdDays,
-            cancellationToken);
+        var response = await _dbContext.PersonalizedVoucherRules
+            .AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(RuleProjection)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return response ?? throw new KeyNotFoundException("Personalized voucher rule not found.");
+    }
+
+    private async Task EnsureSingleActiveRuleAsync(
+        Guid? currentRuleId,
+        PersonalizedVoucherTriggerType triggerType,
+        bool isActive,
+        CancellationToken cancellationToken)
+    {
+        if (!isActive)
+        {
+            return;
+        }
+
+        var exists = await _dbContext.PersonalizedVoucherRules
+            .AsNoTracking()
+            .AnyAsync(
+                x => x.IsActive &&
+                     x.TriggerType == triggerType &&
+                     (!currentRuleId.HasValue || x.Id != currentRuleId.Value),
+                cancellationToken);
         if (exists)
         {
             throw new InvalidOperationException(
-                "A rule with the same promotion, trigger, and threshold already exists.");
+                $"An active personalized voucher rule already exists for trigger {triggerType}.");
         }
     }
 
     private static void ApplyRequest(
-        PersonalizedPromotionRule rule,
+        PersonalizedVoucherRule rule,
         Request.RuleRequest request,
         DateTimeOffset nowUtc)
     {
-        rule.PromotionId = request.PromotionId;
+        rule.VoucherName = request.VoucherName.Trim();
         rule.TriggerType = request.TriggerType;
+        rule.DiscountType = request.DiscountType;
+        rule.DiscountValue = request.DiscountValue;
         rule.ThresholdDays = request.ThresholdDays;
         rule.VoucherValidityDays = request.VoucherValidityDays;
-        rule.Priority = request.Priority;
         rule.IsActive = request.IsActive;
         rule.SendInAppNotification = request.SendInAppNotification;
         rule.SendEmail = request.SendEmail;
