@@ -711,7 +711,6 @@ phone       = <số chưa dùng>
 password    = <mật khẩu hợp lệ>
 firstName   = Welcome
 lastName    = Tester
-cccd        = <CCCD chưa dùng>
 dateOfBirth = 2000-01-01
 faceImages  = <ít nhất 3 file>
 ```

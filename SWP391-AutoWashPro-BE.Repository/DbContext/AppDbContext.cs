@@ -386,7 +386,6 @@ public class AppDbContext : DbContext
             builder.Property(x => x.TierId).HasColumnName("tier_id").IsRequired();
             builder.Property(x => x.FirstName).HasColumnName("first_name").IsRequired();
             builder.Property(x => x.LastName).HasColumnName("last_name").IsRequired();
-            builder.Property(x => x.Cccd).HasColumnName("cccd");
             builder.Property(x => x.TotalPoints).HasColumnName("total_points").HasDefaultValue(0).IsRequired();
             builder.Property(x => x.TotalWashes).HasColumnName("total_washes").HasDefaultValue(0).IsRequired();
             builder.Property(x => x.LastPointActivityAt).HasColumnName("last_point_activity_at");
@@ -397,7 +396,6 @@ public class AppDbContext : DbContext
 
             builder.HasIndex(x => x.UserId).IsUnique();
             builder.HasIndex(x => x.TierId);
-            builder.HasIndex(x => x.Cccd).IsUnique();
 
             builder.HasOne(x => x.User)
                 .WithOne(x => x.CustomerProfile)
