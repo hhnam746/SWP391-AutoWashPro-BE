@@ -434,7 +434,7 @@ public class Service : IService
 
         // Global Promotions
         var globalPromotions = await eligiblePromotions
-            .Where(x => x.IsGlobal == true)
+            .Where(x => x.IsGlobal == true && x.IsDeleted == false)
             .ToListAsync();
 
         foreach (var promotion in globalPromotions)
