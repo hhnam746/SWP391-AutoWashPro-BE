@@ -9,7 +9,7 @@ public static class TemplateRenderer
     public static string Render(
         string template,
         string customerName,
-        string promotionName,
+        string voucherName,
         DiscountType discountType,
         decimal discountValue,
         string voucherCode,
@@ -20,7 +20,8 @@ public static class TemplateRenderer
         var values = new Dictionary<string, string>
         {
             ["{CustomerName}"] = customerName,
-            ["{PromotionName}"] = promotionName,
+            ["{VoucherName}"] = voucherName,
+            ["{PromotionName}"] = voucherName,
             ["{Discount}"] = FormatDiscount(discountType, discountValue),
             ["{VoucherCode}"] = voucherCode,
             ["{ExpiresAt}"] = expiresAt,

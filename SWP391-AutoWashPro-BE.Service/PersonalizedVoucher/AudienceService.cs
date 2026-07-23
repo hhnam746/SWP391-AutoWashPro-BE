@@ -12,6 +12,7 @@ public class AudienceService : IAudienceService
     private readonly AppDbContext _dbContext;
     private readonly IService _personalizedVoucherService;
     private readonly IDeliveryService _deliveryService;
+    private readonly ITriggerConfigService _triggerConfigService;
     private readonly Options _options;
     private readonly TimeZoneInfo _timeZone;
     private readonly ILogger<AudienceService> _logger;
@@ -20,12 +21,14 @@ public class AudienceService : IAudienceService
         AppDbContext dbContext,
         IService personalizedVoucherService,
         IDeliveryService deliveryService,
+        ITriggerConfigService triggerConfigService,
         IOptions<Options> options,
         ILogger<AudienceService> logger)
     {
         _dbContext = dbContext;
         _personalizedVoucherService = personalizedVoucherService;
         _deliveryService = deliveryService;
+        _triggerConfigService = triggerConfigService;
         _options = options.Value;
         _timeZone = TimeZoneInfo.FindSystemTimeZoneById(_options.TimeZoneId);
         _logger = logger;
@@ -33,17 +36,17 @@ public class AudienceService : IAudienceService
 
     public async Task<int> ProcessBirthdayAsync(CancellationToken cancellationToken = default)
     {
-        var nowUtc = DateTimeOffset.UtcNow;
-        var localDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(nowUtc, _timeZone).DateTime);
-        var cycleKey = PersonalizationPolicy.CreateBirthdayCycleKey(localDate.Year);
-        var rules = await GetActiveRulesAsync(
+        var rule = await GetActiveRuleAsync(
             PersonalizedVoucherTriggerType.Birthday,
-            nowUtc,
             cancellationToken);
-        if (rules.Count == 0)
+        if (rule == null)
         {
             return 0;
         }
+
+        var nowUtc = DateTimeOffset.UtcNow;
+        var localDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(nowUtc, _timeZone).DateTime);
+        var cycleKey = PersonalizationPolicy.CreateBirthdayCycleKey(localDate.Year);
 
         var customers = await _dbContext.CustomerProfiles
             .AsNoTracking()
@@ -58,7 +61,6 @@ public class AudienceService : IAudienceService
             .Select(x => new CustomerCandidate
             {
                 CustomerId = x.Id,
-                TierId = x.TierId,
                 DateOfBirth = x.DateOfBirth
             })
             .ToListAsync(cancellationToken);
@@ -67,12 +69,6 @@ public class AudienceService : IAudienceService
         foreach (var customer in customers.Where(x =>
                      PersonalizationPolicy.IsBirthday(x.DateOfBirth!.Value, localDate)))
         {
-            var rule = SelectEligibleRule(rules, customer.TierId);
-            if (rule == null)
-            {
-                continue;
-            }
-
             await IssueAndDispatchAsync(
                 customer.CustomerId,
                 rule.Id,
@@ -92,18 +88,17 @@ public class AudienceService : IAudienceService
 
     public async Task<int> ProcessInactiveCustomersAsync(CancellationToken cancellationToken = default)
     {
-        var nowUtc = DateTimeOffset.UtcNow;
-        var rules = await GetActiveRulesAsync(
+        var rule = await GetActiveRuleAsync(
             PersonalizedVoucherTriggerType.InactiveCustomer,
-            nowUtc,
             cancellationToken);
-        if (rules.Count == 0)
+        if (rule?.ThresholdDays is not > 0)
         {
             return 0;
         }
 
-        var minimumThreshold = rules.Min(x => x.ThresholdDays!.Value);
-        var latestEligibleLogin = nowUtc.AddDays(-minimumThreshold);
+        var nowUtc = DateTimeOffset.UtcNow;
+        var thresholdDays = rule.ThresholdDays.Value;
+        var latestEligibleLogin = nowUtc.AddDays(-thresholdDays);
         var customers = await _dbContext.CustomerProfiles
             .AsNoTracking()
             .Where(x =>
@@ -115,7 +110,6 @@ public class AudienceService : IAudienceService
             .Select(x => new CustomerCandidate
             {
                 CustomerId = x.Id,
-                TierId = x.TierId,
                 LastLoginAt = x.User.LastLoginAt
             })
             .ToListAsync(cancellationToken);
@@ -123,21 +117,9 @@ public class AudienceService : IAudienceService
         var processed = 0;
         foreach (var customer in customers.OrderBy(x => x.LastLoginAt))
         {
-            var inactiveDays = (int)Math.Floor((nowUtc - customer.LastLoginAt!.Value).TotalDays);
-            var eligibleRules = rules.Where(x => IsTierEligible(x.Promotion, customer.TierId));
-            var rule = PersonalizationPolicy.SelectInactiveRule(
-                eligibleRules,
-                inactiveDays,
-                x => x.ThresholdDays,
-                x => x.Priority);
-            if (rule == null)
-            {
-                continue;
-            }
-
             var cycleKey = PersonalizationPolicy.CreateInactiveCycleKey(
-                rule.ThresholdDays!.Value,
-                customer.LastLoginAt.Value);
+                thresholdDays,
+                customer.LastLoginAt!.Value);
             var existing = await _dbContext.PersonalizedVoucherIssuances
                 .AsNoTracking()
                 .AnyAsync(x =>
@@ -169,20 +151,18 @@ public class AudienceService : IAudienceService
 
     public async Task<int> ProcessAcquisitionAsync(CancellationToken cancellationToken = default)
     {
-        var nowUtc = DateTimeOffset.UtcNow;
-        var welcomeRules = await GetActiveRulesAsync(
+        var welcomeRule = await GetActiveRuleAsync(
             PersonalizedVoucherTriggerType.Welcome,
-            nowUtc,
             cancellationToken);
-        var noFirstBookingRules = await GetActiveRulesAsync(
+        var noFirstBookingRule = await GetActiveRuleAsync(
             PersonalizedVoucherTriggerType.NoFirstBooking,
-            nowUtc,
             cancellationToken);
-        if (welcomeRules.Count == 0 && noFirstBookingRules.Count == 0)
+        if (welcomeRule == null && noFirstBookingRule == null)
         {
             return 0;
         }
 
+        var nowUtc = DateTimeOffset.UtcNow;
         var customers = await _dbContext.CustomerProfiles
             .AsNoTracking()
             .Where(x =>
@@ -199,7 +179,6 @@ public class AudienceService : IAudienceService
             .Select(x => new CustomerCandidate
             {
                 CustomerId = x.Id,
-                TierId = x.TierId,
                 UserCreatedAt = x.User.CreatedAt,
                 VerifiedAt = x.User.VerifiedAt,
                 HasWelcomeIssuance = x.PersonalizedVoucherIssuances.Any(i =>
@@ -210,44 +189,34 @@ public class AudienceService : IAudienceService
         var processed = 0;
         foreach (var customer in customers.OrderBy(x => x.UserCreatedAt))
         {
-            PersonalizedPromotionRule? welcomeRule = null;
-            PersonalizedPromotionRule? noFirstBookingRule = null;
-            PersonalizedVoucherTriggerType triggerType;
-            string cycleKey;
-
-            if (customer.VerifiedAt.HasValue && !customer.HasWelcomeIssuance)
-            {
-                welcomeRule = SelectEligibleRule(welcomeRules, customer.TierId);
-            }
+            var canIssueWelcome =
+                welcomeRule != null &&
+                customer.VerifiedAt.HasValue &&
+                !customer.HasWelcomeIssuance;
 
             var accountAgeDays = (int)Math.Floor((nowUtc - customer.UserCreatedAt).TotalDays);
-            noFirstBookingRule = noFirstBookingRules
-                .Where(x => IsTierEligible(x.Promotion, customer.TierId) &&
-                            x.ThresholdDays <= accountAgeDays)
-                .OrderByDescending(x => x.ThresholdDays)
-                .ThenByDescending(x => x.Priority)
-                .ThenBy(x => x.Id)
-                .FirstOrDefault();
+            var canIssueNoFirstBooking =
+                noFirstBookingRule?.ThresholdDays is > 0 &&
+                noFirstBookingRule.ThresholdDays.Value <= accountAgeDays;
 
             var selectedTrigger = PersonalizationPolicy.ChooseAcquisitionTrigger(
-                welcomeRule != null,
-                noFirstBookingRule != null);
+                canIssueWelcome,
+                canIssueNoFirstBooking);
             if (!selectedTrigger.HasValue)
             {
                 continue;
             }
 
-            PersonalizedPromotionRule rule;
+            PersonalizedVoucherRule rule;
+            string cycleKey;
             if (selectedTrigger == PersonalizedVoucherTriggerType.Welcome)
             {
                 rule = welcomeRule!;
-                triggerType = PersonalizedVoucherTriggerType.Welcome;
                 cycleKey = PersonalizationPolicy.CreateWelcomeCycleKey(customer.VerifiedAt!.Value);
             }
             else
             {
                 rule = noFirstBookingRule!;
-                triggerType = PersonalizedVoucherTriggerType.NoFirstBooking;
                 cycleKey = PersonalizationPolicy.CreateNoFirstBookingCycleKey(
                     rule.ThresholdDays!.Value,
                     customer.UserCreatedAt);
@@ -256,7 +225,7 @@ public class AudienceService : IAudienceService
             await IssueAndDispatchAsync(
                 customer.CustomerId,
                 rule.Id,
-                triggerType,
+                selectedTrigger.Value,
                 cycleKey,
                 null,
                 cancellationToken);
@@ -276,21 +245,15 @@ public class AudienceService : IAudienceService
         Guid bookingId,
         CancellationToken cancellationToken = default)
     {
-        var rules = await GetActiveRulesAsync(
+        var rule = await GetActiveRuleAsync(
             PersonalizedVoucherTriggerType.TierUpgrade,
-            DateTimeOffset.UtcNow,
             cancellationToken);
-        var rule = rules
-            .Where(x => IsTierEligible(x.Promotion, newTierId))
-            .OrderByDescending(x => x.Priority)
-            .ThenBy(x => x.Id)
-            .FirstOrDefault();
         if (rule == null)
         {
             return new Response.IssueResult
             {
                 Status = Response.IssueStatus.Skipped,
-                SkippedReason = "No active tier upgrade rule is available for the new tier."
+                SkippedReason = "No active tier upgrade voucher rule is available."
             };
         }
 
@@ -338,43 +301,20 @@ public class AudienceService : IAudienceService
         return result;
     }
 
-    private async Task<List<PersonalizedPromotionRule>> GetActiveRulesAsync(
+    private async Task<PersonalizedVoucherRule?> GetActiveRuleAsync(
         PersonalizedVoucherTriggerType triggerType,
-        DateTimeOffset nowUtc,
         CancellationToken cancellationToken)
     {
-        return await _dbContext.PersonalizedPromotionRules
+        if (!await _triggerConfigService.IsEnabledAsync(triggerType, cancellationToken))
+        {
+            return null;
+        }
+
+        return await _dbContext.PersonalizedVoucherRules
             .AsNoTracking()
-            .Include(x => x.Promotion)
-            .ThenInclude(x => x.PromotionTiers)
-            .ThenInclude(x => x.Tier)
-            .Where(x =>
-                x.TriggerType == triggerType &&
-                x.IsActive &&
-                x.Promotion.IsActive &&
-                !x.Promotion.IsDeleted &&
-                x.Promotion.StartDate <= nowUtc &&
-                x.Promotion.EndDate > nowUtc)
-            .ToListAsync(cancellationToken);
-    }
-
-    private static PersonalizedPromotionRule? SelectEligibleRule(
-        IEnumerable<PersonalizedPromotionRule> rules,
-        Guid tierId)
-    {
-        return rules
-            .Where(x => IsTierEligible(x.Promotion, tierId))
-            .OrderByDescending(x => x.Priority)
-            .ThenBy(x => x.Id)
-            .FirstOrDefault();
-    }
-
-    private static bool IsTierEligible(Repository.Entities.Promotion promotion, Guid tierId)
-    {
-        return promotion.IsGlobal == true || promotion.PromotionTiers.Any(x =>
-            x.TierId == tierId &&
-            !x.IsDeleted &&
-            !x.Tier.IsDeleted);
+            .SingleOrDefaultAsync(
+                x => x.TriggerType == triggerType && x.IsActive,
+                cancellationToken);
     }
 
     private int BatchSize => Math.Max(1, _options.BatchSize);
@@ -382,7 +322,6 @@ public class AudienceService : IAudienceService
     private sealed class CustomerCandidate
     {
         public Guid CustomerId { get; set; }
-        public Guid TierId { get; set; }
         public DateOnly? DateOfBirth { get; set; }
         public DateTimeOffset? LastLoginAt { get; set; }
         public DateTimeOffset UserCreatedAt { get; set; }

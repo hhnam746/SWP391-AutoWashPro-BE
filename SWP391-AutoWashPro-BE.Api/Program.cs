@@ -116,6 +116,8 @@ builder.Services.Configure<PersonalizedVoucherService.Options>(
 builder.Services.AddScoped<PersonalizedVoucherService.IService, PersonalizedVoucherService.Service>();
 builder.Services.AddScoped<PersonalizedVoucherService.IRuleService, PersonalizedVoucherService.RuleService>();
 builder.Services.AddScoped<PersonalizedVoucherService.IDeliveryService, PersonalizedVoucherService.DeliveryService>();
+builder.Services.AddScoped<PersonalizedVoucherService.ITriggerConfigService,
+    PersonalizedVoucherService.TriggerConfigService>();
 builder.Services.AddScoped<PersonalizedVoucherService.IAudienceService, PersonalizedVoucherService.AudienceService>();
 
 //test thử discord

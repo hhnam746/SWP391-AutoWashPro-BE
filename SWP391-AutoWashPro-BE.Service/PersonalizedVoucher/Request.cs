@@ -6,11 +6,12 @@ public class Request
 {
     public class RuleRequest
     {
-        public Guid PromotionId { get; set; }
+        public string VoucherName { get; set; } = null!;
         public PersonalizedVoucherTriggerType TriggerType { get; set; }
+        public DiscountType DiscountType { get; set; }
+        public decimal DiscountValue { get; set; }
         public int? ThresholdDays { get; set; }
         public int VoucherValidityDays { get; set; }
-        public int Priority { get; set; }
         public bool IsActive { get; set; } = true;
         public bool SendInAppNotification { get; set; }
         public bool SendEmail { get; set; }

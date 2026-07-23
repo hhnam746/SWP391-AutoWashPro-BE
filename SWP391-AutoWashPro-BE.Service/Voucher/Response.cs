@@ -7,13 +7,14 @@ public class Response
     public enum VoucherSource
     {
         Reward,
-        Promotion
+        Personalized
     }
 
     public class VoucherResponse
     {
         public Guid Id { get; set; }
         public string Code { get; set; } = null!;
+        public string VoucherName { get; set; } = null!;
         public string? RewardName { get; set; }
         public VoucherStatus Status { get; set; }
         public DiscountType DiscountType { get; set; }
@@ -26,6 +27,7 @@ public class Response
     {
         public Guid VoucherId { get; set; }
         public string Code { get; set; } = null!;
+        public string VoucherName { get; set; } = null!;
         public string? RewardName { get; set; }
         public bool IsValid { get; set; }
         public string Message { get; set; } = null!;
@@ -35,7 +37,6 @@ public class Response
 
     public class CustomerVoucherResponse : VoucherResponse
     {
-        public string? PromotionName { get; set; }
         public VoucherSource Source { get; set; }
         public PersonalizedVoucherTriggerType? TriggerType { get; set; }
         public string? CycleKey { get; set; }

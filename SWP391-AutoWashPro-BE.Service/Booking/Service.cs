@@ -379,7 +379,6 @@ public class Service : IService
         var nowUtc = DateTimeOffset.UtcNow;
         var voucherDiscountAmount = (decimal)0;
         Repository.Entities.Voucher? voucher = null;
-        Guid? excludedPromotionId = null;
 
         if (bookingRequest.VoucherId.HasValue)
         {
@@ -395,7 +394,7 @@ public class Service : IService
             if (voucher.Status != VoucherStatus.Active)
                 throw new Exception("Voucher is inactive");
 
-            if (voucher.ExpiresAt < nowUtc)
+            if (voucher.ExpiresAt <= nowUtc)
                 throw new Exception("Voucher expired");
 
             if (voucher.UsedAt != null)
@@ -421,8 +420,6 @@ public class Service : IService
             {
                 voucherDiscountAmount += (basePrice * voucher.DiscountValue) / 100;
             }
-
-            excludedPromotionId = voucher.PromotionId;
         }
 
         //Discount by promotion
@@ -433,8 +430,7 @@ public class Service : IService
                 x.IsActive &&
                 !x.IsDeleted &&
                 x.StartDate <= nowUtc &&
-                x.EndDate > nowUtc &&
-                (!excludedPromotionId.HasValue || x.Id != excludedPromotionId.Value));
+                x.EndDate > nowUtc);
 
         // Global Promotions
         var globalPromotions = await eligiblePromotions
@@ -1210,6 +1206,19 @@ public class Service : IService
         Guid? upgradedTierId = null;
         var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
         var voucher = await _dbContext.Vouchers.FirstOrDefaultAsync(x => x.Id == booking.VoucherId);
+        if (voucher != null)
+        {
+            if (voucher.Status != VoucherStatus.Active || voucher.UsedAt.HasValue)
+            {
+                throw new InvalidOperationException("Voucher is no longer active.");
+            }
+
+            if (voucher.ExpiresAt <= DateTimeOffset.UtcNow)
+            {
+                throw new InvalidOperationException("Voucher expired.");
+            }
+        }
+
         if (wallet == null)
         {
             throw new Exception("Wallet not found");
@@ -1238,6 +1247,8 @@ public class Service : IService
             if (voucher != null)
             {
                 voucher.Status = VoucherStatus.Used;
+                voucher.UsedAt = DateTimeOffset.UtcNow;
+                voucher.UpdatedAt = voucher.UsedAt;
             }
 
             var FullPayemntBookingTransaction = new Repository.Entities.Transaction
