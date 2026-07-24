@@ -303,7 +303,7 @@ public class Service: IService
         }
 
         promotion.IsDeleted = true;
-
+        promotion.UpdatedAt = DateTimeOffset.UtcNow;
         await _dbContext.SaveChangesAsync();
 
         return "Deleted promotion successfully";

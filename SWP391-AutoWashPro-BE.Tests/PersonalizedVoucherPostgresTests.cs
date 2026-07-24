@@ -345,6 +345,8 @@ public class PersonalizedVoucherPostgresTests
     [InlineData("relation-deleted")]
     [InlineData("future")]
     [InlineData("expired")]
+    [InlineData("wrong-tier")]
+    [InlineData("tier-deleted")]
     public async Task Booking_DoesNotApplyIneligibleTierPromotion(string eligibilityState)
     {
         await using var dbContext = await CreateCleanDbContextAsync();
@@ -359,6 +361,31 @@ public class PersonalizedVoucherPostgresTests
         var endDate = eligibilityState == "expired"
             ? nowUtc.AddDays(-1)
             : nowUtc.AddDays(2);
+        var promotionTierId = seed.TierId;
+
+        if (eligibilityState == "wrong-tier")
+        {
+            var otherTier = new Tier
+            {
+                Id = Guid.NewGuid(),
+                Name = $"Other Tier {Guid.NewGuid():N}",
+                Level = 100,
+                RequiredWashes = 0,
+                PriorityBookingDays = 30,
+                IsDeleted = false,
+                CreatedAt = nowUtc
+            };
+            dbContext.Tiers.Add(otherTier);
+            await dbContext.SaveChangesAsync();
+            promotionTierId = otherTier.Id;
+        }
+        else if (eligibilityState == "tier-deleted")
+        {
+            var deletedTier = await dbContext.Tiers.SingleAsync(x => x.Id == seed.TierId);
+            deletedTier.IsDeleted = true;
+            await dbContext.SaveChangesAsync();
+        }
+
         await AddPromotionAsync(
             dbContext,
             DiscountType.FixedAmount,
@@ -368,7 +395,7 @@ public class PersonalizedVoucherPostgresTests
             isDeleted,
             startDate,
             endDate,
-            seed.TierId,
+            promotionTierId,
             isTierLinkDeleted);
         var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
 
@@ -442,6 +469,115 @@ public class PersonalizedVoucherPostgresTests
             CreateBookingRequest(bookingData, voucherId: null, minute: 0));
 
         await AssertBookingPricingAsync(dbContext, response, expectedDiscount: 10000);
+    }
+
+    [Fact]
+    public async Task Booking_AppliesAllEligibleGlobalAndTierPromotions()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var nowUtc = DateTimeOffset.UtcNow;
+        await AddPromotionAsync(
+            dbContext,
+            DiscountType.FixedAmount,
+            10000,
+            isGlobal: true,
+            isActive: true,
+            isDeleted: false,
+            nowUtc.AddDays(-1),
+            nowUtc.AddDays(1));
+        await AddPromotionAsync(
+            dbContext,
+            DiscountType.Percentage,
+            5,
+            isGlobal: true,
+            isActive: true,
+            isDeleted: false,
+            nowUtc.AddDays(-1),
+            nowUtc.AddDays(1));
+        await AddPromotionAsync(
+            dbContext,
+            DiscountType.FixedAmount,
+            15000,
+            isGlobal: false,
+            isActive: true,
+            isDeleted: false,
+            nowUtc.AddDays(-1),
+            nowUtc.AddDays(1),
+            seed.TierId);
+        await AddPromotionAsync(
+            dbContext,
+            DiscountType.FixedAmount,
+            20000,
+            isGlobal: false,
+            isActive: true,
+            isDeleted: false,
+            nowUtc.AddDays(-1),
+            nowUtc.AddDays(1),
+            seed.TierId);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+
+        var response = await CreateBookingService(dbContext, seed.UserId).CreateBooking(
+            CreateBookingRequest(bookingData, voucherId: null, minute: 0));
+
+        await AssertBookingPricingAsync(dbContext, response, expectedDiscount: 50000);
+    }
+
+    [Fact]
+    public async Task Booking_AppliesGlobalPromotionWithTierLinkOnlyOnce()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var nowUtc = DateTimeOffset.UtcNow;
+        await AddPromotionAsync(
+            dbContext,
+            DiscountType.FixedAmount,
+            25000,
+            isGlobal: true,
+            isActive: true,
+            isDeleted: false,
+            nowUtc.AddDays(-1),
+            nowUtc.AddDays(1),
+            seed.TierId);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+
+        var response = await CreateBookingService(dbContext, seed.UserId).CreateBooking(
+            CreateBookingRequest(bookingData, voucherId: null, minute: 0));
+
+        await AssertBookingPricingAsync(dbContext, response, expectedDiscount: 25000);
+    }
+
+    [Fact]
+    public async Task Booking_CapsStackedPromotionDiscountAtBasePrice()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var nowUtc = DateTimeOffset.UtcNow;
+        await AddPromotionAsync(
+            dbContext,
+            DiscountType.FixedAmount,
+            80000,
+            isGlobal: true,
+            isActive: true,
+            isDeleted: false,
+            nowUtc.AddDays(-1),
+            nowUtc.AddDays(1));
+        await AddPromotionAsync(
+            dbContext,
+            DiscountType.FixedAmount,
+            50000,
+            isGlobal: false,
+            isActive: true,
+            isDeleted: false,
+            nowUtc.AddDays(-1),
+            nowUtc.AddDays(1),
+            seed.TierId);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+
+        var response = await CreateBookingService(dbContext, seed.UserId).CreateBooking(
+            CreateBookingRequest(bookingData, voucherId: null, minute: 0));
+
+        await AssertBookingPricingAsync(dbContext, response, expectedDiscount: 100000);
     }
 
     [Fact]
