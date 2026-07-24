@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 
-namespace SWP391_AutoWashPro_BE.Repository;
+namespace SWP391_AutoWashPro_BE.Repository.DbContext;
 
-public class AppDbContext : DbContext
+public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext
 {
     private static readonly ValueConverter<UserRole, string> UserRoleConverter =
         new(v => ToDbUserRole(v), v => FromDbUserRole(v));

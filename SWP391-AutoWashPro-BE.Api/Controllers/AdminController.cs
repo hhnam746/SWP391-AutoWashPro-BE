@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using SWP391_AutoWashPro_BE.Api.Extensions;
+using SWP391_AutoWashPro_BE.Api.Extentions;
 using SWP391_AutoWashPro_BE.Service.Admin;
 using SWP391_AutoWashPro_BE.Service.Models;
 

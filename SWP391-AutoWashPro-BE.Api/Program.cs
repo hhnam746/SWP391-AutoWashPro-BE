@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using SWP391_AutoWashPro_BE.Api.Extensions;
 using SWP391_AutoWashPro_BE.Api.Extentions;
 using SWP391_AutoWashPro_BE.Api.Middlewares;
 using SWP391_AutoWashPro_BE.Repository;
@@ -15,6 +14,7 @@ using System.Text.Json.Serialization;
 using DotNetEnv;
 using Quartz;
 using StackExchange.Redis;
+using SWP391_AutoWashPro_BE.Repository.DbContext;
 using SWP391_AutoWashPro_BE.Service.BackgroundJob;
 // using SWP391_AutoWashPro_BE.Service.BackgroundJob;
 using VehicleService = SWP391_AutoWashPro_BE.Service.Vehicles;
@@ -59,6 +59,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.ConfigureRateLimiter();
 builder.Services.AddJwtServices(builder.Configuration);
 builder.Services.AddSwaggerServices();
 builder.Services.AddSignalR();
@@ -241,6 +242,7 @@ app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.UseSwaggerAPI();
 
 app.UseCors("AllowFrontend");
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

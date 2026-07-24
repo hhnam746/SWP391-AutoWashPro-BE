@@ -4,6 +4,7 @@ using Quartz;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using System.Text.Json;
+using SWP391_AutoWashPro_BE.Repository.DbContext;
 
 namespace SWP391_AutoWashPro_BE.Service.BackgroundJob;
 
