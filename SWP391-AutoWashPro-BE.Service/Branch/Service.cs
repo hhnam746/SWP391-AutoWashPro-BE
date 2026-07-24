@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.Base;
+using PromotionService = SWP391_AutoWashPro_BE.Service.Promotion;
 
 namespace SWP391_AutoWashPro_BE.Service.Branch;
 
@@ -97,29 +98,9 @@ public class Service : IService
         if (customerProfile == null)
             throw new Exception("Customer profile not found");
 
-        // Lấy promotion theo tier
-        var promotionIds = await _dbContext.PromotionTiers
-            .Where(x =>
-                x.TierId == customerProfile.TierId &&
-                !x.IsDeleted &&
-                !x.Tier.IsDeleted)
-            .Select(x => x.PromotionId)
+        var promotions = await PromotionService.ApplicablePromotionSelector
+            .Query(_dbContext, customerProfile.TierId, DateTimeOffset.UtcNow)
             .ToListAsync();
-
-        var tierPromotions = await _dbContext.Promotions
-            .Where(x => promotionIds.Contains(x.Id))
-            .ToListAsync();
-
-        // Lấy promotion global
-        var globalPromotions = await _dbContext.Promotions
-            .Where(x => x.IsGlobal == true)
-            .ToListAsync();
-
-        // Gộp lại
-        globalPromotions.AddRange(tierPromotions);
-
-        // Remove duplicate
-        var promotions = globalPromotions.DistinctBy(x => x.Id).ToList();
 
         return new Response.GetUserAvailablePromotion
         {

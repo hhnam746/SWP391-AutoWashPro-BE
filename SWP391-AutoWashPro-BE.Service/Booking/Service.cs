@@ -8,6 +8,7 @@ using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.Base;
 using PersonalizedVoucherService = SWP391_AutoWashPro_BE.Service.PersonalizedVoucher;
+using PromotionService = SWP391_AutoWashPro_BE.Service.Promotion;
 
 namespace SWP391_AutoWashPro_BE.Service.Booking;
 
@@ -425,44 +426,12 @@ public class Service : IService
         //Discount by promotion
         decimal promotionDiscountAmount = 0;
 
-        var eligiblePromotions = _dbContext.Promotions
-            .Where(x =>
-                x.IsActive &&
-                !x.IsDeleted &&
-                x.StartDate <= nowUtc &&
-                x.EndDate > nowUtc);
-
-        // Global Promotions
-        var globalPromotions = await eligiblePromotions
-            .Where(x => x.IsGlobal == true && x.IsDeleted == false)
+        var applicablePromotions = await PromotionService.ApplicablePromotionSelector
+            .Query(_dbContext, customerProfile.TierId, nowUtc)
             .ToListAsync();
 
-        foreach (var promotion in globalPromotions)
+        foreach (var promotion in applicablePromotions)
         {
-            if (promotion.DiscountType == DiscountType.Percentage)
-            {
-                promotionDiscountAmount +=
-                    basePrice * promotion.DiscountValue / 100;
-            }
-            else
-            {
-                promotionDiscountAmount +=
-                    promotion.DiscountValue;
-            }
-        }
-
-        // Tier Promotion
-        var tierPromotion = await eligiblePromotions
-            .FirstOrDefaultAsync(x =>
-                x.PromotionTiers.Any(promotionTier =>
-                    promotionTier.TierId == customerProfile.TierId &&
-                    !promotionTier.IsDeleted &&
-                    !promotionTier.Tier.IsDeleted));
-
-        if (tierPromotion != null)
-        {
-            var promotion = tierPromotion;
-
             if (promotion.DiscountType == DiscountType.Percentage)
             {
                 promotionDiscountAmount +=
