@@ -44,7 +44,7 @@ public class Service : IService
 
         var nextTier = await _dbContext.Tiers
             .AsNoTracking()
-            .Where(x => x.Level > customer.Tier.Level)
+            .Where(x => !x.IsDeleted && x.Level > customer.Tier.Level)
             .OrderBy(x => x.Level)
             .FirstOrDefaultAsync();
 

@@ -495,11 +495,6 @@ public class Service : IService
 
         discountAmount += redeemDiscountAmount;
 
-        if (customerProfile.TotalWashes > 0 && customerProfile.TotalWashes % 5 == 0)
-        {
-            discountAmount = basePrice;
-        }
-
         var utcEndTime = validSlotEnd.Value.ToUniversalTime();
 
         //Wallet
@@ -1293,8 +1288,11 @@ public class Service : IService
             };
 
             _dbContext.PointTransactions.Add(earnPointTransaction);
-            var currentTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level);
-            var nextTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level + 1);
+            var currentTier = customerProfile.Tier;
+            var nextTier = await _dbContext.Tiers
+                .Where(x => !x.IsDeleted && x.Level > currentTier.Level)
+                .OrderBy(x => x.Level)
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (nextTier != null &&
                 customerProfile.TotalWashes >= nextTier.RequiredWashes)
