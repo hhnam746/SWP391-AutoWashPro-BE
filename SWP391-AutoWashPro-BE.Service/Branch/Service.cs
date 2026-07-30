@@ -90,6 +90,8 @@ public class Service : IService
         if (user == null)
             throw new Exception("User not found");
 
+        var nowUtc = DateTimeOffset.UtcNow;
+
         var customerProfile = await _dbContext.CustomerProfiles
             .Include(x => x.Tier)
             .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
@@ -102,17 +104,27 @@ public class Service : IService
             .Where(x =>
                 x.TierId == customerProfile.TierId &&
                 !x.IsDeleted &&
-                !x.Tier.IsDeleted)
+                !x.Tier.IsDeleted && !x.Promotion.IsDeleted)
             .Select(x => x.PromotionId)
             .ToListAsync();
 
         var tierPromotions = await _dbContext.Promotions
-            .Where(x => promotionIds.Contains(x.Id))
+            .Where(x =>
+              promotionIds.Contains(x.Id) &&
+              !x.IsDeleted &&
+              x.IsActive &&
+              x.StartDate <= nowUtc &&
+              x.EndDate > nowUtc)
             .ToListAsync();
 
         // Lấy promotion global
         var globalPromotions = await _dbContext.Promotions
-            .Where(x => x.IsGlobal == true)
+            .Where(x =>
+              x.IsGlobal == true &&
+              !x.IsDeleted &&
+              x.IsActive &&
+              x.StartDate <= nowUtc &&
+              x.EndDate > nowUtc)
             .ToListAsync();
 
         // Gộp lại
@@ -127,7 +139,7 @@ public class Service : IService
             {
                 Id = x.Id,
                 Name = x.Name,
-                Description = x.Description,
+                Description = x.Description ?? string.Empty,
                 DiscountType = x.DiscountType,
                 discountValue = x.DiscountValue,
                 endTime = x.EndDate
