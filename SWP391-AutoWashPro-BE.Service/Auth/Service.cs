@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SWP391_AutoWashPro_BE.Repository;
-using SWP391_AutoWashPro_BE.Repository.DbContext;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.JwtService;
 using SWP391_AutoWashPro_BE.Service.MailService;

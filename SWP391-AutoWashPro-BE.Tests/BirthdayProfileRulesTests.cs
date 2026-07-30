@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using SWP391_AutoWashPro_BE.Repository;
-using SWP391_AutoWashPro_BE.Repository.DbContext;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using AuthService = SWP391_AutoWashPro_BE.Service.Auth.Service;

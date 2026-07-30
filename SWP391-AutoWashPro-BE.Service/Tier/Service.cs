@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using SWP391_AutoWashPro_BE.Repository;
-using SWP391_AutoWashPro_BE.Repository.DbContext;
 
 namespace SWP391_AutoWashPro_BE.Service.Tier;
 

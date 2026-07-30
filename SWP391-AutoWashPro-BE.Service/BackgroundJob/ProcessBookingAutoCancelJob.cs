@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Quartz;
 using SWP391_AutoWashPro_BE.Repository;
-using SWP391_AutoWashPro_BE.Repository.DbContext;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 
 namespace SWP391_AutoWashPro_BE.Service.BackgroundJob;

@@ -14,7 +14,6 @@ using System.Text.Json.Serialization;
 using DotNetEnv;
 using Quartz;
 using StackExchange.Redis;
-using SWP391_AutoWashPro_BE.Repository.DbContext;
 using SWP391_AutoWashPro_BE.Service.BackgroundJob;
 // using SWP391_AutoWashPro_BE.Service.BackgroundJob;
 using VehicleService = SWP391_AutoWashPro_BE.Service.Vehicles;

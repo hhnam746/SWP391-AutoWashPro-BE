@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using SWP391_AutoWashPro_BE.Repository;
-using SWP391_AutoWashPro_BE.Repository.DbContext;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 
