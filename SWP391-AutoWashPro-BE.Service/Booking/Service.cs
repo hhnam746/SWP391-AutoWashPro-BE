@@ -463,6 +463,24 @@ public class Service : IService
         }
 
         discountAmount += redeemDiscountAmount;
+        
+        if (redeemPointsUsed > 0)
+        {
+            customerProfile.TotalPoints -= redeemPointsUsed;
+
+            var redeemTransaction = new Repository.Entities.PointTransaction
+            {
+                Id = Guid.NewGuid(),
+                CustomerId = customerProfile.Id,
+                Customer = customerProfile,
+                Points = redeemPointsUsed,
+                TransactionType = PointTransactionType.Redeem,
+                Description = $"Redeemed {redeemPointsUsed} points for booking.",
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            _dbContext.PointTransactions.Add(redeemTransaction);
+        }
 
         var utcEndTime = validSlotEnd.Value.ToUniversalTime();
 
@@ -1229,7 +1247,7 @@ public class Service : IService
             };
             _dbContext.Transactions.Add(FullPayemntBookingTransaction);
             //////////////////////////////////////////////////////
-            customerProfile.TotalPoints -= booking.RedemAmount ?? 0;
+            // customerProfile.TotalPoints -= booking.RedemAmount ?? 0;
             //////////////////////////////////////////////////////
 
             var bonusPointConfig = await _dbContext.SystemConfigs
@@ -1289,23 +1307,23 @@ public class Service : IService
                 _dbContext.Notifications.Add(notification);
             }
 
-            if ((booking.RedemAmount ?? 0) > 0)
-            {
-                var pointTransaction = new Repository.Entities.PointTransaction()
-                {
-                    Id = Guid.NewGuid(),
-                    CustomerId = customerProfile.Id,
-                    Customer = customerProfile,
-                    Booking = booking,
-                    BookingId = booking.Id,
-                    Points = booking.RedemAmount ?? 0,
-                    TransactionType = PointTransactionType.Redeem,
-                    Description = $"Redeemed {booking.RedemAmount} points for booking discount.",
-                    CreatedAt = DateTime.UtcNow,
-                };
-                _dbContext.PointTransactions.Add(pointTransaction);
-            }
-            
+            // if ((booking.RedemAmount ?? 0) > 0)
+            // {
+            //     var pointTransaction = new Repository.Entities.PointTransaction()
+            //     {
+            //         Id = Guid.NewGuid(),
+            //         CustomerId = customerProfile.Id,
+            //         Customer = customerProfile,
+            //         Booking = booking,
+            //         BookingId = booking.Id,
+            //         Points = booking.RedemAmount ?? 0,
+            //         TransactionType = PointTransactionType.Redeem,
+            //         Description = $"Redeemed {booking.RedemAmount} points for booking discount.",
+            //         CreatedAt = DateTime.UtcNow,
+            //     };
+            //     _dbContext.PointTransactions.Add(pointTransaction);
+            // }
+            //
             //Thêm background job => ProcessBookingAutoComplete 
             //Completed khi mà time(NOW) > Endtime
             
@@ -1455,6 +1473,25 @@ public class Service : IService
 
         booking.Status = BookingStatus.Cancelled;
         booking.CancelledAt = DateTime.UtcNow;
+        if ((booking.RedemAmount ?? 0) > 0)
+        {
+            customerProfile.TotalPoints += booking.RedemAmount.Value;
+
+            var refundTransaction = new Repository.Entities.PointTransaction
+            {
+                Id = Guid.NewGuid(),
+                CustomerId = customerProfile.Id,
+                Customer = customerProfile,
+                BookingId = booking.Id,
+                Booking = booking,
+                Points = booking.RedemAmount.Value,
+                TransactionType = PointTransactionType.Earn, // hoặc Refund nếu có enum
+                Description = $"Refund {booking.RedemAmount} points because booking was cancelled.",
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            _dbContext.PointTransactions.Add(refundTransaction);
+        }
 
         var branch = await _dbContext.Branches
             .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
