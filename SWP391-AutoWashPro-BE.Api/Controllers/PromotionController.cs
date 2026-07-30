@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Mvc;
-using SWP391_AutoWashPro_BE.Api.Extensions;
+using SWP391_AutoWashPro_BE.Api.Extentions;
 using SWP391_AutoWashPro_BE.Service.Promotion;
 
 namespace SWP391_AutoWashPro_BE.Api.Controllers;

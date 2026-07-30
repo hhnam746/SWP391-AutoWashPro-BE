@@ -131,7 +131,7 @@ public class Service : IService
         if (request.VehicleImages == null || request.VehicleImages.Count is < 1 or > 3)
             throw new ArgumentException("Vehicle images must contain from 1 to 3 files.", nameof(request.VehicleImages));
 
-        if (await _dbContext.Vehicles.AnyAsync(x => x.LicensePlate == normalizedLicensePlate && x.IsActive))
+        if (await _dbContext.Vehicles.AnyAsync(x => x.CustomerId == customerProfile.Id && x.LicensePlate == normalizedLicensePlate && x.IsActive))
         {
             // Exception note: phát sinh khi khách hàng tạo trùng biển số xe đang còn hoạt động.
             throw new InvalidOperationException("License plate already exists.");
