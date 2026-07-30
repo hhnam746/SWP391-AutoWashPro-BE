@@ -387,7 +387,9 @@ public class Service : IService
                 .Include(x => x.PersonalizedVoucherIssuance)
                 .FirstOrDefaultAsync(x =>
                     x.Id == bookingRequest.VoucherId.Value &&
-                    x.CustomerId == customerProfile.Id);
+                    x.CustomerId == customerProfile.Id && 
+                    x.Status != VoucherStatus.Used && 
+                    x.Status != VoucherStatus.Expired);
 
             if (voucher == null)
                 throw new Exception("Voucher not found");
@@ -416,6 +418,7 @@ public class Service : IService
             if (voucher.DiscountType == DiscountType.FixedAmount)
             {
                 voucherDiscountAmount += voucher.DiscountValue;
+               
             }
             else
             {
