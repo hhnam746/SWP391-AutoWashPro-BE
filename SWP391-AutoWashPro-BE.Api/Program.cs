@@ -71,7 +71,8 @@ builder.Services.AddCors(options =>
             policy.WithOrigins("http://localhost:5173",  // port của FE và BE
                     "http://localhost:5174", //local demo SignalR
                     "http://localhost:3000",  //local demo FE
-                    "http://localhost:5207"
+                    "http://localhost:5207",
+                    "https://auto-wash-pro.vercel.app" //apply vercel deploy FE
                     )
                 .AllowAnyHeader()
                 .AllowAnyMethod()
