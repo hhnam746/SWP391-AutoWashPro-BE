@@ -84,42 +84,64 @@ public class Service : IService
     {
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
+        // Kiểm tra user
         var user = await _dbContext.Users
+            .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new Exception("User not found");
+            throw new KeyNotFoundException("User not found");
 
+        // Lấy customer profile
         var customerProfile = await _dbContext.CustomerProfiles
-            .Include(x => x.Tier)
+            .AsNoTracking()
             .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
 
         if (customerProfile == null)
-            throw new Exception("Customer profile not found");
+            throw new KeyNotFoundException("Customer profile not found");
 
-        // Lấy promotion theo tier
+        var nowUtc = DateTimeOffset.UtcNow;
+
+        // Lấy ID promotion theo tier của customer
         var promotionIds = await _dbContext.PromotionTiers
+            .AsNoTracking()
             .Where(x =>
                 x.TierId == customerProfile.TierId &&
                 !x.IsDeleted &&
-                !x.Tier.IsDeleted)
+                !x.Tier.IsDeleted &&
+                !x.Promotion.IsDeleted)
             .Select(x => x.PromotionId)
             .ToListAsync();
 
+        // Lấy promotion theo tier
         var tierPromotions = await _dbContext.Promotions
-            .Where(x => promotionIds.Contains(x.Id))
+            .AsNoTracking()
+            .Where(x =>
+                promotionIds.Contains(x.Id) &&
+                !x.IsDeleted &&
+                x.IsActive &&
+                x.StartDate <= nowUtc &&
+                x.EndDate > nowUtc)
             .ToListAsync();
 
-        // Lấy promotion global
+        // Lấy global promotion
         var globalPromotions = await _dbContext.Promotions
-            .Where(x => x.IsGlobal == true)
+            .AsNoTracking()
+            .Where(x =>
+                x.IsGlobal == true &&
+                !x.IsDeleted &&
+                x.IsActive &&
+                x.StartDate <= nowUtc &&
+                x.EndDate > nowUtc)
             .ToListAsync();
 
-        // Gộp lại
+        // Gộp hai danh sách
         globalPromotions.AddRange(tierPromotions);
 
-        // Remove duplicate
-        var promotions = globalPromotions.DistinctBy(x => x.Id).ToList();
+        // Loại bỏ promotion bị trùng
+        var promotions = globalPromotions
+            .DistinctBy(x => x.Id)
+            .ToList();
 
         return new Response.GetUserAvailablePromotion
         {
@@ -127,7 +149,7 @@ public class Service : IService
             {
                 Id = x.Id,
                 Name = x.Name,
-                Description = x.Description,
+                Description = x.Description ?? string.Empty,
                 DiscountType = x.DiscountType,
                 discountValue = x.DiscountValue,
                 endTime = x.EndDate
