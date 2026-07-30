@@ -3,11 +3,12 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SWP391_AutoWashPro_BE.Repository.Constants;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.JwtService;
-using SWP391_AutoWashPro_BE.Repository.Constants;
-namespace SWP391_AutoWashPro_BE.Api.Extensions;
+
+namespace SWP391_AutoWashPro_BE.Api.Extentions;
 
 
 public static class JwtExtensions

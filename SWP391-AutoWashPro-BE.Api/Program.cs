@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using SWP391_AutoWashPro_BE.Api.Extensions;
 using SWP391_AutoWashPro_BE.Api.Extentions;
 using SWP391_AutoWashPro_BE.Api.Middlewares;
 using SWP391_AutoWashPro_BE.Repository;
@@ -59,6 +58,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.ConfigureRateLimiter();
 builder.Services.AddJwtServices(builder.Configuration);
 builder.Services.AddSwaggerServices();
 builder.Services.AddSignalR();
@@ -71,7 +71,8 @@ builder.Services.AddCors(options =>
             policy.WithOrigins("http://localhost:5173",  // port của FE và BE
                     "http://localhost:5174", //local demo SignalR
                     "http://localhost:3000",  //local demo FE
-                    "http://localhost:5207"
+                    "http://localhost:5207",
+                    "https://auto-wash-pro.vercel.app" //apply vercel deploy FE
                     )
                 .AllowAnyHeader()
                 .AllowAnyMethod()
@@ -241,8 +242,8 @@ app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.UseSwaggerAPI();
 
 app.UseCors("AllowFrontend");
-
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapHub<NotificationHub>("/notificationHub");

@@ -769,3 +769,4 @@ FodyWeavers.xsd
 SWP391-AutoWashPro-BE.Api/appsettings.json
 SWP391-AutoWashPro-BE.Api/appsettings.Development.json
 AGENTS.md
+.agents/
