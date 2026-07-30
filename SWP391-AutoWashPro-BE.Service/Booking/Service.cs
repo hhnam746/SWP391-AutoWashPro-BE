@@ -9,7 +9,6 @@ using SWP391_AutoWashPro_BE.Repository.DbContext;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.Base;
 using PersonalizedVoucherService = SWP391_AutoWashPro_BE.Service.PersonalizedVoucher;
-using PromotionService = SWP391_AutoWashPro_BE.Service.Promotion;
 
 namespace SWP391_AutoWashPro_BE.Service.Booking;
 
@@ -427,12 +426,44 @@ public class Service : IService
         //Discount by promotion
         decimal promotionDiscountAmount = 0;
 
-        var applicablePromotions = await PromotionService.ApplicablePromotionSelector
-            .Query(_dbContext, customerProfile.TierId, nowUtc)
+        var eligiblePromotions = _dbContext.Promotions
+            .Where(x =>
+                x.IsActive &&
+                !x.IsDeleted &&
+                x.StartDate <= nowUtc &&
+                x.EndDate > nowUtc);
+
+        // Global Promotions
+        var globalPromotions = await eligiblePromotions
+            .Where(x => x.IsGlobal == true && x.IsDeleted == false)
             .ToListAsync();
 
-        foreach (var promotion in applicablePromotions)
+        foreach (var promotion in globalPromotions)
         {
+            if (promotion.DiscountType == DiscountType.Percentage)
+            {
+                promotionDiscountAmount +=
+                    basePrice * promotion.DiscountValue / 100;
+            }
+            else
+            {
+                promotionDiscountAmount +=
+                    promotion.DiscountValue;
+            }
+        }
+
+        // Tier Promotion
+        var tierPromotion = await eligiblePromotions
+            .FirstOrDefaultAsync(x =>
+                x.PromotionTiers.Any(promotionTier =>
+                    promotionTier.TierId == customerProfile.TierId &&
+                    !promotionTier.IsDeleted &&
+                    !promotionTier.Tier.IsDeleted));
+
+        if (tierPromotion != null)
+        {
+            var promotion = tierPromotion;
+
             if (promotion.DiscountType == DiscountType.Percentage)
             {
                 promotionDiscountAmount +=
@@ -464,6 +495,11 @@ public class Service : IService
         }
 
         discountAmount += redeemDiscountAmount;
+
+        if (customerProfile.TotalWashes > 0 && customerProfile.TotalWashes % 5 == 0)
+        {
+            discountAmount = basePrice;
+        }
 
         var utcEndTime = validSlotEnd.Value.ToUniversalTime();
 
@@ -755,6 +791,8 @@ public class Service : IService
         {
             query = query.Where(x => x.BookingDate <= toDate);
         }
+        
+        query = query.OrderByDescending(x => x.UpdatedAt);
 
         var bookingDetail = query.Select(x => new Response.BookingItem
         {
@@ -1258,11 +1296,8 @@ public class Service : IService
             };
 
             _dbContext.PointTransactions.Add(earnPointTransaction);
-            var currentTier = customerProfile.Tier;
-            var nextTier = await _dbContext.Tiers
-                .Where(x => !x.IsDeleted && x.Level > currentTier.Level)
-                .OrderBy(x => x.Level)
-                .FirstOrDefaultAsync(cancellationToken);
+            var currentTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level);
+            var nextTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level + 1);
 
             if (nextTier != null &&
                 customerProfile.TotalWashes >= nextTier.RequiredWashes)

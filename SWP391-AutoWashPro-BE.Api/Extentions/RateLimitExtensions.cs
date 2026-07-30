@@ -20,9 +20,7 @@ public static class RateLimitExtensions
             // Global rate limiter applied to all endpoints
             options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
                 RateLimitPartition.GetSlidingWindowLimiter(
-                    context.User.Identity?.Name
-                    ?? context.Connection.RemoteIpAddress?.ToString()
-                    ?? "anonymous",
+                    GetClientPartitionKey(context),
                     _ => new SlidingWindowRateLimiterOptions
                     {
                         PermitLimit = 250,
@@ -34,9 +32,7 @@ public static class RateLimitExtensions
 
             options.AddPolicy("api", context =>
                 RateLimitPartition.GetSlidingWindowLimiter(
-                    context.User.Identity?.Name
-                    ?? context.Connection.RemoteIpAddress?.ToString()
-                    ?? "anonymous",
+                    GetClientPartitionKey(context),
                     _ => new SlidingWindowRateLimiterOptions
                     {
                         PermitLimit = 100,
@@ -60,7 +56,7 @@ public static class RateLimitExtensions
             // Heavy operation limit
             options.AddPolicy("heavy", context =>
                 RateLimitPartition.GetTokenBucketLimiter(
-                    context.User.Identity?.Name ?? "anonymous",
+                    GetClientPartitionKey(context),
                     _ => new TokenBucketRateLimiterOptions
                     {
                         TokenLimit = 10,
@@ -69,5 +65,16 @@ public static class RateLimitExtensions
                         QueueLimit = 0
                     }));
         });
+    }
+
+    private static string GetClientPartitionKey(HttpContext context)
+    {
+        if (context.User.Identity?.IsAuthenticated == true &&
+            !string.IsNullOrWhiteSpace(context.User.Identity.Name))
+        {
+            return $"user:{context.User.Identity.Name}";
+        }
+
+        return $"ip:{context.Connection.RemoteIpAddress?.ToString() ?? "anonymous"}";
     }
 }

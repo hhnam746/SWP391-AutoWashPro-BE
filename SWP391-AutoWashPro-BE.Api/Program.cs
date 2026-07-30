@@ -242,9 +242,8 @@ app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.UseSwaggerAPI();
 
 app.UseCors("AllowFrontend");
-app.UseRateLimiter();
-
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapHub<NotificationHub>("/notificationHub");

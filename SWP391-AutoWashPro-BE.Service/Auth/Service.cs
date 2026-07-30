@@ -89,14 +89,12 @@ public class Service : IService
         }
 
         var defaultTier = await _dbContext.Tiers
-            .Where(t => !t.IsDeleted)
             .OrderBy(t => t.Level)
             .FirstOrDefaultAsync();
 
         if (defaultTier == null)
         {
             defaultTier = await _dbContext.Tiers
-                .Where(t => !t.IsDeleted)
                 .OrderBy(t => t.Level)
                 .FirstOrDefaultAsync();
         }
@@ -123,11 +121,8 @@ public class Service : IService
                 // Another concurrent request may have inserted the default tier.
                 _dbContext.Entry(defaultTier).State = EntityState.Detached;
                 defaultTier = await _dbContext.Tiers
-                                  .FirstOrDefaultAsync(t => !t.IsDeleted && t.Name == "Member")
-                              ?? await _dbContext.Tiers
-                                  .Where(t => !t.IsDeleted)
-                                  .OrderBy(t => t.Level)
-                                  .FirstOrDefaultAsync();
+                                  .FirstOrDefaultAsync(t => t.Name == "Member")
+                              ?? await _dbContext.Tiers.OrderBy(t => t.Level).FirstOrDefaultAsync();
 
                 if (defaultTier == null)
                 {

@@ -570,13 +570,12 @@ public class Service : IService
         });
 
         var currentTier = await _dbContext.Tiers
-            .FirstOrDefaultAsync(x => x.Id == customerProfile.TierId && !x.IsDeleted);
+            .FirstOrDefaultAsync(x => x.Id == customerProfile.TierId);
 
         if (currentTier != null)
         {
             var upgradedTier = await _dbContext.Tiers
-                .Where(x => !x.IsDeleted &&
-                            x.Level > currentTier.Level &&
+                .Where(x => x.Level > currentTier.Level &&
                             x.RequiredWashes <= customerProfile.TotalWashes)
                 .OrderByDescending(x => x.Level)
                 .FirstOrDefaultAsync();
