@@ -802,7 +802,8 @@ Request
   "bookingDate": "2026-05-20",
   "startTime": "2026-05-20T09:00:00+07:00",
   "voucherId": "Guid",
-  "redemPoint": "true"
+  "redemPoint": true,
+  "acknowledgedScheduleConflictIds": []
 }
 ```
 
@@ -829,8 +830,45 @@ Response `201 Created`
 }
 ```
 
+Response `409 Conflict` khi booking của cùng customer cách booking đề xuất không quá
+`BookingProximityWarningMinutes`:
+
+```json
+{
+  "success": false,
+  "message": "Booking time is too close to another booking.",
+  "data": null,
+  "errors": {
+    "code": "BOOKING_TIME_TOO_CLOSE",
+    "severity": "warning",
+    "thresholdMinutes": 30,
+    "conflicts": [
+      {
+        "bookingId": "guid",
+        "branchId": "guid",
+        "branchName": "AutoWash Quận 1",
+        "startTime": "2026-05-20T08:15:00+07:00",
+        "endTime": "2026-05-20T08:30:00+07:00",
+        "isSameBranch": false,
+        "gapMinutes": 30
+      }
+    ]
+  },
+  "traceId": "trace-id",
+  "timestampUtc": "2026-05-18T03:00:00Z"
+}
+```
+
 Notes
 
+- Warning được kiểm tra trên mọi booking active của cùng customer, kể cả khác xe hoặc khác chi nhánh.
+- Khi nhận `BOOKING_TIME_TOO_CLOSE`, frontend hiển thị popup xác nhận. Nếu customer đồng ý,
+  gửi lại nguyên request và đặt `acknowledgedScheduleConflictIds` bằng toàn bộ `bookingId`
+  trong `errors.conflicts`.
+- Backend truy vấn conflict lại khi retry. Nếu xuất hiện conflict mới chưa được acknowledge,
+  backend tiếp tục trả `409`; chưa có booking, transaction, notification hoặc thay đổi số dư nào được lưu.
+- Booking `completed` và `cancelled` không tham gia kiểm tra warning.
+- Trùng đúng slot tại cùng chi nhánh vẫn là lỗi cứng, không thể bỏ qua bằng acknowledge.
 - `409 Conflict` nếu xe đã có booking active.
 - `409 Conflict` nếu slot đã bị đặt.
 - `400 Bad Request` nếu slot không nằm trong 08:00–17:00.

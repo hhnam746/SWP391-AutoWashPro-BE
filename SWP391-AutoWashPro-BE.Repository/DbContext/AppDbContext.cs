@@ -702,6 +702,14 @@ public class AppDbContext : DbContext
                 },
                 new()
                 {
+                    Id = Guid.Parse("42e79cb2-b580-47b4-9ba8-93c5dfd05666"),
+                    ConfigKey = "BookingProximityWarningMinutes",
+                    ConfigValue = "30",
+                    Description = "Maximum gap in minutes between a customer's bookings before confirmation is required.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
+                new()
+                {
                     Id = Guid.Parse("9e5a54f8-1697-47c8-be81-8234b3b58e60"),
                     ConfigKey = Constants.PersonalizedVoucherConfigKeys.Birthday,
                     ConfigValue = "true",

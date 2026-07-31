@@ -41,6 +41,8 @@ public class Service : IService
 
     private static readonly TimeSpan DefaultUtcOffset = TimeSpan.FromHours(7);
     private const int RedeemPointValue = 100; //1 điểm = 100 đ
+    private const string BookingProximityWarningConfigKey = "BookingProximityWarningMinutes";
+    private const string BookingProximityWarningCode = "BOOKING_TIME_TOO_CLOSE";
     private int WorkingStartHour = 0;
     private int WorkingEndHour = 0;
     private int SlotDurationMinutes = 0;
@@ -361,6 +363,7 @@ public class Service : IService
         }
 
         var utcStartTime = bookingLocalStartTime.ToUniversalTime();
+        var utcEndTime = validSlotEnd.Value.ToUniversalTime();
 
         var isBooked = await _dbContext.Bookings.AnyAsync(x =>
             x.BranchId == bookingRequest.BranchId && x.BookingDate == bookingRequest.BookingDate
@@ -369,6 +372,102 @@ public class Service : IService
         if (isBooked)
         {
             throw new Exception("Slot already booked");
+        }
+
+        var proximityWarningConfig = await _dbContext.SystemConfigs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.ConfigKey == BookingProximityWarningConfigKey)
+            ?? throw new Exception($"{BookingProximityWarningConfigKey} config not found");
+
+        if (!int.TryParse(proximityWarningConfig.ConfigValue, out var proximityWarningMinutes) ||
+            proximityWarningMinutes < 0)
+        {
+            throw new Exception($"Invalid {BookingProximityWarningConfigKey} config value");
+        }
+
+        var activeBookingStatuses = new[]
+        {
+            BookingStatus.Pending,
+            BookingStatus.Confirmed,
+            BookingStatus.CheckIn,
+            BookingStatus.InProgress
+        };
+        var warningWindowStart = utcStartTime.AddMinutes(-proximityWarningMinutes);
+        var warningWindowEnd = utcEndTime.AddMinutes(proximityWarningMinutes);
+
+        var existingScheduleConflicts = await _dbContext.Bookings
+            .AsNoTracking()
+            .Where(x =>
+                x.CustomerId == customerProfile.Id &&
+                activeBookingStatuses.Contains(x.Status) &&
+                x.EndTime >= warningWindowStart &&
+                x.StartTime <= warningWindowEnd)
+            .OrderBy(x => x.StartTime)
+            .Select(x => new
+            {
+                BookingId = x.Id,
+                x.BranchId,
+                BranchName = x.Branch.Name,
+                x.StartTime,
+                x.EndTime
+            })
+            .ToListAsync();
+
+        var scheduleConflicts = existingScheduleConflicts
+            .Select(x =>
+            {
+                var gap = x.EndTime <= utcStartTime
+                    ? utcStartTime - x.EndTime
+                    : utcEndTime <= x.StartTime
+                        ? x.StartTime - utcEndTime
+                        : TimeSpan.Zero;
+
+                return new Response.ScheduleConflict
+                {
+                    BookingId = x.BookingId,
+                    BranchId = x.BranchId,
+                    BranchName = x.BranchName,
+                    StartTime = x.StartTime.ToOffset(DefaultUtcOffset),
+                    EndTime = x.EndTime.ToOffset(DefaultUtcOffset),
+                    IsSameBranch = x.BranchId == bookingRequest.BranchId,
+                    GapMinutes = Math.Max(0, (int)Math.Floor(gap.TotalMinutes))
+                };
+            })
+            .ToList();
+
+        var acknowledgedConflictIds =
+            bookingRequest.AcknowledgedScheduleConflictIds?.ToHashSet() ?? [];
+        var hasUnacknowledgedConflict = scheduleConflicts
+            .Any(x => !acknowledgedConflictIds.Contains(x.BookingId));
+
+        if (hasUnacknowledgedConflict)
+        {
+            _logger.LogWarning(
+                "Booking time proximity warning detected. CustomerId={CustomerId}, BranchId={BranchId}, StartTime={StartTime}, ConflictIds={ConflictIds}, WarningCode={WarningCode}.",
+                customerProfile.Id,
+                bookingRequest.BranchId,
+                utcStartTime,
+                scheduleConflicts.Select(x => x.BookingId).ToArray(),
+                BookingProximityWarningCode);
+
+            throw new BookingScheduleWarningException(new Response.ScheduleWarning
+            {
+                Code = BookingProximityWarningCode,
+                Severity = "warning",
+                ThresholdMinutes = proximityWarningMinutes,
+                Conflicts = scheduleConflicts
+            });
+        }
+
+        if (scheduleConflicts.Count > 0)
+        {
+            _logger.LogWarning(
+                "Booking time proximity warning acknowledged. CustomerId={CustomerId}, BranchId={BranchId}, StartTime={StartTime}, ConflictIds={ConflictIds}, WarningCode={WarningCode}.",
+                customerProfile.Id,
+                bookingRequest.BranchId,
+                utcStartTime,
+                scheduleConflicts.Select(x => x.BookingId).ToArray(),
+                BookingProximityWarningCode);
         }
 
         var canBooked = bookingLocalStartTime - DateTimeOffset.UtcNow;
@@ -511,8 +610,6 @@ public class Service : IService
         {
             discountAmount = basePrice;
         }
-
-        var utcEndTime = validSlotEnd.Value.ToUniversalTime();
 
         //Wallet
         if (discountAmount > basePrice)
