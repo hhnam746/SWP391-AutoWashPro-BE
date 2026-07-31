@@ -1063,6 +1063,14 @@ namespace SWP391_AutoWashPro_BE.Repository.Migrations
                         },
                         new
                         {
+                            Id = new Guid("42e79cb2-b580-47b4-9ba8-93c5dfd05666"),
+                            ConfigKey = "BookingProximityWarningMinutes",
+                            ConfigValue = "30",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 28, 20, 13, 39, 590, DateTimeKind.Unspecified), new TimeSpan(0, 7, 0, 0, 0)),
+                            Description = "Maximum gap in minutes between a customer's bookings before confirmation is required."
+                        },
+                        new
+                        {
                             Id = new Guid("9e5a54f8-1697-47c8-be81-8234b3b58e60"),
                             ConfigKey = "PersonalizedVoucher.Birthday.Enabled",
                             ConfigValue = "true",

@@ -409,7 +409,11 @@ public class PersonalizedVoucherPostgresTests
         tierPromotion.IsActive = true;
         await dbContext.SaveChangesAsync();
         var activeResponse = await bookingService.CreateBooking(
-            CreateBookingRequest(bookingData, voucherId: null, minute: 15));
+            CreateBookingRequest(
+                bookingData,
+                voucherId: null,
+                minute: 15,
+                acknowledgedScheduleConflictIds: [inactiveResponse.Id]));
 
         await AssertBookingPricingAsync(dbContext, inactiveResponse, expectedDiscount: 0);
         await AssertBookingPricingAsync(dbContext, activeResponse, expectedDiscount: 25000);
@@ -1673,7 +1677,8 @@ public class PersonalizedVoucherPostgresTests
     private static SWP391_AutoWashPro_BE.Service.Booking.Request.CreateBookingRequest CreateBookingRequest(
         BookingPrerequisites bookingData,
         Guid? voucherId,
-        int minute)
+        int minute,
+        IReadOnlyCollection<Guid>? acknowledgedScheduleConflictIds = null)
     {
         var startTime = CreateBookingStartTime(minute);
         return new SWP391_AutoWashPro_BE.Service.Booking.Request.CreateBookingRequest
@@ -1683,7 +1688,8 @@ public class PersonalizedVoucherPostgresTests
             VoucherId = voucherId,
             BookingDate = DateOnly.FromDateTime(startTime.DateTime),
             StartTime = startTime,
-            redemPoint = false
+            redemPoint = false,
+            AcknowledgedScheduleConflictIds = acknowledgedScheduleConflictIds ?? []
         };
     }
 

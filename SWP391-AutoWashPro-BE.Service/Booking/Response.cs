@@ -33,6 +33,25 @@ public class Response
         public required decimal FinalPrice { get; set; }
     }
 
+    public class ScheduleWarning
+    {
+        public required string Code { get; set; }
+        public required string Severity { get; set; }
+        public required int ThresholdMinutes { get; set; }
+        public required List<ScheduleConflict> Conflicts { get; set; }
+    }
+
+    public class ScheduleConflict
+    {
+        public required Guid BookingId { get; set; }
+        public required Guid BranchId { get; set; }
+        public required string BranchName { get; set; }
+        public required DateTimeOffset StartTime { get; set; }
+        public required DateTimeOffset EndTime { get; set; }
+        public required bool IsSameBranch { get; set; }
+        public required int GapMinutes { get; set; }
+    }
+
     public class GetBookingsResponse
     {
         public required List<BookingItem> Data { get; set; }
