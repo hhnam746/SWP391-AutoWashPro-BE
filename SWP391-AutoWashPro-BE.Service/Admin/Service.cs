@@ -7,6 +7,7 @@ using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.Base;
 using BookingService = SWP391_AutoWashPro_BE.Service.Booking;
+using VoucherLifecycle = SWP391_AutoWashPro_BE.Service.Voucher.Lifecycle;
 
 namespace SWP391_AutoWashPro_BE.Service.Admin;
 
@@ -657,9 +658,18 @@ public class Service : IService
         }
 
         var now = DateTimeOffset.UtcNow;
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
         booking.Status = BookingStatus.Cancelled;
         booking.CancelledAt = now;
         booking.UpdatedAt = now;
+        if (booking.VoucherId.HasValue)
+        {
+            await VoucherLifecycle.ReleaseReservedAsync(
+                _dbContext,
+                booking.VoucherId.Value,
+                booking.Id,
+                now);
+        }
 
         _dbContext.Notifications.Add(new Repository.Entities.Notification
         {
@@ -673,6 +683,7 @@ public class Service : IService
         });
 
         await _dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return new Response.CancelBookingByAdminResponse
         {

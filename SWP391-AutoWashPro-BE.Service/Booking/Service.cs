@@ -7,7 +7,9 @@ using System.Text;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.Base;
+using SWP391_AutoWashPro_BE.Service.Models;
 using PersonalizedVoucherService = SWP391_AutoWashPro_BE.Service.PersonalizedVoucher;
+using VoucherLifecycle = SWP391_AutoWashPro_BE.Service.Voucher.Lifecycle;
 
 namespace SWP391_AutoWashPro_BE.Service.Booking;
 
@@ -383,27 +385,34 @@ public class Service : IService
         if (bookingRequest.VoucherId.HasValue)
         {
             voucher = await _dbContext.Vouchers
+                .AsNoTracking()
                 .Include(x => x.PersonalizedVoucherIssuance)
-                .FirstOrDefaultAsync(x =>
-                    x.Id == bookingRequest.VoucherId.Value &&
-                    x.CustomerId == customerProfile.Id && 
-                    x.Status != VoucherStatus.Used && 
-                    x.Status != VoucherStatus.Expired);
+                .FirstOrDefaultAsync(x => x.Id == bookingRequest.VoucherId.Value);
 
             if (voucher == null)
-                throw new Exception("Voucher not found");
+                throw new KeyNotFoundException("Voucher not found.");
+
+            if (voucher.CustomerId != customerProfile.Id)
+                throw new ForbiddenAccessException(
+                    "Voucher does not belong to the current customer.");
+
+            if (voucher.Status == VoucherStatus.Used || voucher.UsedAt.HasValue)
+                throw new InvalidOperationException("Voucher already used.");
+
+            if (voucher.Status == VoucherStatus.Reserved)
+                throw new InvalidOperationException(
+                    "Voucher is reserved by another booking.");
+
+            if (voucher.Status == VoucherStatus.Expired ||
+                voucher.ExpiresAt <= nowUtc)
+                throw new InvalidOperationException("Voucher expired.");
 
             if (voucher.Status != VoucherStatus.Active)
-                throw new Exception("Voucher is inactive");
-
-            if (voucher.ExpiresAt <= nowUtc)
-                throw new Exception("Voucher expired");
-
-            if (voucher.UsedAt != null)
-                throw new Exception("Voucher already used");
+                throw new InvalidOperationException("Voucher is not available.");
 
             if (voucher.DiscountValue <= 0)
-                throw new Exception("Voucher has no discount value");
+                throw new InvalidOperationException(
+                    "Voucher has no discount value.");
 
             if (voucher.PersonalizedVoucherIssuance != null &&
                 PersonalizedVoucherService.PersonalizationPolicy.IsAcquisitionTrigger(
@@ -532,6 +541,24 @@ public class Service : IService
             throw new Exception("Not enough balance");
         }
 
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        if (bookingRequest.VoucherId.HasValue)
+        {
+            var reservedCount = await VoucherLifecycle.ReserveAsync(
+                _dbContext,
+                bookingRequest.VoucherId.Value,
+                customerProfile.Id,
+                nowUtc);
+            if (reservedCount != 1)
+            {
+                await VoucherLifecycle.ThrowReservationFailureAsync(
+                    _dbContext,
+                    bookingRequest.VoucherId.Value,
+                    customerProfile.Id,
+                    nowUtc);
+            }
+        }
+
         wallet.Balance -= finalPrice * (paymentDeposite / 100);
         var newId = Guid.NewGuid();
         var newBooking = new Repository.Entities.Booking()
@@ -581,10 +608,12 @@ public class Service : IService
         try
         {
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
         }
         catch (DbUpdateException)
         {
-            throw new Exception("Slot already booked");
+            await transaction.RollbackAsync();
+            throw new InvalidOperationException("Slot already booked.");
         }
 
         //ProcessBookingReminder
@@ -1210,18 +1239,23 @@ public class Service : IService
         var msg = "";
         Guid? upgradedTierId = null;
         var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
-        var voucher = await _dbContext.Vouchers.FirstOrDefaultAsync(x => x.Id == booking.VoucherId);
-        if (voucher != null)
+        var voucher = booking.VoucherId.HasValue
+            ? await _dbContext.Vouchers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    x => x.Id == booking.VoucherId.Value,
+                    cancellationToken)
+            : null;
+        if (booking.VoucherId.HasValue && voucher == null)
         {
-            if (voucher.Status != VoucherStatus.Active || voucher.UsedAt.HasValue)
-            {
-                throw new InvalidOperationException("Voucher is no longer active.");
-            }
+            throw new InvalidOperationException("Booking voucher not found.");
+        }
 
-            if (voucher.ExpiresAt <= DateTimeOffset.UtcNow)
-            {
-                throw new InvalidOperationException("Voucher expired.");
-            }
+        if (voucher != null &&
+            (voucher.Status != VoucherStatus.Reserved || voucher.UsedAt.HasValue))
+        {
+            throw new InvalidOperationException(
+                "Booking voucher is no longer reserved.");
         }
 
         if (wallet == null)
@@ -1238,23 +1272,46 @@ public class Service : IService
             throw new Exception("Invalid PaymentDeposite config value");
         }
 
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
         if (wallet.Balance - (booking.FinalPrice - (booking.FinalPrice * (paymentDeposite / 100))) < 0)
         {
             booking.Status = BookingStatus.Cancelled;
+            booking.CancelledAt = now;
+            booking.UpdatedAt = now;
+            if (booking.VoucherId.HasValue)
+            {
+                await VoucherLifecycle.ReleaseReservedAsync(
+                    _dbContext,
+                    booking.VoucherId.Value,
+                    booking.Id,
+                    now,
+                    cancellationToken);
+            }
             msg = "Check-in Failed";
         }
         else
         {
+            if (booking.VoucherId.HasValue)
+            {
+                var usedCount = await VoucherLifecycle.MarkReservedAsUsedAsync(
+                    _dbContext,
+                    booking.VoucherId.Value,
+                    booking.Id,
+                    now,
+                    cancellationToken);
+                if (usedCount != 1)
+                {
+                    throw new InvalidOperationException(
+                        "Booking voucher is no longer reserved.");
+                }
+            }
+
             var remainingAmount = booking.FinalPrice - (booking.FinalPrice * (paymentDeposite / 100));
             wallet.Balance -= remainingAmount;
             booking.Status = BookingStatus.InProgress;
+            booking.UpdatedAt = now;
             msg = "Check-in successful";
-            if (voucher != null)
-            {
-                voucher.Status = VoucherStatus.Used;
-                voucher.UsedAt = DateTimeOffset.UtcNow;
-                voucher.UpdatedAt = voucher.UsedAt;
-            }
 
             var FullPayemntBookingTransaction = new Repository.Entities.Transaction
             {
@@ -1390,6 +1447,7 @@ public class Service : IService
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         if (upgradedTierId.HasValue)
         {
@@ -1491,8 +1549,18 @@ public class Service : IService
                 $"Booking must be cancelled at least {cancellationDeadlineHours} hours before the start time.");
         }
 
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
         booking.Status = BookingStatus.Cancelled;
-        booking.CancelledAt = DateTime.UtcNow;
+        booking.CancelledAt = now;
+        booking.UpdatedAt = now;
+        if (booking.VoucherId.HasValue)
+        {
+            await VoucherLifecycle.ReleaseReservedAsync(
+                _dbContext,
+                booking.VoucherId.Value,
+                booking.Id,
+                now);
+        }
 
         var branch = await _dbContext.Branches
             .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
@@ -1522,6 +1590,7 @@ public class Service : IService
         _dbContext.Notifications.Add(notification);
 
         await _dbContext.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         var result = new Response.CancelBookingResponse
         {

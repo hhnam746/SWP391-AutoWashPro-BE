@@ -1,12 +1,17 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Npgsql;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Constants;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
+using SWP391_AutoWashPro_BE.Repository.Migrations;
 using SWP391_AutoWashPro_BE.Service.PersonalizedVoucher;
 using Xunit;
 using MailService = SWP391_AutoWashPro_BE.Service.MailService;
@@ -473,6 +478,18 @@ public class PersonalizedVoucherPostgresTests
             CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0));
 
         await AssertBookingPricingAsync(dbContext, response, expectedDiscount: 15000);
+        dbContext.ChangeTracker.Clear();
+        var voucher = await dbContext.Vouchers.SingleAsync(x => x.Id == issueResult.VoucherId);
+        Assert.Equal(VoucherStatus.Reserved, voucher.Status);
+        Assert.Null(voucher.UsedAt);
+
+        var voucherService = new SWP391_AutoWashPro_BE.Service.Voucher.Service(
+            dbContext,
+            CreateHttpContextAccessor(seed.UserId));
+        var history = await voucherService.GetMyVouchers(10, 1);
+        Assert.Contains(history.Items, x => x.Id == issueResult.VoucherId);
+        var available = await voucherService.GetAvailableVouchers(10, 1);
+        Assert.DoesNotContain(available.Items, x => x.Id == issueResult.VoucherId);
     }
 
     [Fact]
@@ -535,6 +552,142 @@ public class PersonalizedVoucherPostgresTests
     }
 
     [Fact]
+    public async Task Booking_ReservedVoucherCannotBeUsedByASecondBooking()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(dbContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:RESERVED",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var bookingService = CreateBookingService(dbContext, seed.UserId);
+
+        await bookingService.CreateBooking(
+            CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0));
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            bookingService.CreateBooking(
+                CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 15)));
+
+        Assert.Equal("Voucher is reserved by another booking.", exception.Message);
+        dbContext.ChangeTracker.Clear();
+        Assert.Single(await dbContext.Bookings.ToListAsync());
+        Assert.Equal(
+            VoucherStatus.Reserved,
+            await dbContext.Vouchers
+                .Where(x => x.Id == issueResult.VoucherId)
+                .Select(x => x.Status)
+                .SingleAsync());
+    }
+
+    [Fact]
+    public async Task Booking_ConcurrentRequestsReserveVoucherOnlyOnce()
+    {
+        await using var setupContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(setupContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(setupContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:CONCURRENT-RESERVE",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(setupContext, seed.CustomerId);
+        var connectionString = RequireConnectionString();
+
+        static async Task<Exception?> TryCreateAsync(
+            AppDbContext context,
+            Guid userId,
+            SWP391_AutoWashPro_BE.Service.Booking.Request.CreateBookingRequest request)
+        {
+            try
+            {
+                await CreateBookingService(context, userId).CreateBooking(request);
+                return null;
+            }
+            catch (Exception exception)
+            {
+                return exception;
+            }
+        }
+
+        await using var firstContext = CreateDbContext(connectionString);
+        await using var secondContext = CreateDbContext(connectionString);
+        var outcomes = await Task.WhenAll(
+            TryCreateAsync(
+                firstContext,
+                seed.UserId,
+                CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0)),
+            TryCreateAsync(
+                secondContext,
+                seed.UserId,
+                CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 15)));
+
+        Assert.Single(outcomes, outcome => outcome == null);
+        var rejected = Assert.Single(outcomes, outcome => outcome != null);
+        Assert.Contains("reserved", rejected!.Message, StringComparison.OrdinalIgnoreCase);
+
+        await using var verifyContext = CreateDbContext(connectionString);
+        Assert.Single(await verifyContext.Bookings.ToListAsync());
+        Assert.Equal(
+            VoucherStatus.Reserved,
+            await verifyContext.Vouchers
+                .Where(x => x.Id == issueResult.VoucherId)
+                .Select(x => x.Status)
+                .SingleAsync());
+    }
+
+    [Fact]
+    public async Task Booking_CreateFailureRollsBackVoucherReservation()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(dbContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:CREATE-ROLLBACK",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var walletBalanceBefore = await dbContext.Wallets
+            .Where(x => x.CustomerId == seed.CustomerId)
+            .Select(x => x.Balance)
+            .SingleAsync();
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE FUNCTION fail_booking_insert() RETURNS trigger AS $$
+            BEGIN
+                RAISE EXCEPTION 'forced booking insert failure';
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER fail_booking_insert_trigger
+            BEFORE INSERT ON booking
+            FOR EACH ROW EXECUTE FUNCTION fail_booking_insert();
+            """);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateBookingService(dbContext, seed.UserId).CreateBooking(
+                CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0)));
+
+        dbContext.ChangeTracker.Clear();
+        Assert.Empty(await dbContext.Bookings.ToListAsync());
+        Assert.Equal(
+            VoucherStatus.Active,
+            await dbContext.Vouchers
+                .Where(x => x.Id == issueResult.VoucherId)
+                .Select(x => x.Status)
+                .SingleAsync());
+        Assert.Equal(
+            walletBalanceBefore,
+            await dbContext.Wallets
+                .Where(x => x.CustomerId == seed.CustomerId)
+                .Select(x => x.Balance)
+                .SingleAsync());
+    }
+
+    [Fact]
     public async Task CheckInSuccess_MarksPersonalizedVoucherUsedAndSetsUsedAt()
     {
         await using var dbContext = await CreateCleanDbContextAsync();
@@ -561,20 +714,425 @@ public class PersonalizedVoucherPostgresTests
             CreatedAt = DateTimeOffset.UtcNow
         });
         await dbContext.SaveChangesAsync();
+        await dbContext.Vouchers
+            .Where(x => x.Id == issueResult.VoucherId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(
+                voucher => voucher.ExpiresAt,
+                DateTimeOffset.UtcNow.AddMinutes(-1)));
+        dbContext.ChangeTracker.Clear();
 
         await bookingService.CheckInBookingByAdmin(booking.Id);
 
+        dbContext.ChangeTracker.Clear();
         var voucher = await dbContext.Vouchers.SingleAsync(x => x.Id == issueResult.VoucherId);
         Assert.Equal(VoucherStatus.Used, voucher.Status);
         Assert.NotNull(voucher.UsedAt);
         Assert.NotNull(voucher.UpdatedAt);
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            bookingService.CancelBooking(
+                booking.Id,
+                new SWP391_AutoWashPro_BE.Service.Booking.Request.CancelBookingRequest
+                {
+                    Reason = "Invalid cancellation"
+                }));
+        dbContext.ChangeTracker.Clear();
+        Assert.Equal(
+            VoucherStatus.Used,
+            await dbContext.Vouchers
+                .Where(x => x.Id == issueResult.VoucherId)
+                .Select(x => x.Status)
+                .SingleAsync());
+    }
+
+    [Fact]
+    public async Task CheckInFailureRollsBackBookingAndVoucherTransitions()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(dbContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:CHECK-IN-ROLLBACK",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var bookingService = CreateBookingService(dbContext, seed.UserId);
+        var bookingResponse = await bookingService.CreateBooking(
+            CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0));
+        var booking = await dbContext.Bookings.SingleAsync(x => x.Id == bookingResponse.Id);
+        booking.StartTime = DateTimeOffset.UtcNow.AddMinutes(-1);
+        booking.EndTime = DateTimeOffset.UtcNow.AddMinutes(14);
+        dbContext.SystemConfigs.Add(new SystemConfig
+        {
+            Id = Guid.NewGuid(),
+            ConfigKey = "CancelTimeMinutes",
+            ConfigValue = "30",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+        var walletBalanceBefore = await dbContext.Wallets
+            .Where(x => x.CustomerId == seed.CustomerId)
+            .Select(x => x.Balance)
+            .SingleAsync();
+        await dbContext.Database.ExecuteSqlRawAsync(
+            """
+            CREATE FUNCTION fail_full_payment_insert() RETURNS trigger AS $$
+            BEGIN
+                IF NEW.type = 'full_payment' THEN
+                    RAISE EXCEPTION 'forced full payment insert failure';
+                END IF;
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER fail_full_payment_insert_trigger
+            BEFORE INSERT ON transaction
+            FOR EACH ROW EXECUTE FUNCTION fail_full_payment_insert();
+            """);
+        dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            bookingService.CheckInBookingByAdmin(booking.Id));
+
+        dbContext.ChangeTracker.Clear();
+        Assert.Equal(
+            BookingStatus.Confirmed,
+            await dbContext.Bookings
+                .Where(x => x.Id == booking.Id)
+                .Select(x => x.Status)
+                .SingleAsync());
+        var voucher = await dbContext.Vouchers.SingleAsync(x => x.Id == issueResult.VoucherId);
+        Assert.Equal(VoucherStatus.Reserved, voucher.Status);
+        Assert.Null(voucher.UsedAt);
+        Assert.Equal(
+            walletBalanceBefore,
+            await dbContext.Wallets
+                .Where(x => x.CustomerId == seed.CustomerId)
+                .Select(x => x.Balance)
+                .SingleAsync());
+    }
+
+    [Fact]
+    public async Task CustomerCancel_ReleasesReservedVoucher()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(dbContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:CUSTOMER-CANCEL",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var bookingService = CreateBookingService(dbContext, seed.UserId);
+        var booking = await bookingService.CreateBooking(
+            CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0));
+        dbContext.SystemConfigs.Add(new SystemConfig
+        {
+            Id = Guid.NewGuid(),
+            ConfigKey = "CancellationDeadlineHours",
+            ConfigValue = "0",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        await bookingService.CancelBooking(
+            booking.Id,
+            new SWP391_AutoWashPro_BE.Service.Booking.Request.CancelBookingRequest
+            {
+                Reason = "Changed plans"
+            });
+
+        dbContext.ChangeTracker.Clear();
+        Assert.Equal(
+            VoucherStatus.Active,
+            await dbContext.Vouchers
+                .Where(x => x.Id == issueResult.VoucherId)
+                .Select(x => x.Status)
+                .SingleAsync());
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            bookingService.CancelBooking(
+                booking.Id,
+                new SWP391_AutoWashPro_BE.Service.Booking.Request.CancelBookingRequest
+                {
+                    Reason = "Repeated cancellation"
+                }));
+        dbContext.ChangeTracker.Clear();
+        Assert.Equal(
+            VoucherStatus.Active,
+            await dbContext.Vouchers
+                .Where(x => x.Id == issueResult.VoucherId)
+                .Select(x => x.Status)
+                .SingleAsync());
+    }
+
+    [Fact]
+    public async Task CustomerCancel_ExpiresReservedVoucherThatPassedItsExpiry()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(dbContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:EXPIRED-CANCEL",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var bookingService = CreateBookingService(dbContext, seed.UserId);
+        var booking = await bookingService.CreateBooking(
+            CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0));
+        dbContext.SystemConfigs.Add(new SystemConfig
+        {
+            Id = Guid.NewGuid(),
+            ConfigKey = "CancellationDeadlineHours",
+            ConfigValue = "0",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+        await dbContext.Vouchers
+            .Where(x => x.Id == issueResult.VoucherId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(
+                voucher => voucher.ExpiresAt,
+                DateTimeOffset.UtcNow.AddMinutes(-1)));
+
+        await bookingService.CancelBooking(
+            booking.Id,
+            new SWP391_AutoWashPro_BE.Service.Booking.Request.CancelBookingRequest
+            {
+                Reason = "Changed plans"
+            });
+
+        dbContext.ChangeTracker.Clear();
+        Assert.Equal(
+            VoucherStatus.Expired,
+            await dbContext.Vouchers
+                .Where(x => x.Id == issueResult.VoucherId)
+                .Select(x => x.Status)
+                .SingleAsync());
+    }
+
+    [Fact]
+    public async Task CustomerCancel_BookingWithoutVoucherStillSucceeds()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var bookingService = CreateBookingService(dbContext, seed.UserId);
+        var booking = await bookingService.CreateBooking(
+            CreateBookingRequest(bookingData, voucherId: null, minute: 0));
+        dbContext.SystemConfigs.Add(new SystemConfig
+        {
+            Id = Guid.NewGuid(),
+            ConfigKey = "CancellationDeadlineHours",
+            ConfigValue = "0",
+            CreatedAt = DateTimeOffset.UtcNow
+        });
+        await dbContext.SaveChangesAsync();
+
+        var response = await bookingService.CancelBooking(
+            booking.Id,
+            new SWP391_AutoWashPro_BE.Service.Booking.Request.CancelBookingRequest
+            {
+                Reason = "Changed plans"
+            });
+
+        Assert.Equal(BookingStatus.Cancelled, response.Status);
+        dbContext.ChangeTracker.Clear();
+        Assert.Equal(
+            BookingStatus.Cancelled,
+            await dbContext.Bookings
+                .Where(x => x.Id == booking.Id)
+                .Select(x => x.Status)
+                .SingleAsync());
+    }
+
+    [Fact]
+    public async Task AdminCancel_ReleasesReservedVoucher()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(dbContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:ADMIN-CANCEL",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var bookingService = CreateBookingService(dbContext, seed.UserId);
+        var booking = await bookingService.CreateBooking(
+            CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0));
+        var adminService = new SWP391_AutoWashPro_BE.Service.Admin.Service(
+            dbContext,
+            CreateHttpContextAccessor(seed.UserId),
+            new RecordingNotificationService(),
+            bookingService,
+            NullLogger<SWP391_AutoWashPro_BE.Service.Admin.Service>.Instance);
+
+        await adminService.CancelBookingByAdmin(
+            booking.Id,
+            new SWP391_AutoWashPro_BE.Service.Admin.Request.CancelBookingByAdminRequest
+            {
+                Reason = "Operational cancellation"
+            });
+
+        dbContext.ChangeTracker.Clear();
+        Assert.Equal(
+            VoucherStatus.Active,
+            await dbContext.Vouchers
+                .Where(x => x.Id == issueResult.VoucherId)
+                .Select(x => x.Status)
+                .SingleAsync());
+    }
+
+    [Fact]
+    public async Task AdminCancel_InProgressBookingDoesNotReleaseUsedVoucher()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(dbContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:ADMIN-CANCEL-IN-PROGRESS",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var bookingService = CreateBookingService(dbContext, seed.UserId);
+        var booking = await bookingService.CreateBooking(
+            CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0));
+        var nowUtc = DateTimeOffset.UtcNow;
+        await dbContext.Bookings
+            .Where(x => x.Id == booking.Id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(entity => entity.StartTime, nowUtc.AddMinutes(-1))
+                .SetProperty(entity => entity.EndTime, nowUtc.AddMinutes(14)));
+        dbContext.SystemConfigs.Add(new SystemConfig
+        {
+            Id = Guid.NewGuid(),
+            ConfigKey = "CancelTimeMinutes",
+            ConfigValue = "30",
+            CreatedAt = nowUtc
+        });
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+        await bookingService.CheckInBookingByAdmin(booking.Id);
+        var adminService = new SWP391_AutoWashPro_BE.Service.Admin.Service(
+            dbContext,
+            CreateHttpContextAccessor(seed.UserId),
+            new RecordingNotificationService(),
+            bookingService,
+            NullLogger<SWP391_AutoWashPro_BE.Service.Admin.Service>.Instance);
+
+        await adminService.CancelBookingByAdmin(
+            booking.Id,
+            new SWP391_AutoWashPro_BE.Service.Admin.Request.CancelBookingByAdminRequest
+            {
+                Reason = "Operational cancellation"
+            });
+
+        dbContext.ChangeTracker.Clear();
+        var voucher = await dbContext.Vouchers.SingleAsync(x => x.Id == issueResult.VoucherId);
+        Assert.Equal(VoucherStatus.Used, voucher.Status);
+        Assert.NotNull(voucher.UsedAt);
+    }
+
+    [Fact]
+    public async Task AutoCancel_ReleasesReservedVoucher()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(dbContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:AUTO-CANCEL",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var booking = await CreateBookingService(dbContext, seed.UserId).CreateBooking(
+            CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0));
+        var nowUtc = DateTimeOffset.UtcNow;
+        var bookingEntity = await dbContext.Bookings.SingleAsync(x => x.Id == booking.Id);
+        bookingEntity.StartTime = nowUtc.AddMinutes(-31);
+        bookingEntity.EndTime = nowUtc.AddMinutes(-16);
+        dbContext.SystemConfigs.Add(new SystemConfig
+        {
+            Id = Guid.NewGuid(),
+            ConfigKey = "CancelTimeMinutes",
+            ConfigValue = "30",
+            CreatedAt = nowUtc
+        });
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+        var job = new SWP391_AutoWashPro_BE.Service.BackgroundJob.ProcessBookingAutoCancelJob(
+            dbContext,
+            NullLogger<SWP391_AutoWashPro_BE.Service.BackgroundJob.ProcessBookingAutoCancelJob>.Instance);
+
+        await job.ProcessOverdueBookingsAsync(nowUtc);
+
+        dbContext.ChangeTracker.Clear();
+        Assert.Equal(
+            BookingStatus.Cancelled,
+            await dbContext.Bookings
+                .Where(x => x.Id == booking.Id)
+                .Select(x => x.Status)
+                .SingleAsync());
+        Assert.Equal(
+            VoucherStatus.Active,
+            await dbContext.Vouchers
+                .Where(x => x.Id == issueResult.VoucherId)
+                .Select(x => x.Status)
+                .SingleAsync());
+    }
+
+    [Fact]
+    public async Task CheckInWithInsufficientWallet_CancelsBookingAndReleasesVoucher()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(dbContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:INSUFFICIENT-WALLET",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var bookingService = CreateBookingService(dbContext, seed.UserId);
+        var booking = await bookingService.CreateBooking(
+            CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0));
+        var nowUtc = DateTimeOffset.UtcNow;
+        var bookingEntity = await dbContext.Bookings.SingleAsync(x => x.Id == booking.Id);
+        bookingEntity.StartTime = nowUtc.AddMinutes(-1);
+        bookingEntity.EndTime = nowUtc.AddMinutes(14);
+        var wallet = await dbContext.Wallets.SingleAsync(x => x.CustomerId == seed.CustomerId);
+        wallet.Balance = 0;
+        dbContext.SystemConfigs.Add(new SystemConfig
+        {
+            Id = Guid.NewGuid(),
+            ConfigKey = "CancelTimeMinutes",
+            ConfigValue = "30",
+            CreatedAt = nowUtc
+        });
+        await dbContext.SaveChangesAsync();
+        dbContext.ChangeTracker.Clear();
+
+        var response = await bookingService.CheckInBookingByAdmin(booking.Id);
+
+        Assert.Equal(BookingStatus.Cancelled, response.Status);
+        dbContext.ChangeTracker.Clear();
+        Assert.Equal(
+            VoucherStatus.Active,
+            await dbContext.Vouchers
+                .Where(x => x.Id == issueResult.VoucherId)
+                .Select(x => x.Status)
+                .SingleAsync());
     }
 
     [Theory]
-    [InlineData("invalid-status", "Voucher is inactive")]
-    [InlineData("expired", "Voucher expired")]
-    [InlineData("used", "Voucher already used")]
-    [InlineData("invalid-discount", "Voucher has no discount value")]
+    [InlineData("reserved", "Voucher is reserved by another booking.")]
+    [InlineData("expired", "Voucher expired.")]
+    [InlineData("used", "Voucher already used.")]
+    [InlineData("invalid-discount", "Voucher has no discount value.")]
     public async Task Booking_InvalidVoucher_PreservesValidationAndDoesNotCreateBooking(
         string invalidState,
         string expectedMessage)
@@ -588,7 +1146,7 @@ public class PersonalizedVoucherPostgresTests
             CustomerId = seed.CustomerId,
             Name = "Invalid test voucher",
             Code = $"INVALID-{Guid.NewGuid():N}",
-            Status = invalidState == "invalid-status" ? VoucherStatus.Used : VoucherStatus.Active,
+            Status = invalidState == "reserved" ? VoucherStatus.Reserved : VoucherStatus.Active,
             DiscountType = DiscountType.Percentage,
             DiscountValue = invalidState == "invalid-discount" ? 0 : 15,
             ExpiresAt = invalidState == "expired" ? nowUtc.AddMinutes(-1) : nowUtc.AddDays(1),
@@ -603,7 +1161,7 @@ public class PersonalizedVoucherPostgresTests
             .Select(x => x.Balance)
             .SingleAsync();
 
-        var exception = await Assert.ThrowsAsync<Exception>(() =>
+        var exception = await Assert.ThrowsAnyAsync<Exception>(() =>
             CreateBookingService(dbContext, seed.UserId).CreateBooking(
                 CreateBookingRequest(bookingData, voucher.Id, minute: 0)));
 
@@ -630,11 +1188,96 @@ public class PersonalizedVoucherPostgresTests
         var bookingData = await AddBookingPrerequisitesAsync(dbContext, otherCustomer.Id);
         var service = CreateBookingService(dbContext, otherCustomer.UserId);
 
-        var exception = await Assert.ThrowsAsync<Exception>(() => service.CreateBooking(
+        var exception = await Assert.ThrowsAnyAsync<Exception>(() => service.CreateBooking(
             CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0)));
 
-        Assert.Equal("Voucher not found", exception.Message);
+        Assert.Equal(
+            "Voucher does not belong to the current customer.",
+            exception.Message);
         Assert.Empty(dbContext.Bookings);
+    }
+
+    [Fact]
+    public async Task ReservationMigration_BackfillsActiveVoucherForConfirmedBooking()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(dbContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:MIGRATION-BACKFILL",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var booking = await CreateBookingService(dbContext, seed.UserId).CreateBooking(
+            CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0));
+        await dbContext.Vouchers
+            .Where(x => x.Id == issueResult.VoucherId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(voucher => voucher.Status, VoucherStatus.Active)
+                .SetProperty(voucher => voucher.UpdatedAt, (DateTimeOffset?)null));
+        var beforeMigration = DateTimeOffset.UtcNow;
+
+        await ExecuteReservationMigrationUpAsync(dbContext);
+
+        dbContext.ChangeTracker.Clear();
+        var voucher = await dbContext.Vouchers.SingleAsync(x => x.Id == issueResult.VoucherId);
+        Assert.Equal(VoucherStatus.Reserved, voucher.Status);
+        Assert.Null(voucher.UsedAt);
+        Assert.NotNull(voucher.UpdatedAt);
+        Assert.True(voucher.UpdatedAt >= beforeMigration);
+        Assert.Equal(
+            BookingStatus.Confirmed,
+            await dbContext.Bookings
+                .Where(x => x.Id == booking.Id)
+                .Select(x => x.Status)
+                .SingleAsync());
+    }
+
+    [Fact]
+    public async Task ReservationMigration_RejectsVoucherLinkedToMultipleConfirmedBookings()
+    {
+        await using var dbContext = await CreateCleanDbContextAsync();
+        var seed = await SeedAsync(dbContext, PersonalizedVoucherTriggerType.Birthday);
+        var issueResult = await CreateIssuanceService(dbContext).TryIssuePersonalizedVoucherAsync(
+            seed.CustomerId,
+            seed.RuleId,
+            PersonalizedVoucherTriggerType.Birthday,
+            "BIRTHDAY:MIGRATION-DUPLICATE",
+            null);
+        var bookingData = await AddBookingPrerequisitesAsync(dbContext, seed.CustomerId);
+        var bookingService = CreateBookingService(dbContext, seed.UserId);
+        var firstBooking = await bookingService.CreateBooking(
+            CreateBookingRequest(bookingData, issueResult.VoucherId, minute: 0));
+        var secondBooking = await bookingService.CreateBooking(
+            CreateBookingRequest(bookingData, voucherId: null, minute: 15));
+        await dbContext.Bookings
+            .Where(x => x.Id == secondBooking.Id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(booking => booking.VoucherId, issueResult.VoucherId)
+                .SetProperty(booking => booking.Status, BookingStatus.Confirmed));
+        await dbContext.Vouchers
+            .Where(x => x.Id == issueResult.VoucherId)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(voucher => voucher.Status, VoucherStatus.Active));
+        dbContext.ChangeTracker.Clear();
+
+        var exception = await Assert.ThrowsAsync<PostgresException>(() =>
+            ExecuteReservationMigrationUpAsync(dbContext));
+
+        Assert.Contains(
+            "Cannot reserve existing vouchers because at least one voucher is linked to multiple confirmed bookings.",
+            exception.MessageText);
+        Assert.Equal(
+            VoucherStatus.Active,
+            await dbContext.Vouchers
+                .Where(x => x.Id == issueResult.VoucherId)
+                .Select(x => x.Status)
+                .SingleAsync());
+        Assert.Equal(2, await dbContext.Bookings.CountAsync(x =>
+            (x.Id == firstBooking.Id || x.Id == secondBooking.Id) &&
+            x.VoucherId == issueResult.VoucherId &&
+            x.Status == BookingStatus.Confirmed));
     }
 
     [Fact]
@@ -737,6 +1380,18 @@ public class PersonalizedVoucherPostgresTests
     {
         await dbContext.Database.EnsureDeletedAsync();
         await dbContext.Database.EnsureCreatedAsync();
+    }
+
+    private static async Task ExecuteReservationMigrationUpAsync(AppDbContext dbContext)
+    {
+        var operations = new TestableReserveBookingVouchersMigration().GetUpOperations();
+        var generator = dbContext.GetService<IMigrationsSqlGenerator>();
+        var commands = generator.Generate(operations, dbContext.Model);
+
+        foreach (var command in commands)
+        {
+            await dbContext.Database.ExecuteSqlRawAsync(command.CommandText);
+        }
     }
 
     private static string RequireConnectionString()
@@ -1067,6 +1722,17 @@ public class PersonalizedVoucherPostgresTests
         Guid RuleId);
 
     private sealed record BookingPrerequisites(Guid BranchId, Guid VehicleId);
+
+    private sealed class TestableReserveBookingVouchersMigration : ReserveBookingVouchers
+    {
+        public IReadOnlyList<MigrationOperation> GetUpOperations()
+        {
+            var migrationBuilder = new MigrationBuilder(
+                "Npgsql.EntityFrameworkCore.PostgreSQL");
+            Up(migrationBuilder);
+            return migrationBuilder.Operations;
+        }
+    }
 
     private sealed class RecordingDeliveryService : IDeliveryService
     {
