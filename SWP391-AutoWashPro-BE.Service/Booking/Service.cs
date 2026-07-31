@@ -40,7 +40,7 @@ public class Service : IService
 
 
     private static readonly TimeSpan DefaultUtcOffset = TimeSpan.FromHours(7);
-    private const int RedeemPointValue = 100; //1 điểm = 100 đ
+    private const string RedeemPointValueConfigKey = "RedeemPointValue";
     private const string BookingProximityWarningConfigKey = "BookingProximityWarningMinutes";
     private const string BookingProximityWarningCode = "BOOKING_TIME_TOO_CLOSE";
     private int WorkingStartHour = 0;
@@ -594,13 +594,26 @@ public class Service : IService
 
         if (bookingRequest.redemPoint == true)
         {
+            var redeemPointValueConfig = await _dbContext.SystemConfigs
+                                             .FirstOrDefaultAsync(x =>
+                                                 x.ConfigKey == RedeemPointValueConfigKey)
+                                         ?? throw new Exception(
+                                             $"{RedeemPointValueConfigKey} config not found");
+
+            if (!int.TryParse(redeemPointValueConfig.ConfigValue, out var redeemPointValue) ||
+                redeemPointValue <= 0)
+            {
+                throw new Exception(
+                    $"Invalid {RedeemPointValueConfigKey} config value");
+            }
+
             var remainToDiscount = Math.Max(basePrice - discountAmount, 0);
-            var maxRedeemablePoints = (int)Math.Floor(remainToDiscount / RedeemPointValue);
+            var maxRedeemablePoints = (int)Math.Floor(remainToDiscount / redeemPointValue);
 
             if (maxRedeemablePoints > 0)
             {
                 redeemPointsUsed = Math.Min(customerProfile.TotalPoints, maxRedeemablePoints);
-                redeemDiscountAmount = redeemPointsUsed * RedeemPointValue;
+                redeemDiscountAmount = redeemPointsUsed * redeemPointValue;
             }
         }
 

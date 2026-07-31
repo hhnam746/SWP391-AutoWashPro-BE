@@ -690,6 +690,14 @@ public class AppDbContext : DbContext
                     Description = "Deposit percentage required for booking.",
                     CreatedAt = defaultConfigCreatedAt,
                 },
+                new()
+                {
+                    Id = Guid.Parse("6e44b699-f9f8-4678-bfaa-c572d081ac57"),
+                    ConfigKey = "RedeemPointValue",
+                    ConfigValue = "100",
+                    Description = "Value in VND applied per redeemed loyalty point.",
+                    CreatedAt = defaultConfigCreatedAt,
+                },
 
                 //BonusPoint = 10
                 new()
