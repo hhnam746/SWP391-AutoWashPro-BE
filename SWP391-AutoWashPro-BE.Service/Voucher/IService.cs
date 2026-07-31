@@ -9,6 +9,11 @@ public interface IService
         int pageIndex,
         CancellationToken cancellationToken = default);
 
+    public Task<Base.Response.PageResult<Response.CustomerVoucherResponse>> GetAvailableVouchers(
+        int pageSize,
+        int pageIndex,
+        CancellationToken cancellationToken = default);
+
     public Task<Response.ValidateVoucherResponse> ValidateVoucher(
         Guid userId,
         Request.ValidateVoucherRequest request);

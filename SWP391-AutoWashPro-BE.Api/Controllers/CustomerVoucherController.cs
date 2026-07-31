@@ -30,4 +30,20 @@ public class CustomerVoucherController : ControllerBase
             "Get customer vouchers successfully",
             HttpContext.TraceIdentifier));
     }
+
+    [HttpGet("available")]
+    public async Task<IActionResult> GetAvailableVouchers(
+        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageIndex = 1,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _voucherService.GetAvailableVouchers(
+            pageSize,
+            pageIndex,
+            cancellationToken);
+        return Ok(ApiResponseFactory.SuccessResponse(
+            result,
+            "Get available customer vouchers successfully",
+            HttpContext.TraceIdentifier));
+    }
 }
