@@ -920,7 +920,7 @@ public class Service : IService
             query = query.Where(x => x.BookingDate <= toDate);
         }
         
-        query = query.OrderByDescending(x => x.UpdatedAt);
+        // query = query.OrderByDescending(x => x.UpdatedAt);
 
         var bookingDetail = query.Select(x => new Response.BookingItem
         {
