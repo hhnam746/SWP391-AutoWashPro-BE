@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using SWP391_AutoWashPro_BE.Repository;
@@ -75,13 +76,92 @@ public class BookingScheduleWarningTests
         Assert.Equal(BookingStatus.Confirmed, response.Status);
     }
 
+    [Theory]
+    [InlineData("100", 1500)]
+    [InlineData("250", 3750)]
+    public async Task CreateBooking_WhenRedeemingPoints_UsesConfiguredPointValue(
+        string configuredValue,
+        int expectedDiscount)
+    {
+        await using var fixture = await CreateFixtureAsync(
+            sameBranch: true,
+            existingStartMinute: 0,
+            redeemPoint: true,
+            totalPoints: 15,
+            includeRedeemPointValueConfig: true,
+            redeemPointValue: configuredValue);
+
+        var response = await fixture.Service.CreateBooking(fixture.Request);
+        var booking = await fixture.DbContext.Bookings
+            .SingleAsync(x => x.Id == response.Id);
+
+        Assert.Equal(expectedDiscount, response.DiscountAmount);
+        Assert.Equal(100000 - expectedDiscount, response.FinalPrice);
+        Assert.Equal(15, booking.RedemAmount);
+    }
+
+    [Fact]
+    public async Task CreateBooking_WhenRedeemPointValueConfigIsMissing_Throws()
+    {
+        await using var fixture = await CreateFixtureAsync(
+            sameBranch: true,
+            existingStartMinute: 0,
+            redeemPoint: true,
+            totalPoints: 15);
+
+        var exception = await Assert.ThrowsAsync<Exception>(
+            () => fixture.Service.CreateBooking(fixture.Request));
+
+        Assert.Equal("RedeemPointValue config not found", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("invalid")]
+    [InlineData("0")]
+    [InlineData("-1")]
+    public async Task CreateBooking_WhenRedeemPointValueConfigIsInvalid_Throws(string configuredValue)
+    {
+        await using var fixture = await CreateFixtureAsync(
+            sameBranch: true,
+            existingStartMinute: 0,
+            redeemPoint: true,
+            totalPoints: 15,
+            includeRedeemPointValueConfig: true,
+            redeemPointValue: configuredValue);
+
+        var exception = await Assert.ThrowsAsync<Exception>(
+            () => fixture.Service.CreateBooking(fixture.Request));
+
+        Assert.Equal("Invalid RedeemPointValue config value", exception.Message);
+    }
+
+    [Fact]
+    public async Task CreateBooking_WhenNotRedeemingPoints_DoesNotRequirePointValueConfig()
+    {
+        await using var fixture = await CreateFixtureAsync(
+            sameBranch: true,
+            existingStartMinute: 0,
+            redeemPoint: false);
+
+        var response = await fixture.Service.CreateBooking(fixture.Request);
+
+        Assert.Equal(BookingStatus.Confirmed, response.Status);
+        Assert.Equal(0, response.DiscountAmount);
+    }
+
     private static async Task<Fixture> CreateFixtureAsync(
         bool sameBranch,
         int existingStartMinute = 15,
-        BookingStatus existingStatus = BookingStatus.Confirmed)
+        BookingStatus existingStatus = BookingStatus.Confirmed,
+        bool redeemPoint = false,
+        int totalPoints = 0,
+        bool includeRedeemPointValueConfig = false,
+        string redeemPointValue = "100")
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .ConfigureWarnings(warnings =>
+                warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
             .Options;
         var dbContext = new AppDbContext(options);
 
@@ -122,6 +202,7 @@ public class BookingScheduleWarningTests
             Tier = tier,
             FirstName = "Test",
             LastName = "Customer",
+            TotalPoints = totalPoints,
             CreatedAt = now
         };
         var vehicleType = new VehicleType
@@ -171,6 +252,10 @@ public class BookingScheduleWarningTests
         AddConfig(dbContext, "SuvBasePrice", "30000");
         AddConfig(dbContext, "PaymentDeposite", "30");
         AddConfig(dbContext, "BookingProximityWarningMinutes", "30");
+        if (includeRedeemPointValueConfig)
+        {
+            AddConfig(dbContext, "RedeemPointValue", redeemPointValue);
+        }
 
         var bookingDate = DateTimeOffset.UtcNow.ToOffset(VietnamOffset).Date.AddDays(2);
         var existingStart = new DateTimeOffset(
@@ -216,7 +301,7 @@ public class BookingScheduleWarningTests
             VoucherId = null,
             BookingDate = DateOnly.FromDateTime(bookingDate),
             StartTime = requestedStart,
-            redemPoint = false
+            redemPoint = redeemPoint
         };
 
         var service = new BookingService(
