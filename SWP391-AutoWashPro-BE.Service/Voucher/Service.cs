@@ -62,6 +62,31 @@ public class Service: IService
         int pageIndex,
         CancellationToken cancellationToken = default)
     {
+        return await GetCustomerVouchers(
+            pageSize,
+            pageIndex,
+            availableOnly: false,
+            cancellationToken);
+    }
+
+    public async Task<Base.Response.PageResult<Response.CustomerVoucherResponse>> GetAvailableVouchers(
+        int pageSize,
+        int pageIndex,
+        CancellationToken cancellationToken = default)
+    {
+        return await GetCustomerVouchers(
+            pageSize,
+            pageIndex,
+            availableOnly: true,
+            cancellationToken);
+    }
+
+    private async Task<Base.Response.PageResult<Response.CustomerVoucherResponse>> GetCustomerVouchers(
+        int pageSize,
+        int pageIndex,
+        bool availableOnly,
+        CancellationToken cancellationToken)
+    {
         if (pageSize < 1 || pageIndex < 1)
         {
             throw new ArgumentException("PageSize and PageIndex must be greater than 0.");
@@ -81,6 +106,16 @@ public class Service: IService
         var query = _dbContext.Vouchers
             .AsNoTracking()
             .Where(x => x.CustomerId == customerId.Value);
+        if (availableOnly)
+        {
+            var nowUtc = DateTimeOffset.UtcNow;
+            query = query.Where(x =>
+                x.Status == VoucherStatus.Active &&
+                x.UsedAt == null &&
+                x.ExpiresAt > nowUtc &&
+                x.DiscountValue > 0);
+        }
+
         var totalItems = await query.CountAsync(cancellationToken);
         var items = await query
             .OrderByDescending(x => x.CreatedAt)
@@ -136,17 +171,21 @@ public class Service: IService
         if (voucher == null)
             throw new Exception("Voucher not found");
 
+        if (voucher.Status == VoucherStatus.Reserved)
+            throw new InvalidOperationException("Voucher is reserved by another booking.");
+
+        if (voucher.Status == VoucherStatus.Used || voucher.UsedAt != null)
+            throw new InvalidOperationException("Voucher already used.");
+
+        if (voucher.Status == VoucherStatus.Expired ||
+            voucher.ExpiresAt <= DateTimeOffset.UtcNow)
+            throw new InvalidOperationException("Voucher expired.");
+
         if (voucher.Status != VoucherStatus.Active)
-            throw new Exception("Voucher is inactive");
-
-        if (voucher.ExpiresAt <= DateTimeOffset.UtcNow)
-            throw new Exception("Voucher expired");
-
-        if (voucher.UsedAt != null)
-            throw new Exception("Voucher already used");
+            throw new InvalidOperationException("Voucher is not available.");
 
         if (voucher.DiscountValue <= 0)
-            throw new Exception("Voucher has no discount value");
+            throw new InvalidOperationException("Voucher has no discount value.");
 
         decimal discountAmount;
 

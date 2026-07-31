@@ -184,9 +184,14 @@ public class RuleService : IRuleService
                 IssuedCount = group.Count(),
                 ActiveCount = group.Count(x =>
                     x.Voucher.Status == VoucherStatus.Active && x.Voucher.ExpiresAt > nowUtc),
+                ReservedCount = group.Count(x => x.Voucher.Status == VoucherStatus.Reserved),
                 UsedCount = group.Count(x => x.Voucher.Status == VoucherStatus.Used),
                 ExpiredCount = group.Count(x =>
-                    x.Voucher.Status == VoucherStatus.Expired || x.Voucher.ExpiresAt <= nowUtc),
+                    x.Voucher.Status == VoucherStatus.Expired ||
+                    (
+                        x.Voucher.Status == VoucherStatus.Active &&
+                        x.Voucher.ExpiresAt <= nowUtc
+                    )),
                 NotificationPendingCount = group.Count(x =>
                     x.NotificationStatus == PersonalizedVoucherDeliveryStatus.Pending),
                 NotificationSentCount = group.Count(x =>
@@ -210,6 +215,7 @@ public class RuleService : IRuleService
             TriggerType = x.TriggerType,
             IssuedCount = x.IssuedCount,
             ActiveCount = x.ActiveCount,
+            ReservedCount = x.ReservedCount,
             UsedCount = x.UsedCount,
             ExpiredCount = x.ExpiredCount,
             NotificationPendingCount = x.NotificationPendingCount,

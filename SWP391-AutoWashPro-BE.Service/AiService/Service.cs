@@ -335,7 +335,7 @@ public class Service : IService
     {
         return voucher.Status == VoucherStatus.Active &&
                voucher.UsedAt is null &&
-               voucher.ExpiresAt >= DateTimeOffset.UtcNow;
+               voucher.ExpiresAt > DateTimeOffset.UtcNow;
     }
 
     private static string GetVoucherUnavailableReason(
@@ -347,7 +347,12 @@ public class Service : IService
             return "already_used";
         }
 
-        if (voucher.ExpiresAt < now)
+        if (voucher.Status == VoucherStatus.Reserved)
+        {
+            return "reserved_by_booking";
+        }
+
+        if (voucher.ExpiresAt <= now)
         {
             return "expired";
         }

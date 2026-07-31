@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Quartz;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Enums;
+using VoucherLifecycle = SWP391_AutoWashPro_BE.Service.Voucher.Lifecycle;
 
 namespace SWP391_AutoWashPro_BE.Service.BackgroundJob;
 
@@ -27,8 +28,15 @@ public class ProcessBookingAutoCancelJob : IJob
 
     public async Task Execute(IJobExecutionContext context)
     {
-        var cancellationToken = context.CancellationToken;
-        var nowUtc = DateTimeOffset.UtcNow;
+        await ProcessOverdueBookingsAsync(
+            DateTimeOffset.UtcNow,
+            context.CancellationToken);
+    }
+
+    public async Task ProcessOverdueBookingsAsync(
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken = default)
+    {
         var nowLocal = nowUtc.ToOffset(DisplayTimeOffset);
         
         //tìm xem có config CancelTimeMinutes trong System config
@@ -101,6 +109,15 @@ public class ProcessBookingAutoCancelJob : IJob
             item.Booking.Status = BookingStatus.Cancelled;
             item.Booking.CancelledAt = nowUtc;
             item.Booking.UpdatedAt = nowUtc;
+            if (item.Booking.VoucherId.HasValue)
+            {
+                await VoucherLifecycle.ReleaseReservedAsync(
+                    _dbContext,
+                    item.Booking.VoucherId.Value,
+                    item.Booking.Id,
+                    nowUtc,
+                    cancellationToken);
+            }
             cancelledBookingIds.Add(item.Id);
 
             _logger.LogInformation(

@@ -47,6 +47,7 @@ public class Response
         public PersonalizedVoucherTriggerType TriggerType { get; set; }
         public int IssuedCount { get; set; }
         public int ActiveCount { get; set; }
+        public int ReservedCount { get; set; }
         public int UsedCount { get; set; }
         public int ExpiredCount { get; set; }
         public int NotificationPendingCount { get; set; }

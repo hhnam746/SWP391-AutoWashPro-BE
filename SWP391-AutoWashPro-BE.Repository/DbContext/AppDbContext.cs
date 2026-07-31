@@ -137,6 +137,7 @@ public class AppDbContext : DbContext
         VoucherStatus.Active => "active",
         VoucherStatus.Used => "used",
         VoucherStatus.Expired => "expired",
+        VoucherStatus.Reserved => "reserved",
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 
@@ -145,6 +146,7 @@ public class AppDbContext : DbContext
         "active" => VoucherStatus.Active,
         "used" => VoucherStatus.Used,
         "expired" => VoucherStatus.Expired,
+        "reserved" => VoucherStatus.Reserved,
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 
