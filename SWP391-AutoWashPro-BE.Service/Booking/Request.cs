@@ -19,6 +19,7 @@ public class Request
         public required DateOnly BookingDate { get; set; }
         public required DateTimeOffset StartTime { get; set; }
         public required bool? redemPoint { get; set; }
+        public IReadOnlyCollection<Guid> AcknowledgedScheduleConflictIds { get; set; } = Array.Empty<Guid>();
        
     }
 
