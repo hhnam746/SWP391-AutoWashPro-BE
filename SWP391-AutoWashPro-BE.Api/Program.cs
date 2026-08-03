@@ -33,6 +33,7 @@ using RedisOtpService = SWP391_AutoWashPro_BE.Service.RedisOtpService;
 using Transaction =  SWP391_AutoWashPro_BE.Service.Transaction;
 using AiService = SWP391_AutoWashPro_BE.Service.AiService;
 using PersonalizedVoucherService = SWP391_AutoWashPro_BE.Service.PersonalizedVoucher;
+using SePayService = SWP391_AutoWashPro_BE.Service.SePay;
 
 Env.Load();
 
@@ -120,6 +121,7 @@ builder.Services.AddScoped<PersonalizedVoucherService.IDeliveryService, Personal
 builder.Services.AddScoped<PersonalizedVoucherService.ITriggerConfigService,
     PersonalizedVoucherService.TriggerConfigService>();
 builder.Services.AddScoped<PersonalizedVoucherService.IAudienceService, PersonalizedVoucherService.AudienceService>();
+builder.Services.AddScoped<SePayService.IService, SePayService.Service>();
 
 //test thử discord
 builder.Services.Configure<DiscordService.DiscordAlertOptions>(
