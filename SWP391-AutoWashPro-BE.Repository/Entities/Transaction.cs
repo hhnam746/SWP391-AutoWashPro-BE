@@ -19,6 +19,29 @@ public class Transaction : BaseEntity, IAuditableEntity
     public Guid? BookingId { get; set; }  
     public Booking? Booking { get; set; }
     
+    //SeePay
+    public TransactionStatus? Status { get; set; }
+    public string? ReferenceCode { get; set; }
+    public ProviderType? Provider { get; set; }
+    public string? ExternalTransactionId { get; set; }
+    public TransferType? TransferType { get; set; }
+
+    public string? Gateway { get; set; }
+    public string? AccountNumber { get; set; }
+    public string? ProviderCode { get; set; }
+    public string? BankReferenceCode { get; set; }
+
+    public DateTimeOffset? ProviderTransactionDate { get; set; }
+    public DateTimeOffset? PaidAt { get; set; }
+    public DateTimeOffset? ExpiredAt { get; set; }
+
+    public string? RawContent { get; set; }
+    public string? ProviderDescription { get; set; }
+    public string? RawPayload { get; set; }
+
+    public decimal? WalletBalanceBefore { get; set; }
+    public decimal? WalletBalanceAfter { get; set; }
+    
     public DateTimeOffset CreatedAt { get; set; }  
     public DateTimeOffset? UpdatedAt { get; set; }  
 }

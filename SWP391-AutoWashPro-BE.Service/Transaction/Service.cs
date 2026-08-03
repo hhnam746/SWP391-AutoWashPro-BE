@@ -141,4 +141,107 @@ public class Service : IService
 
         return transaction;
     }
+
+    public async Task<Response.GetTransactionResponse> GetTransactionsV2(Request.GetTransactionsRequest request)
+    {
+        var customerProfile = await GetRequiredCustomerProfileAsync();
+        ValidatePagination(request.PageIndex, request.PageSize);
+
+        var query = _dbContext.Transactions
+            .AsNoTracking()
+            .Where(transaction => transaction.CustomerId == customerProfile.Id);
+
+        if (!string.IsNullOrWhiteSpace(request.Description))
+        {
+            var descriptionKeyword = request.Description.Trim();
+            query = query.Where(transaction =>
+                transaction.Description != null &&
+                transaction.Description.Contains(descriptionKeyword));
+        }
+
+        if (request.Type.HasValue)
+        {
+            query = query.Where(transaction => transaction.Type == request.Type.Value);
+        }
+
+        if (request.FromDate.HasValue)
+        {
+            var fromDate = request.FromDate.Value.Date;
+            query = query.Where(transaction => transaction.TransactionDate >= fromDate);
+        }
+
+        if (request.ToDate.HasValue)
+        {
+            var toDate = request.ToDate.Value.Date.AddDays(1).AddTicks(-1);
+            query = query.Where(transaction => transaction.TransactionDate <= toDate);
+        }
+
+        var totalCount = await query.CountAsync();
+
+        var selectedQuery = query
+            .OrderByDescending(transaction => transaction.TransactionDate)
+            .ThenByDescending(transaction => transaction.CreatedAt)
+            .Select(transaction => new Response.GetTransactionItems
+            {
+                TransactionId = transaction.Id,
+                CustomerId = transaction.CustomerId,
+                BookingId = transaction.BookingId,
+                Amount = transaction.Amount,
+                Type = transaction.Type,
+                Description = transaction.Description,
+                TransactionDate = transaction.TransactionDate,
+                CreatedAt = transaction.CreatedAt,
+                UpdatedAt = transaction.UpdatedAt
+            });
+
+        var transactions = await selectedQuery
+            .Skip((request.PageIndex - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ToListAsync();
+
+        var totalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize);
+
+        return new Response.GetTransactionResponse
+        {
+            Transactions = transactions,
+            Pagination = new Response.PaginationResponse
+            {
+                Page = request.PageIndex,
+                PageSize = request.PageSize,
+                TotalCount = totalCount,
+                TotalPages = totalPages
+            }
+        };
+    }
+
+    public async Task<Response.GetTransactionItems> GetTransactionByIdV2(Guid id)
+    {
+        var customerProfile = await GetRequiredCustomerProfileAsync();
+
+        var query = _dbContext.Transactions
+            .AsNoTracking()
+            .Where(transaction => transaction.Id == id && transaction.CustomerId == customerProfile.Id);
+
+        var selectedQuery = query
+            .Select(transaction => new Response.GetTransactionItems
+            {
+                TransactionId = transaction.Id,
+                CustomerId = transaction.CustomerId,
+                BookingId = transaction.BookingId,
+                Amount = transaction.Amount,
+                Type = transaction.Type,
+                Description = transaction.Description,
+                TransactionDate = transaction.TransactionDate,
+                CreatedAt = transaction.CreatedAt,
+                UpdatedAt = transaction.UpdatedAt
+            });
+
+        var transaction = await selectedQuery
+            .FirstOrDefaultAsync();
+
+        if (transaction == null)
+            throw new KeyNotFoundException("Transaction not found.");
+
+        return transaction;
+    }
 }

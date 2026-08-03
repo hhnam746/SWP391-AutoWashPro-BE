@@ -33,6 +33,7 @@ using RedisOtpService = SWP391_AutoWashPro_BE.Service.RedisOtpService;
 using Transaction =  SWP391_AutoWashPro_BE.Service.Transaction;
 using AiService = SWP391_AutoWashPro_BE.Service.AiService;
 using PersonalizedVoucherService = SWP391_AutoWashPro_BE.Service.PersonalizedVoucher;
+using SePayService = SWP391_AutoWashPro_BE.Service.SePay;
 
 Env.Load();
 
@@ -112,6 +113,8 @@ builder.Services.AddScoped<AiService.IService, AiService.Service>();
 builder.Services.AddScoped<AiService.IntentDetector>();
 builder.Services.AddScoped<AiService.PromptBuilder>();
 builder.Services.AddHttpClient<AiService.GoogleAiStudioService>();
+builder.Services.Configure<SePayService.Options>(
+    builder.Configuration.GetSection(SePayService.Options.SectionName));
 builder.Services.Configure<PersonalizedVoucherService.Options>(
     builder.Configuration.GetSection(PersonalizedVoucherService.Options.SectionName));
 builder.Services.AddScoped<PersonalizedVoucherService.IService, PersonalizedVoucherService.Service>();
@@ -120,6 +123,7 @@ builder.Services.AddScoped<PersonalizedVoucherService.IDeliveryService, Personal
 builder.Services.AddScoped<PersonalizedVoucherService.ITriggerConfigService,
     PersonalizedVoucherService.TriggerConfigService>();
 builder.Services.AddScoped<PersonalizedVoucherService.IAudienceService, PersonalizedVoucherService.AudienceService>();
+builder.Services.AddScoped<SePayService.IService, SePayService.Service>();
 
 //test thử discord
 builder.Services.Configure<DiscordService.DiscordAlertOptions>(
