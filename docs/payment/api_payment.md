@@ -34,7 +34,7 @@ Kết luận thiết kế:
 | `/api/v1/transaction/{id}` | `GET` | Customer | Lấy chi tiết 1 giao dịch | Keep, mở rộng response |
 | `/api/v1/wallet/topup-transactions` | `POST` | Customer | Tạo yêu cầu nạp ví SePay, sinh transaction pending | New |
 | `/api/v1/payment/sepay/webhook` | `POST` | SePay webhook | Xác nhận top-up thành công hoặc duplicate callback | New |
-| `/api/v1/admin/wallet-topup-transactions` | `GET` | Admin | Xem danh sách customer đã nạp ví, số tiền và trạng thái | New |
+| `/api/v1/admin/wallet-topup-transactions` | `GET` | Admin | Xem danh sách transaction nạp ví của customer | New, route stub đã có trong `AdminController` |
 | `/api/v1/wallet/top-up` | `PATCH` | Customer | Cộng ví trực tiếp | Deprecate |
 
 ## 3. Request model
@@ -122,14 +122,30 @@ Query parameters:
 
 | Field | Type | Required | Note |
 | --- | --- | --- | --- |
-| `pageIndex` | `int` | Yes | `>= 1` |
-| `pageSize` | `int` | Yes | `>= 1`, nên giới hạn max `100` |
+| `pageIndex` | `int` | No | mặc định `1`, `>= 1` |
+| `pageSize` | `int` | No | mặc định `10`, `>= 1`, nên giới hạn max `100` |
 | `keyword` | `string` | No | search theo email, phone, full name, `referenceCode` |
 | `status` | `TransactionStatus` | No | filter `Pending`, `Succeeded`, `Failed`, `Expired` |
-| `fromDate` | `DateTimeOffset` | No | filter theo `createdAt` hoặc `paidAt`, nên chốt rõ khi implement |
-| `toDate` | `DateTimeOffset` | No | filter theo `createdAt` hoặc `paidAt`, nên chốt rõ khi implement |
+| `fromDate` | `DateTimeOffset` | No | filter theo `CreatedAt` |
+| `toDate` | `DateTimeOffset` | No | filter theo `CreatedAt` |
 | `minAmount` | `decimal` | No | số tiền tối thiểu |
 | `maxAmount` | `decimal` | No | số tiền tối đa |
+
+Request DTO nên theo pattern admin hiện có:
+
+```csharp
+public class GetWalletTopupTransactionsRequest
+{
+    public int PageIndex { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+    public string? Keyword { get; set; }
+    public TransactionStatus? Status { get; set; }
+    public DateTimeOffset? FromDate { get; set; }
+    public DateTimeOffset? ToDate { get; set; }
+    public decimal? MinAmount { get; set; }
+    public decimal? MaxAmount { get; set; }
+}
+```
 
 ## 4. Response model
 
@@ -292,36 +308,37 @@ Các giá trị `code` đề xuất:
 
 ```json
 {
-  "items": [
-    {
-      "transactionId": "guid",
-      "customerId": "guid",
-      "customerName": "Nguyen Van A",
-      "email": "a@example.com",
-      "phone": "0901234567",
-      "amount": 200000,
-      "status": "Succeeded",
-      "provider": "SePay",
-      "referenceCode": "TOPUP-7F3A9B",
-      "externalTransactionId": "92704",
-      "paidAt": "2026-08-03T19:14:11+07:00",
-      "createdAt": "2026-08-03T19:00:00Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
+  "statusCode": 200,
+  "message": "Get wallet top-up transactions",
+  "data": {
+    "items": [
+      {
+        "transactionId": "guid",
+        "customerId": "guid",
+        "customerName": "Nguyen Van A",
+        "email": "a@example.com",
+        "phone": "0901234567",
+        "amount": 200000,
+        "status": "Succeeded",
+        "provider": "SePay",
+        "referenceCode": "TOPUP-7F3A9B",
+        "externalTransactionId": "92704",
+        "paidAt": "2026-08-03T19:14:11+07:00",
+        "createdAt": "2026-08-03T19:00:00Z"
+      }
+    ],
+    "totalItems": 1,
     "pageSize": 20,
-    "totalCount": 1,
-    "totalPages": 1
+    "pageIndex": 1
   },
-  "summary": {
-    "totalTopupCount": 1,
-    "totalTopupAmount": 200000
-  }
+  "errors": null,
+  "traceId": "00-abc123"
 }
 ```
 
-Response field đề xuất:
+Response `data` nên bám `Base.Response.PageResult<T>` vì đây là pattern admin service đang dùng trong hệ thống.
+
+Response item đề xuất:
 
 | Field | Type | Note |
 | --- | --- | --- |
@@ -337,8 +354,14 @@ Response field đề xuất:
 | `externalTransactionId` | `string?` | mã từ provider |
 | `paidAt` | `DateTimeOffset?` | lúc top-up thành công |
 | `createdAt` | `DateTimeOffset` | lúc tạo yêu cầu |
-| `summary.totalTopupCount` | `int` | tổng số giao dịch trong filter |
-| `summary.totalTopupAmount` | `decimal` | tổng tiền trong filter |
+| `totalItems` | `int` | tổng số record sau khi filter |
+| `pageSize` | `int` | kích thước trang hiện tại |
+| `pageIndex` | `int` | trang hiện tại |
+
+Không thêm `summary` vào v1 để tránh tạo thêm response wrapper riêng cho admin chỉ cho endpoint này. Nếu UI cần tổng tiền theo filter, nên cân nhắc:
+
+- thêm field `TotalAmount` vào response DTO riêng của endpoint này
+- hoặc tách endpoint summary riêng để tránh làm `PageResult<T>` lệch pattern chung
 
 ## 5. Validation rules
 
@@ -374,6 +397,7 @@ Response field đề xuất:
 - nếu có cả `minAmount` và `maxAmount` thì `minAmount <= maxAmount`
 - nếu có cả `fromDate` và `toDate` thì `fromDate <= toDate`
 - chỉ trả transaction có `Type = WalletTopup`
+- chỉ trả transaction có `CustomerId` hợp lệ và join được thông tin customer để admin đối soát
 
 ## 6. Business rules
 
@@ -456,6 +480,7 @@ Không cần public API payment riêng mới nếu booking service vẫn tự t�
 | `400` | query filter không hợp lệ |
 | `401` | chưa đăng nhập |
 | `403` | không có quyền admin |
+| `404` | không cần dùng cho danh sách; trường hợp không có dữ liệu nên trả danh sách rỗng |
 | `500` | lỗi lấy danh sách top-up |
 
 ## 8. Authorization
@@ -560,32 +585,31 @@ Authorization: Bearer <admin-jwt>
 
 ```json
 {
-  "items": [
-    {
-      "transactionId": "64515d1f-4692-48b0-a4d1-44b7303c79d4",
-      "customerId": "91fd3d36-635a-4bf9-8e12-8d95d6d5d311",
-      "customerName": "Nguyen Van A",
-      "email": "a@example.com",
-      "phone": "0901234567",
-      "amount": 200000,
-      "status": "Succeeded",
-      "provider": "SePay",
-      "referenceCode": "TOPUP-7F3A9B",
-      "externalTransactionId": "92704",
-      "paidAt": "2026-08-03T19:14:11+07:00",
-      "createdAt": "2026-08-03T19:00:00Z"
-    }
-  ],
-  "pagination": {
-    "page": 1,
+  "statusCode": 200,
+  "message": "Get wallet top-up transactions",
+  "data": {
+    "items": [
+      {
+        "transactionId": "64515d1f-4692-48b0-a4d1-44b7303c79d4",
+        "customerId": "91fd3d36-635a-4bf9-8e12-8d95d6d5d311",
+        "customerName": "Nguyen Van A",
+        "email": "a@example.com",
+        "phone": "0901234567",
+        "amount": 200000,
+        "status": "Succeeded",
+        "provider": "SePay",
+        "referenceCode": "TOPUP-7F3A9B",
+        "externalTransactionId": "92704",
+        "paidAt": "2026-08-03T19:14:11+07:00",
+        "createdAt": "2026-08-03T19:00:00Z"
+      }
+    ],
+    "totalItems": 1,
     "pageSize": 20,
-    "totalCount": 1,
-    "totalPages": 1
+    "pageIndex": 1
   },
-  "summary": {
-    "totalTopupCount": 1,
-    "totalTopupAmount": 200000
-  }
+  "errors": null,
+  "traceId": "00-abc123"
 }
 ```
 
@@ -597,6 +621,7 @@ Authorization: Bearer <admin-jwt>
 - đặt API tạo top-up dưới `wallet` vì đây là hành động của owner wallet
 - đặt webhook dưới `payment` vì đây là provider integration endpoint
 - đặt API admin dưới `admin` để bám pattern `AdminController` đang có trong repo
+- action admin nên nhận `[FromQuery] Request.GetWalletTopupTransactionsRequest request`
 
 ### 11.2 Backward compatibility
 
@@ -631,7 +656,31 @@ Khuyến nghị:
 - `AdminController`
   - `GET /api/v1/admin/wallet-topup-transactions`
 
-### 11.5 Assumptions
+### 11.5 Suggested service contract
+
+Vì `AdminController` hiện đang có stub route nhưng `IService` mới chỉ có `Task<string> GetWalletTopUpTransaction();`, nên contract nên đổi thành:
+
+```csharp
+Task<Base.Response.PageResult<Response.WalletTopupTransactionItemResponse>> GetWalletTopupTransactions(
+    Request.GetWalletTopupTransactionsRequest request);
+```
+
+Controller shape tương ứng:
+
+```csharp
+[HttpGet("wallet-topup-transactions")]
+public async Task<IActionResult> GetWalletTopUpTransactions(
+    [FromQuery] Request.GetWalletTopupTransactionsRequest request)
+{
+    var result = await _adminService.GetWalletTopupTransactions(request);
+    return Ok(ApiResponseFactory.SuccessResponse(
+        result,
+        "Get wallet top-up transactions",
+        HttpContext.TraceIdentifier));
+}
+```
+
+### 11.6 Assumptions
 
 - flow SePay hiện chỉ áp dụng cho `WalletTopup`
 - `Deposit`, `FullPayment`, `Refund` vẫn là internal transaction flow

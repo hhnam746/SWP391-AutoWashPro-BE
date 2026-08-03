@@ -32,6 +32,8 @@ public interface IService
     public Task<Response.RevenueReportResponse> GetRevenueReport(Request.GetRevenueReportRequest request);
     public Task<Base.Response.PageResult<Response.BranchReportItemResponse>> GetBranchReport(Request.GetBranchReportRequest request);
     public Task<Response.LoyaltyReportResponse> GetLoyaltyReport(Request.GetLoyaltyReportRequest request);
+    public Task<Base.Response.PageResult<Response.WalletTopupTransactionItemResponse>> GetWalletTopupTransactions(
+        Request.GetWalletTopupTransactionsRequest request);
     public Task<Response.CompleteBookingByAdminResponse> CompleteBookingByAdmin(
         Guid bookingId,
         Request.CompleteBookingByAdminRequest request);
@@ -41,5 +43,4 @@ public interface IService
     public Task<Response.CancelBookingByAdminResponse> CancelBookingByAdmin(
         Guid bookingId,
         Request.CancelBookingByAdminRequest request);
-    
 }

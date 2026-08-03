@@ -5,7 +5,7 @@ using SWP391_AutoWashPro_BE.Service.Transaction;
 namespace SWP391_AutoWashPro_BE.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/[controller]")]
+[Route("api")]
 [Authorize]
 public class TransactionController : ControllerBase
 {
@@ -15,17 +15,31 @@ public class TransactionController : ControllerBase
         _service = service;
     }
 
-    [HttpGet]
+    [HttpGet("v1/Transaction")]
     public async Task<IActionResult> GetTransactions([FromQuery] Request.GetTransactionsRequest request)
     {
         var result = await _service.GetTransactions(request);
         return Ok(result);
     }
 
-    [HttpGet("{id}")]
+    [HttpGet("v1/Transaction/{id}")]
     public async Task<IActionResult> GetTransactionById(Guid id)
     {
         var result = await _service.GetTransactionById(id);
+        return Ok(result);
+    }
+
+    [HttpGet("v2/Transaction")]
+    public async Task<IActionResult> GetTransactionsV2([FromQuery] Request.GetTransactionsRequest request)
+    {
+        var result = await _service.GetTransactionsV2(request);
+        return Ok(result);
+    }
+
+    [HttpGet("v2/Transaction/{id}")]
+    public async Task<IActionResult> GetTransactionByIdV2(Guid id)
+    {
+        var result = await _service.GetTransactionByIdV2(id);
         return Ok(result);
     }
 }

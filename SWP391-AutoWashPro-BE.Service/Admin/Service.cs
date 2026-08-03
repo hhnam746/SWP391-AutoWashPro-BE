@@ -515,6 +515,122 @@ public class Service : IService
         };
     }
 
+    public async Task<Base.Response.PageResult<Response.WalletTopupTransactionItemResponse>> GetWalletTopupTransactions(
+        Request.GetWalletTopupTransactionsRequest request)
+    {
+        if (request == null)
+        {
+            throw new ArgumentException("Request is required.");
+        }
+
+        if (request.PageIndex <= 0)
+        {
+            throw new ArgumentException("PageIndex must be greater than 0.");
+        }
+
+        if (request.PageSize <= 0)
+        {
+            throw new ArgumentException("PageSize must be greater than 0.");
+        }
+
+        if (request.MinAmount.HasValue &&
+            request.MaxAmount.HasValue &&
+            request.MinAmount.Value > request.MaxAmount.Value)
+        {
+            throw new ArgumentException("MinAmount must be less than or equal to MaxAmount.");
+        }
+
+        if (request.FromDate.HasValue &&
+            request.ToDate.HasValue &&
+            request.FromDate.Value > request.ToDate.Value)
+        {
+            throw new ArgumentException("FromDate must be less than or equal to ToDate.");
+        }
+
+        var query = _dbContext.Transactions
+            .AsNoTracking()
+            .Where(transaction => transaction.Type == TransactionType.WalletTopup);
+
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            var keyword = request.Keyword.Trim().ToLower();
+
+            var filteredByKeywordQuery = query.Where(transaction =>
+                (transaction.ReferenceCode ?? string.Empty).ToLower().Contains(keyword) ||
+                (transaction.ExternalTransactionId ?? string.Empty).ToLower().Contains(keyword) ||
+                (transaction.CustomerProfile.User.Email ?? string.Empty).ToLower().Contains(keyword) ||
+                (transaction.CustomerProfile.User.Phone ?? string.Empty).ToLower().Contains(keyword) ||
+                transaction.CustomerProfile.FirstName.ToLower().Contains(keyword) ||
+                transaction.CustomerProfile.LastName.ToLower().Contains(keyword) ||
+                (
+                    transaction.CustomerProfile.FirstName + " " +
+                    transaction.CustomerProfile.LastName
+                ).ToLower().Contains(keyword));
+
+            query = filteredByKeywordQuery;
+        }
+
+        if (request.Status.HasValue)
+        {
+            query = query.Where(transaction => transaction.Status == request.Status.Value);
+        }
+
+        if (request.FromDate.HasValue)
+        {
+            query = query.Where(transaction => transaction.CreatedAt >= request.FromDate.Value);
+        }
+
+        if (request.ToDate.HasValue)
+        {
+            query = query.Where(transaction => transaction.CreatedAt <= request.ToDate.Value);
+        }
+
+        if (request.MinAmount.HasValue)
+        {
+            query = query.Where(transaction => transaction.Amount >= request.MinAmount.Value);
+        }
+
+        if (request.MaxAmount.HasValue)
+        {
+            query = query.Where(transaction => transaction.Amount <= request.MaxAmount.Value);
+        }
+
+        var totalItems = await query.CountAsync();
+
+        var selectedQuery = query
+            .OrderByDescending(transaction => transaction.CreatedAt)
+            .ThenByDescending(transaction => transaction.TransactionDate)
+            .Select(transaction => new Response.WalletTopupTransactionItemResponse
+            {
+                TransactionId = transaction.Id,
+                CustomerId = transaction.CustomerId,
+                CustomerName = (transaction.CustomerProfile.FirstName + " " + transaction.CustomerProfile.LastName)
+                    .Trim(),
+                Email = transaction.CustomerProfile.User.Email ?? string.Empty,
+                Phone = transaction.CustomerProfile.User.Phone ?? string.Empty,
+                Amount = transaction.Amount,
+                Status = transaction.Status,
+                Provider = transaction.Provider,
+                ReferenceCode = transaction.ReferenceCode,
+                ExternalTransactionId = transaction.ExternalTransactionId,
+                PaidAt = transaction.PaidAt,
+                CreatedAt = transaction.CreatedAt
+            });
+
+        var items = await selectedQuery
+            .Skip((request.PageIndex - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ToListAsync();
+
+        return new Base.Response.PageResult<Response.WalletTopupTransactionItemResponse>
+        {
+            Items = items,
+            TotalItems = totalItems,
+            PageSize = request.PageSize,
+            PageIndex = request.PageIndex
+        };
+    }
+
     public Task<BookingService.Response.CheckInBookingResponse> CheckInBookingByAdmin(
         Guid bookingId,
         CancellationToken cancellationToken = default)

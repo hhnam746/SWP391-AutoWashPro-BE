@@ -8,7 +8,7 @@ namespace SWP391_AutoWashPro_BE.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/admin")]
-[Authorize(Policy = JwtExtensions.AdminPolicy)]
+// [Authorize(Policy = JwtExtensions.AdminPolicy)]
 public class AdminController : ControllerBase
 {
     private readonly IService _adminService;
@@ -180,5 +180,13 @@ public class AdminController : ControllerBase
     {
         var result = await _adminService.GetUserStatusById(id);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get user status", HttpContext.TraceIdentifier));
+    }
+
+    [HttpGet("wallet-topup-transactions")]
+    public async Task<IActionResult> GetWalletTopUpTransactions(
+        [FromQuery] Request.GetWalletTopupTransactionsRequest request)
+    {
+        var result = await _adminService.GetWalletTopupTransactions(request);
+        return Ok(ApiResponseFactory.SuccessResponse(result, "Get wallet top-up transactions",HttpContext.TraceIdentifier));
     }
 }

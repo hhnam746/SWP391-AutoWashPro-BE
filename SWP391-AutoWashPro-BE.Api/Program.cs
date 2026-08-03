@@ -113,6 +113,8 @@ builder.Services.AddScoped<AiService.IService, AiService.Service>();
 builder.Services.AddScoped<AiService.IntentDetector>();
 builder.Services.AddScoped<AiService.PromptBuilder>();
 builder.Services.AddHttpClient<AiService.GoogleAiStudioService>();
+builder.Services.Configure<SePayService.Options>(
+    builder.Configuration.GetSection(SePayService.Options.SectionName));
 builder.Services.Configure<PersonalizedVoucherService.Options>(
     builder.Configuration.GetSection(PersonalizedVoucherService.Options.SectionName));
 builder.Services.AddScoped<PersonalizedVoucherService.IService, PersonalizedVoucherService.Service>();
