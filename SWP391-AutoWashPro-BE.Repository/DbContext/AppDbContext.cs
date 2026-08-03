@@ -40,6 +40,15 @@ public class AppDbContext : DbContext
     private static readonly ValueConverter<TransactionType, string> TransactionTypeConverter =
         new(v => ToDbTransactionType(v), v => FromDbTransactionType(v));
 
+    private static readonly ValueConverter<TransactionStatus, string> TransactionStatusConverter =
+        new(v => ToDbTransactionStatus(v), v => FromDbTransactionStatus(v));
+
+    private static readonly ValueConverter<ProviderType, string> ProviderTypeConverter =
+        new(v => ToDbProviderType(v), v => FromDbProviderType(v));
+
+    private static readonly ValueConverter<TransferType, string> TransferTypeConverter =
+        new(v => ToDbTransferType(v), v => FromDbTransferType(v));
+
     private static readonly ValueConverter<ChatIntent, string> ChatIntentConverter =
         new(v => ToDbChatIntent(v), v => FromDbChatIntent(v));
 
@@ -247,6 +256,52 @@ public class AppDbContext : DbContext
         "deposit" => TransactionType.Deposit,
         "full_payment" => TransactionType.FullPayment,
         "wallet_topup" => TransactionType.WalletTopup,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static string ToDbTransactionStatus(TransactionStatus value) => value switch
+    {
+        TransactionStatus.Pending => "pending",
+        TransactionStatus.Succeeded => "succeeded",
+        TransactionStatus.Failed => "failed",
+        TransactionStatus.Expired => "expired",
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static TransactionStatus FromDbTransactionStatus(string value) => value switch
+    {
+        "pending" => TransactionStatus.Pending,
+        "succeeded" => TransactionStatus.Succeeded,
+        "failed" => TransactionStatus.Failed,
+        "expired" => TransactionStatus.Expired,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static string ToDbProviderType(ProviderType value) => value switch
+    {
+        ProviderType.Internal => "internal",
+        ProviderType.SePay => "sepay",
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static ProviderType FromDbProviderType(string value) => value switch
+    {
+        "internal" => ProviderType.Internal,
+        "sepay" => ProviderType.SePay,
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static string ToDbTransferType(TransferType value) => value switch
+    {
+        TransferType.In => "in",
+        TransferType.Out => "out",
+        _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
+    };
+
+    private static TransferType FromDbTransferType(string value) => value switch
+    {
+        "in" => TransferType.In,
+        "out" => TransferType.Out,
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 
@@ -1058,13 +1113,38 @@ public class AppDbContext : DbContext
             builder.Property(x => x.TransactionDate).HasColumnName("transaction_date").IsRequired();
             builder.Property(x => x.CustomerId).HasColumnName("customer_id").IsRequired();
             builder.Property(x => x.BookingId).HasColumnName("booking_id");
+            builder.Property(x => x.Status).HasColumnName("status").HasConversion(TransactionStatusConverter);
+            builder.Property(x => x.ReferenceCode).HasColumnName("reference_code").HasMaxLength(100);
+            builder.Property(x => x.Provider).HasColumnName("provider").HasConversion(ProviderTypeConverter);
+            builder.Property(x => x.ExternalTransactionId).HasColumnName("external_transaction_id").HasMaxLength(100);
+            builder.Property(x => x.TransferType).HasColumnName("transfer_type").HasConversion(TransferTypeConverter);
+            builder.Property(x => x.Gateway).HasColumnName("gateway").HasMaxLength(100);
+            builder.Property(x => x.AccountNumber).HasColumnName("account_number").HasMaxLength(50);
+            builder.Property(x => x.ProviderCode).HasColumnName("provider_code").HasMaxLength(100);
+            builder.Property(x => x.BankReferenceCode).HasColumnName("bank_reference_code").HasMaxLength(100);
+            builder.Property(x => x.ProviderTransactionDate).HasColumnName("provider_transaction_date");
+            builder.Property(x => x.PaidAt).HasColumnName("paid_at");
+            builder.Property(x => x.ExpiredAt).HasColumnName("expired_at");
+            builder.Property(x => x.RawContent).HasColumnName("raw_content").HasColumnType("text");
+            builder.Property(x => x.ProviderDescription).HasColumnName("provider_description").HasColumnType("text");
+            builder.Property(x => x.RawPayload).HasColumnName("raw_payload").HasColumnType("jsonb");
+            builder.Property(x => x.WalletBalanceBefore).HasColumnName("wallet_balance_before")
+                .HasColumnType("numeric(12,2)");
+            builder.Property(x => x.WalletBalanceAfter).HasColumnName("wallet_balance_after")
+                .HasColumnType("numeric(12,2)");
             builder.Property(x => x.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("now()").IsRequired();
             builder.Property(x => x.UpdatedAt).HasColumnName("updated_at");
 
             builder.HasIndex(x => x.CustomerId);
             builder.HasIndex(x => x.BookingId);
             builder.HasIndex(x => x.Type);
+            builder.HasIndex(x => x.Status);
             builder.HasIndex(x => x.TransactionDate);
+            builder.HasIndex(x => x.PaidAt);
+            builder.HasIndex(x => x.ReferenceCode).IsUnique()
+                .HasFilter("reference_code IS NOT NULL");
+            builder.HasIndex(x => x.ExternalTransactionId).IsUnique()
+                .HasFilter("external_transaction_id IS NOT NULL");
 
             builder.HasOne(x => x.CustomerProfile)
                 .WithMany(x => x.Transactions)
