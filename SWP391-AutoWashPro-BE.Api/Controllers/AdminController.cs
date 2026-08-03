@@ -8,7 +8,7 @@ namespace SWP391_AutoWashPro_BE.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/admin")]
-// [Authorize(Policy = JwtExtensions.AdminPolicy)]
+[Authorize(Policy = JwtExtensions.AdminPolicy)]
 public class AdminController : ControllerBase
 {
     private readonly IService _adminService;
