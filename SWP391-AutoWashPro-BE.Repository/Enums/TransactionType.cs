@@ -5,4 +5,5 @@ public enum TransactionType
     Deposit,         // Đặt cọc booking  
     FullPayment,     // Thanh toán toàn bộ  
     WalletTopup,     // Nạp ví  
+    Refund
 }

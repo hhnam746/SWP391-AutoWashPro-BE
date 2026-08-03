@@ -79,6 +79,18 @@ public class Request
         public DateOnly ToDate { get; set; }
     }
 
+    public class GetWalletTopupTransactionsRequest
+    {
+        public int PageIndex { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
+        public string? Keyword { get; set; }
+        public TransactionStatus? Status { get; set; }
+        public DateTimeOffset? FromDate { get; set; }
+        public DateTimeOffset? ToDate { get; set; }
+        public decimal? MinAmount { get; set; }
+        public decimal? MaxAmount { get; set; }
+    }
+
     public class CompleteBookingByAdminRequest
     {
         public string? Note { get; set; }
