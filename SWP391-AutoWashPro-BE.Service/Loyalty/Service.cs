@@ -203,7 +203,7 @@ public class Service : IService
 
         if (config == null)
         {
-            throw new Exception("Config not found");
+            throw new InvalidOperationException("Config not found");
         }
 
         var configValue = request.ConfigValue.ValueKind switch
@@ -215,7 +215,7 @@ public class Service : IService
 
         if (string.IsNullOrWhiteSpace(configValue))
         {
-            throw new Exception("Config value must be a string or number");
+            throw new InvalidOperationException("Config value must be a string or number");
         }
 
         config.ConfigValue = configValue;

@@ -69,12 +69,12 @@ public class Service : IService
 
         if (workingStartHourConfig == null)
         {
-            throw new Exception("WorkingStartHour config not found");
+            throw new InvalidOperationException("WorkingStartHour config not found");
         }
 
         if (!int.TryParse(workingStartHourConfig.ConfigValue, out var workingStartHour))
         {
-            throw new Exception("Invalid WorkingStartHour config value");
+            throw new InvalidOperationException("Invalid WorkingStartHour config value");
         }
 
         WorkingStartHour = workingStartHour;
@@ -84,32 +84,32 @@ public class Service : IService
 
         if (workingEndHourConfig == null)
         {
-            throw new Exception("WorkingEndHour config not found");
+            throw new InvalidOperationException("WorkingEndHour config not found");
         }
 
         if (!int.TryParse(workingEndHourConfig.ConfigValue, out var workingEndHour))
         {
-            throw new Exception("Invalid WorkingEndHour config value");
+            throw new InvalidOperationException("Invalid WorkingEndHour config value");
         }
 
         WorkingEndHour = workingEndHour;
 
         var slotDurationConfig = await _dbContext.SystemConfigs
                                      .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
-                                 ?? throw new Exception("SlotDurationMinutes config not found");
+                                 ?? throw new InvalidOperationException("SlotDurationMinutes config not found");
 
         if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
         {
-            throw new Exception("Invalid SlotDurationMinutes config value");
+            throw new InvalidOperationException("Invalid SlotDurationMinutes config value");
         }
 
         var slotBreakConfig = await _dbContext.SystemConfigs
                                   .FirstOrDefaultAsync(x => x.ConfigKey == "SlotBreakMinutes")
-                              ?? throw new Exception("SlotBreakMinutes config not found");
+                              ?? throw new InvalidOperationException("SlotBreakMinutes config not found");
 
         if (!int.TryParse(slotBreakConfig.ConfigValue, out SlotBreakMinutes))
         {
-            throw new Exception("Invalid SlotBreakMinutes config value");
+            throw new InvalidOperationException("Invalid SlotBreakMinutes config value");
         }
 
         var slots = new List<Response.SlotStatus>();
@@ -190,12 +190,12 @@ public class Service : IService
 
         if (workingStartHourConfig == null)
         {
-            throw new Exception("WorkingStartHour config not found");
+            throw new InvalidOperationException("WorkingStartHour config not found");
         }
 
         if (!int.TryParse(workingStartHourConfig.ConfigValue, out var workingStartHour))
         {
-            throw new Exception("Invalid WorkingStartHour config value");
+            throw new InvalidOperationException("Invalid WorkingStartHour config value");
         }
 
         WorkingStartHour = workingStartHour;
@@ -205,32 +205,32 @@ public class Service : IService
 
         if (workingEndHourConfig == null)
         {
-            throw new Exception("WorkingEndHour config not found");
+            throw new InvalidOperationException("WorkingEndHour config not found");
         }
 
         if (!int.TryParse(workingEndHourConfig.ConfigValue, out var workingEndHour))
         {
-            throw new Exception("Invalid WorkingEndHour config value");
+            throw new InvalidOperationException("Invalid WorkingEndHour config value");
         }
 
         WorkingEndHour = workingEndHour;
 
         var slotDurationConfig = await _dbContext.SystemConfigs
                                      .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
-                                 ?? throw new Exception("SlotDurationMinutes config not found");
+                                 ?? throw new InvalidOperationException("SlotDurationMinutes config not found");
 
         if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
         {
-            throw new Exception("Invalid SlotDurationMinutes config value");
+            throw new InvalidOperationException("Invalid SlotDurationMinutes config value");
         }
 
         var slotBreakConfig = await _dbContext.SystemConfigs
                                   .FirstOrDefaultAsync(x => x.ConfigKey == "SlotBreakMinutes")
-                              ?? throw new Exception("SlotBreakMinutes config not found");
+                              ?? throw new InvalidOperationException("SlotBreakMinutes config not found");
 
         if (!int.TryParse(slotBreakConfig.ConfigValue, out SlotBreakMinutes))
         {
-            throw new Exception("Invalid SlotBreakMinutes config value");
+            throw new InvalidOperationException("Invalid SlotBreakMinutes config value");
         }
 
         /////////////// Base Price Config /////////////
@@ -239,12 +239,12 @@ public class Service : IService
 
         if (basePriceConfig == null)
         {
-            throw new Exception("BasePrice config not found");
+            throw new InvalidOperationException("BasePrice config not found");
         }
 
         if (!decimal.TryParse(basePriceConfig.ConfigValue, out var basePrice))
         {
-            throw new Exception("Invalid BasePrice config value");
+            throw new InvalidOperationException("Invalid BasePrice config value");
         }
 
         ///////////////////////////////// Sedan /////////////////////////////////////////////// 
@@ -254,12 +254,12 @@ public class Service : IService
 
         if (SedanBaseConfig == null)
         {
-            throw new Exception("SedanBasePrice config not found");
+            throw new InvalidOperationException("SedanBasePrice config not found");
         }
 
         if (!decimal.TryParse(SedanBaseConfig.ConfigValue, out var SedanBasePrice))
         {
-            throw new Exception("Invalid SedanBasePrice config value");
+            throw new InvalidOperationException("Invalid SedanBasePrice config value");
         }
 
 
@@ -269,12 +269,12 @@ public class Service : IService
 
         if (SuvBaseConfig == null)
         {
-            throw new Exception("SuvBasePrice config not found");
+            throw new InvalidOperationException("SuvBasePrice config not found");
         }
 
         if (!decimal.TryParse(SuvBaseConfig.ConfigValue, out var SuvBasePrice))
         {
-            throw new Exception("Invalid SuvBasePrice config value");
+            throw new InvalidOperationException("Invalid SuvBasePrice config value");
         }
 
         var vehicle = await _dbContext.Vehicles
@@ -377,12 +377,12 @@ public class Service : IService
         var proximityWarningConfig = await _dbContext.SystemConfigs
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.ConfigKey == BookingProximityWarningConfigKey)
-            ?? throw new Exception($"{BookingProximityWarningConfigKey} config not found");
+            ?? throw new InvalidOperationException($"{BookingProximityWarningConfigKey} config not found");
 
         if (!int.TryParse(proximityWarningConfig.ConfigValue, out var proximityWarningMinutes) ||
             proximityWarningMinutes < 0)
         {
-            throw new Exception($"Invalid {BookingProximityWarningConfigKey} config value");
+            throw new InvalidOperationException($"Invalid {BookingProximityWarningConfigKey} config value");
         }
 
         var activeBookingStatuses = new[]
@@ -597,13 +597,13 @@ public class Service : IService
             var redeemPointValueConfig = await _dbContext.SystemConfigs
                                              .FirstOrDefaultAsync(x =>
                                                  x.ConfigKey == RedeemPointValueConfigKey)
-                                         ?? throw new Exception(
+                                        ?? throw new InvalidOperationException(
                                              $"{RedeemPointValueConfigKey} config not found");
 
             if (!int.TryParse(redeemPointValueConfig.ConfigValue, out var redeemPointValue) ||
                 redeemPointValue <= 0)
             {
-                throw new Exception(
+                throw new InvalidOperationException(
                     $"Invalid {RedeemPointValueConfigKey} config value");
             }
 
@@ -639,11 +639,11 @@ public class Service : IService
 
         var paymentDepositeConfig = await _dbContext.SystemConfigs
                                         .FirstOrDefaultAsync(x => x.ConfigKey == "PaymentDeposite")
-                                    ?? throw new Exception("PaymentDeposite config not found");
+                                    ?? throw new InvalidOperationException("PaymentDeposite config not found");
 
         if (!decimal.TryParse(paymentDepositeConfig.ConfigValue, out var paymentDeposite))
         {
-            throw new Exception("Invalid PaymentDeposite config value");
+            throw new InvalidOperationException("Invalid PaymentDeposite config value");
         }
 
         if (wallet.Balance - finalPrice * (paymentDeposite / 100) < 0)
@@ -1327,12 +1327,12 @@ public class Service : IService
     {
         var cancelTimeConfig = await _dbContext.SystemConfigs
                                    .FirstOrDefaultAsync(x => x.ConfigKey == "CancelTimeMinutes")
-                               ?? throw new Exception("CancelTimeMinutes config not found");
+                               ?? throw new InvalidOperationException("CancelTimeMinutes config not found");
 
         if (!int.TryParse(cancelTimeConfig.ConfigValue, out var cancelTimeMinutes) ||
             cancelTimeMinutes < 0)
         {
-            throw new Exception("Invalid CancelTimeMinutes config value");
+            throw new InvalidOperationException("Invalid CancelTimeMinutes config value");
         }
         var now = DateTimeOffset.UtcNow;
         var latestCheckInTime = booking.StartTime.AddMinutes(cancelTimeMinutes);
@@ -1375,11 +1375,11 @@ public class Service : IService
 
         var paymentDepositeConfig = await _dbContext.SystemConfigs
                                         .FirstOrDefaultAsync(x => x.ConfigKey == "PaymentDeposite")
-                                    ?? throw new Exception("PaymentDeposite config not found");
+                                    ?? throw new InvalidOperationException("PaymentDeposite config not found");
 
         if (!decimal.TryParse(paymentDepositeConfig.ConfigValue, out var paymentDeposite))
         {
-            throw new Exception("Invalid PaymentDeposite config value");
+            throw new InvalidOperationException("Invalid PaymentDeposite config value");
         }
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -1442,11 +1442,11 @@ public class Service : IService
 
             var bonusPointConfig = await _dbContext.SystemConfigs
                                        .FirstOrDefaultAsync(x => x.ConfigKey == "BonusPoint")
-                                   ?? throw new Exception("BonusPoint config not found");
+                                   ?? throw new InvalidOperationException("BonusPoint config not found");
 
             if (!int.TryParse(bonusPointConfig.ConfigValue, out var bonusPoint))
             {
-                throw new Exception("Invalid BonusPoint config value");
+                throw new InvalidOperationException("Invalid BonusPoint config value");
             }
 
             customerProfile.TotalWashes += 1;
@@ -1649,14 +1649,14 @@ public class Service : IService
 
         var cancellationConfig = await _dbContext.SystemConfigs
                                      .FirstOrDefaultAsync(x => x.ConfigKey == "CancellationDeadlineHours")
-                                 ?? throw new Exception("CancellationDeadlineHours config not found");
+                                 ?? throw new InvalidOperationException("CancellationDeadlineHours config not found");
 
         if (!int.TryParse(
                 cancellationConfig.ConfigValue,
                 out var cancellationDeadlineHours) ||
             cancellationDeadlineHours < 0)
         {
-            throw new Exception("Invalid CancellationDeadlineHours config value");
+            throw new InvalidOperationException("Invalid CancellationDeadlineHours config value");
         }
 
         var now = DateTimeOffset.UtcNow;
@@ -1696,7 +1696,7 @@ public class Service : IService
 
             if (wallet == null)
             {
-                throw new Exception("Wallet not found");
+                throw new InvalidOperationException("Wallet not found");
             }
 
             var walletBalanceBefore = wallet.Balance;

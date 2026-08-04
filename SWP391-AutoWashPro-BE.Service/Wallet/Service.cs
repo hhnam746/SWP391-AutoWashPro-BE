@@ -107,7 +107,7 @@ public class Service : IService
 
         if (user == null)
         {
-            throw new Exception("User not found");
+            throw new InvalidOperationException("User not found");
         }
 
         var customerProfileQuery = _dbContext.CustomerProfiles
@@ -118,7 +118,7 @@ public class Service : IService
 
         if (customerProfile == null)
         {
-            throw new Exception("Customer profile not found");
+            throw new InvalidOperationException("Customer profile not found");
         }
 
         var walletQuery = _dbContext.Wallets
@@ -129,7 +129,7 @@ public class Service : IService
 
         if (wallet == null)
         {
-            throw new Exception("Wallet not found");
+            throw new InvalidOperationException("Wallet not found");
         }
 
         var result = new Response.GetWalleResponse
@@ -159,7 +159,7 @@ public class Service : IService
 
         if (user == null)
         {
-            throw new Exception("User not found");
+            throw new InvalidOperationException("User not found");
         }
 
         var customerProfileQuery = _dbContext.CustomerProfiles
@@ -170,7 +170,7 @@ public class Service : IService
 
         if (customerProfile == null)
         {
-            throw new Exception("Customer profile not found");
+            throw new InvalidOperationException("Customer profile not found");
         }
 
         var walletQuery = _dbContext.Wallets
@@ -181,17 +181,17 @@ public class Service : IService
 
         if (wallet == null)
         {
-            throw new Exception("Wallet not found");
+            throw new InvalidOperationException("Wallet not found");
         }
 
         if (string.IsNullOrWhiteSpace(_sePayOptions.BankName))
         {
-            throw new Exception("SePay BankName is not configured.");
+            throw new InvalidOperationException("SePay BankName is not configured.");
         }
 
         if (string.IsNullOrWhiteSpace(_sePayOptions.BankAccount))
         {
-            throw new Exception("SePay BankAccount is not configured.");
+            throw new InvalidOperationException("SePay BankAccount is not configured.");
         }
 
         var transferContentPrefix = string.IsNullOrWhiteSpace(_sePayOptions.TransferContentPrefix)
