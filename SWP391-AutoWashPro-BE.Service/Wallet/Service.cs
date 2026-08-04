@@ -197,8 +197,11 @@ public class Service : IService
         var transferContentPrefix = string.IsNullOrWhiteSpace(_sePayOptions.TransferContentPrefix)
             ? "TOPUP"
             : _sePayOptions.TransferContentPrefix.Trim().ToUpperInvariant();
+        var qrBaseUrl = string.IsNullOrWhiteSpace(_sePayOptions.QrBaseUrl)
+            ? "https://vietqr.app/img"
+            : _sePayOptions.QrBaseUrl.Trim();
         var qrTemplate = string.IsNullOrWhiteSpace(_sePayOptions.QrTemplate)
-            ? "qronly"
+            ? "compact"
             : _sePayOptions.QrTemplate.Trim();
         var referenceCode = $"{transferContentPrefix}-{Guid.NewGuid():N}";
 
@@ -227,12 +230,19 @@ public class Service : IService
         await _dbContext.Transactions.AddAsync(topUpTransaction);
         await _dbContext.SaveChangesAsync();
 
-        var qrCode = $"https://qr.sepay.vn/img?" +
-                     $"acc={_sePayOptions.BankAccount}&" +
-                     $"bank={_sePayOptions.BankName}&" +
+        var qrCode = $"{qrBaseUrl}?" +
+                     $"bank={Uri.EscapeDataString(_sePayOptions.BankName)}&" +
+                     $"acc={Uri.EscapeDataString(_sePayOptions.BankAccount)}&" +
                      $"amount={(int)request.Balance}&" +
                      $"des={Uri.EscapeDataString(referenceCode)}&" +
-                     $"template={Uri.EscapeDataString(qrTemplate)}";
+                     $"template={Uri.EscapeDataString(qrTemplate)}&" +
+                     $"showinfo={_sePayOptions.QrShowInfo.ToString().ToLowerInvariant()}";
+
+        if (_sePayOptions.IncludeAccountHolderInQr &&
+            !string.IsNullOrWhiteSpace(_sePayOptions.AccountHolder))
+        {
+            qrCode += $"&holder={Uri.EscapeDataString(_sePayOptions.AccountHolder.Trim())}";
+        }
 
         var result = new Response.WalletTopupV2Response
         {
