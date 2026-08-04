@@ -1597,16 +1597,6 @@ public class Service : IService
         Guid Id,
         Request.CancelBookingRequest bookingRequest)
     {
-        if (bookingRequest == null)
-        {
-            throw new ArgumentException("Request body is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(bookingRequest.Reason))
-        {
-            throw new ArgumentException("Reason is required.");
-        }
-
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
         var user = await _dbContext.Users
@@ -1660,12 +1650,14 @@ public class Service : IService
         }
 
         var now = DateTimeOffset.UtcNow;
-        var totalPaidAmount = await RefundWorkflow.GetTotalPaidAmountAsync(_dbContext, booking.Id);
-        var refundDecision = RefundWorkflow.CalculateCustomerCancellationRefund(
-            now,
-            booking.StartTime,
-            cancellationDeadlineHours,
-            totalPaidAmount);
+        var cancellationDeadline =
+            booking.StartTime.AddHours(-cancellationDeadlineHours);
+
+        if (now >= cancellationDeadline)
+        {
+            throw new Exception(
+                $"Booking must be cancelled at least {cancellationDeadlineHours} hours before the start time.");
+        }
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync();
         booking.Status = BookingStatus.Cancelled;
@@ -1680,43 +1672,8 @@ public class Service : IService
                 now);
         }
 
-        Guid? refundTransactionId = null;
-        if (refundDecision.RefundApplied)
-        {
-            var wallet = await _dbContext.Wallets
-                .FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
-
-            if (wallet == null)
-            {
-                throw new Exception("Wallet not found");
-            }
-
-            var walletBalanceBefore = wallet.Balance;
-            var walletBalanceAfter = walletBalanceBefore + refundDecision.RefundAmount;
-
-            wallet.Balance = walletBalanceAfter;
-            wallet.UpdatedAt = now;
-
-            var refundTransaction = RefundWorkflow.CreateRefundTransaction(
-                booking,
-                customerProfile.Id,
-                refundDecision.RefundAmount,
-                refundDecision.ReasonCode,
-                $"Refund for booking cancellation: {bookingRequest.Reason.Trim()}",
-                walletBalanceBefore,
-                walletBalanceAfter,
-                now);
-
-            refundTransactionId = refundTransaction.Id;
-            _dbContext.Transactions.Add(refundTransaction);
-        }
-
         var branch = await _dbContext.Branches
             .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
-
-        var refundMessage = refundDecision.RefundApplied
-            ? $" Refund amount: {refundDecision.RefundAmount:N0} VND has been returned to your wallet."
-            : " No refund was applied because the cancellation deadline has passed.";
 
         var notification = new Repository.Entities.Notification()
         {
@@ -1727,7 +1684,7 @@ public class Service : IService
             Content =
                 $"Your booking at {branch?.Name ?? "our branch"} " +
                 $"for {booking.StartTime.ToOffset(DefaultUtcOffset):HH:mm dd/MM/yyyy} " +
-                $"has been cancelled successfully.{refundMessage}",
+                $"has been cancelled successfully.",
             IsRead = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
@@ -1750,13 +1707,7 @@ public class Service : IService
             Id = booking.Id,
             Status = booking.Status,
             CancelledAt = (booking.CancelledAt ?? DateTimeOffset.UtcNow).ToOffset(DefaultUtcOffset),
-            RefundApplied = refundDecision.RefundApplied,
-            RefundAmount = refundDecision.RefundAmount,
-            RefundTransactionId = refundTransactionId,
-            RefundReasonCode = refundDecision.ReasonCode,
-            Message = refundDecision.RefundApplied
-                ? "Booking cancelled successfully and refund applied"
-                : "Booking cancelled successfully",
+            Message = "Booking cancelled successfully",
         };
 
         return result;
