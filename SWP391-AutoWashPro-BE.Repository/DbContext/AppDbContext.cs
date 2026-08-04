@@ -248,6 +248,7 @@ public class AppDbContext : DbContext
         TransactionType.Deposit => "deposit",
         TransactionType.FullPayment => "full_payment",
         TransactionType.WalletTopup => "wallet_topup",
+        TransactionType.Refund => "refund",
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 
@@ -256,6 +257,7 @@ public class AppDbContext : DbContext
         "deposit" => TransactionType.Deposit,
         "full_payment" => TransactionType.FullPayment,
         "wallet_topup" => TransactionType.WalletTopup,
+        "refund" => TransactionType.Refund,
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null)
     };
 

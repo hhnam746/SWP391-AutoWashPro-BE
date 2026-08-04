@@ -40,7 +40,7 @@ public class GoogleAiStudioService
     {
         if (string.IsNullOrWhiteSpace(_options.ApiKey))
         {
-            throw new Exception("Google AI Studio API key is not configured.");
+            throw new InvalidOperationException("Google AI Studio API key is not configured.");
         }
 
         var attemptedModels = BuildModelCandidates();
@@ -98,7 +98,7 @@ public class GoogleAiStudioService
 
                 if (string.IsNullOrWhiteSpace(content))
                 {
-                    throw new Exception("Google AI Studio returned an empty response.");
+                    throw new InvalidOperationException("Google AI Studio returned an empty response.");
                 }
 
                 return content.Trim();
@@ -107,14 +107,14 @@ public class GoogleAiStudioService
             var isTransient = response.StatusCode is HttpStatusCode.ServiceUnavailable or (HttpStatusCode)429;
             if (!isTransient || attempt == maxAttempts)
             {
-                throw new Exception(
+                throw new InvalidOperationException(
                     $"Google AI Studio request failed for model '{model}' with status {(int)response.StatusCode}: {payload}");
             }
 
             await Task.Delay(delayMs * attempt, cancellationToken);
         }
 
-        throw new Exception($"Google AI Studio request failed for model '{model}' after retry attempts.");
+        throw new InvalidOperationException($"Google AI Studio request failed for model '{model}' after retry attempts.");
     }
 
     private HttpRequestMessage CreateRequest(string model, string prompt)

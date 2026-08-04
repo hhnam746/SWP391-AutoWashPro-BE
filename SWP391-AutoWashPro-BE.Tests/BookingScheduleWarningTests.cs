@@ -109,7 +109,7 @@ public class BookingScheduleWarningTests
             redeemPoint: true,
             totalPoints: 15);
 
-        var exception = await Assert.ThrowsAsync<Exception>(
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => fixture.Service.CreateBooking(fixture.Request));
 
         Assert.Equal("RedeemPointValue config not found", exception.Message);
@@ -129,7 +129,7 @@ public class BookingScheduleWarningTests
             includeRedeemPointValueConfig: true,
             redeemPointValue: configuredValue);
 
-        var exception = await Assert.ThrowsAsync<Exception>(
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => fixture.Service.CreateBooking(fixture.Request));
 
         Assert.Equal("Invalid RedeemPointValue config value", exception.Message);
