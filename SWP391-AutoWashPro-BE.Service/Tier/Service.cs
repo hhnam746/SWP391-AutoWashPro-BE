@@ -57,7 +57,7 @@ public class Service: IService
 
         if (exist)
         {
-            throw new InvalidOperationException("Tier already exists");
+            throw new Exception("Tier already exists");
         }
 
         var newTier = new Repository.Entities.Tier
@@ -85,7 +85,7 @@ public class Service: IService
 
         if (exist)
         {
-            throw new InvalidOperationException("Tier already exists");
+            throw new Exception("Tier already exists");
         }
         
         var tier = await _dbContext.Tiers
