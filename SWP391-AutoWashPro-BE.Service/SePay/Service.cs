@@ -95,17 +95,25 @@ public class Service : IService
             .Where(transaction =>
                 transaction.Type == TransactionType.WalletTopup &&
                 transaction.Status == TransactionStatus.Pending &&
-                transaction.ReferenceCode == normalizedContent);
+                transaction.Amount == request.TransferAmount &&
+                transaction.ReferenceCode != null);
 
-        var pendingTransaction = await pendingTransactionQuery
-            .FirstOrDefaultAsync();
+        var pendingTransactions = await pendingTransactionQuery
+            .ToListAsync();
+
+        var pendingTransaction = pendingTransactions
+            .FirstOrDefault(transaction => IsWebhookReferenceMatch(
+                transaction.ReferenceCode!,
+                normalizedContent,
+                request.Description));
 
         if (pendingTransaction == null)
         {
             _logger.LogWarning(
-                "Ignored SePay webhook because no pending wallet top-up was found for ReferenceCode={ReferenceCode}. WebhookId={WebhookId}.",
+                "Ignored SePay webhook because no pending wallet top-up was found for ReferenceCode={ReferenceCode}. WebhookId={WebhookId}. Description={Description}.",
                 normalizedContent,
-                request.Id);
+                request.Id,
+                request.Description);
 
             return new Response.SePayWebhookResponse
             {
@@ -194,5 +202,56 @@ public class Service : IService
             Message = "Webhook processed successfully.",
             TransactionId = pendingTransaction.Id
         };
+    }
+
+    private static bool IsWebhookReferenceMatch(
+        string referenceCode,
+        string content,
+        string? description)
+    {
+        if (string.IsNullOrWhiteSpace(referenceCode))
+        {
+            return false;
+        }
+
+        if (ContainsReference(content, referenceCode))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(description) &&
+               ContainsReference(description, referenceCode);
+    }
+
+    private static bool ContainsReference(string source, string referenceCode)
+    {
+        if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(referenceCode))
+        {
+            return false;
+        }
+
+        var normalizedSource = NormalizeReferenceText(source);
+        var normalizedReference = NormalizeReferenceText(referenceCode);
+
+        return normalizedSource.Contains(normalizedReference, StringComparison.Ordinal);
+    }
+
+    private static string NormalizeReferenceText(string value)
+    {
+        var buffer = new char[value.Length];
+        var length = 0;
+
+        foreach (var character in value)
+        {
+            if (!char.IsLetterOrDigit(character))
+            {
+                continue;
+            }
+
+            buffer[length] = char.ToUpperInvariant(character);
+            length++;
+        }
+
+        return new string(buffer, 0, length);
     }
 }
