@@ -7,6 +7,7 @@ using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.Base;
 using BookingService = SWP391_AutoWashPro_BE.Service.Booking;
+using RefundWorkflow = SWP391_AutoWashPro_BE.Service.Booking.RefundWorkflow;
 using VoucherLifecycle = SWP391_AutoWashPro_BE.Service.Voucher.Lifecycle;
 
 namespace SWP391_AutoWashPro_BE.Service.Admin;
@@ -774,6 +775,9 @@ public class Service : IService
         }
 
         var now = DateTimeOffset.UtcNow;
+        var totalPaidAmount = await RefundWorkflow.GetTotalPaidAmountAsync(_dbContext, booking.Id);
+        var refundDecision = RefundWorkflow.CalculateAdminCancellationRefund(totalPaidAmount);
+
         await using var transaction = await _dbContext.Database.BeginTransactionAsync();
         booking.Status = BookingStatus.Cancelled;
         booking.CancelledAt = now;
@@ -787,13 +791,46 @@ public class Service : IService
                 now);
         }
 
+        Guid? refundTransactionId = null;
+        if (refundDecision.RefundApplied)
+        {
+            var wallet = await _dbContext.Wallets
+                .FirstOrDefaultAsync(x => x.CustomerId == booking.CustomerId);
+
+            if (wallet == null)
+            {
+                throw new KeyNotFoundException("Wallet not found.");
+            }
+
+            var walletBalanceBefore = wallet.Balance;
+            var walletBalanceAfter = walletBalanceBefore + refundDecision.RefundAmount;
+
+            wallet.Balance = walletBalanceAfter;
+            wallet.UpdatedAt = now;
+
+            var refundTransaction = RefundWorkflow.CreateRefundTransaction(
+                booking,
+                booking.CustomerId,
+                refundDecision.RefundAmount,
+                refundDecision.ReasonCode,
+                $"Refund for admin booking cancellation: {request.Reason.Trim()}",
+                walletBalanceBefore,
+                walletBalanceAfter,
+                now);
+
+            refundTransactionId = refundTransaction.Id;
+            _dbContext.Transactions.Add(refundTransaction);
+        }
+
         _dbContext.Notifications.Add(new Repository.Entities.Notification
         {
             Id = Guid.NewGuid(),
             UserId = booking.Customer.UserId,
             Type = NotificationType.BookingCancelled,
             Title = "Booking Cancelled",
-            Content = $"Your booking at {booking.Branch.Name} has been cancelled. Reason: {request.Reason.Trim()}",
+            Content = refundDecision.RefundApplied
+                ? $"Your booking at {booking.Branch.Name} has been cancelled. Reason: {request.Reason.Trim()}. Refund amount: {refundDecision.RefundAmount:N0} VND has been returned to your wallet."
+                : $"Your booking at {booking.Branch.Name} has been cancelled. Reason: {request.Reason.Trim()}",
             IsRead = false,
             CreatedAt = now
         });
@@ -806,7 +843,13 @@ public class Service : IService
             Id = booking.Id,
             Status = booking.Status.ToString(),
             CancelledAt = booking.CancelledAt.Value,
-            Message = "Booking cancelled"
+            RefundApplied = refundDecision.RefundApplied,
+            RefundAmount = refundDecision.RefundAmount,
+            RefundTransactionId = refundTransactionId,
+            RefundReasonCode = refundDecision.ReasonCode,
+            Message = refundDecision.RefundApplied
+                ? "Booking cancelled and refund applied"
+                : "Booking cancelled"
         };
     }
 
