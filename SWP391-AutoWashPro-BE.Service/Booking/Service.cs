@@ -56,7 +56,7 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new InvalidOperationException("User not found");
+            throw new Exception("User not found");
 
         var bookings = await _dbContext.Bookings
             .Where(x =>
@@ -170,12 +170,12 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new InvalidOperationException("User not found");
+            throw new Exception("User not found");
         var customerProfile = await _dbContext.CustomerProfiles
             .Include(x => x.Tier)
             .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
         if (customerProfile == null)
-            throw new InvalidOperationException("Customer profile not found");
+            throw new Exception("Customer profile not found");
 
         // var hasActiveBooking = await _dbContext.Bookings.AnyAsync(x =>
         //     x.VehicleId == bookingRequest.VehicleId &&
@@ -282,7 +282,7 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == bookingRequest.VehicleId);
         if (vehicle == null)
         {
-            throw new InvalidOperationException("Vehicle not found");
+            throw new Exception("Vehicle not found");
         }
 
         if (vehicle.VehicleType.TypeName == VehicleTypes.Sedan)
@@ -298,13 +298,13 @@ public class Service : IService
 
         if (bookingLocalStartTime <= DateTimeOffset.UtcNow)
         {
-            throw new InvalidOperationException("Cannot book past time");
+            throw new Exception("Cannot book past time");
         }
 
         var bookingLocalDate = DateOnly.FromDateTime(bookingLocalStartTime.DateTime);
         if (bookingLocalDate != bookingRequest.BookingDate)
         {
-            throw new InvalidOperationException("BookingDate must match StartTime date.");
+            throw new Exception("BookingDate must match StartTime date.");
         }
 
         var localStartTimeOnly = TimeOnly.FromDateTime(bookingLocalStartTime.DateTime);
@@ -313,12 +313,12 @@ public class Service : IService
 
         if (localStartTimeOnly < workingStart || localStartTimeOnly >= workingEnd)
         {
-            throw new InvalidOperationException($"StartTime must be within working hours ({workingStart}-{workingEnd}).");
+            throw new Exception($"StartTime must be within working hours ({workingStart}-{workingEnd}).");
         }
 
         if (bookingLocalStartTime.Second != 0 || bookingLocalStartTime.Millisecond != 0)
         {
-            throw new InvalidOperationException("StartTime must be aligned to exact minute boundaries.");
+            throw new Exception("StartTime must be aligned to exact minute boundaries.");
         }
 
         var currentTime = new DateTimeOffset(
@@ -359,7 +359,7 @@ public class Service : IService
 
         if (!validSlotStart.HasValue || !validSlotEnd.HasValue)
         {
-            throw new InvalidOperationException("StartTime must match a configured booking slot.");
+            throw new Exception("StartTime must match a configured booking slot.");
         }
 
         var utcStartTime = bookingLocalStartTime.ToUniversalTime();
@@ -371,7 +371,7 @@ public class Service : IService
                                                   && x.Status != BookingStatus.Cancelled);
         if (isBooked)
         {
-            throw new InvalidOperationException("Slot already booked");
+            throw new Exception("Slot already booked");
         }
 
         var proximityWarningConfig = await _dbContext.SystemConfigs
@@ -473,7 +473,7 @@ public class Service : IService
         var canBooked = bookingLocalStartTime - DateTimeOffset.UtcNow;
         if ((int)canBooked.TotalDays > customerProfile.Tier.PriorityBookingDays)
         {
-            throw new InvalidOperationException("Your rank is not enough for this booked");
+            throw new Exception("Your rank is not enough for this booked");
         }
 
         //Discount Voucher
@@ -634,7 +634,7 @@ public class Service : IService
         var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
         if (wallet == null)
         {
-            throw new InvalidOperationException("Wallet not exists");
+            throw new Exception("Wallet not exists");
         }
 
         var paymentDepositeConfig = await _dbContext.SystemConfigs
@@ -648,7 +648,7 @@ public class Service : IService
 
         if (wallet.Balance - finalPrice * (paymentDeposite / 100) < 0)
         {
-            throw new InvalidOperationException("Not enough balance");
+            throw new Exception("Not enough balance");
         }
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync();
@@ -912,10 +912,10 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new InvalidOperationException("User not found");
+            throw new Exception("User not found");
         var customerProfile = await _dbContext.CustomerProfiles.FirstOrDefaultAsync(x => x.UserId == userIdGuid);
         if (customerProfile == null)
-            throw new InvalidOperationException("Customer profile not found");
+            throw new Exception("Customer profile not found");
 
         var query = _dbContext.Bookings.Where(x => x.CustomerId == customerProfile.Id);
         if (status.HasValue)
@@ -998,7 +998,7 @@ public class Service : IService
 
         if (user == null)
         {
-            throw new InvalidOperationException("User not found");
+            throw new Exception("User not found");
         }
 
         var customerProfile = await _dbContext.CustomerProfiles
@@ -1006,7 +1006,7 @@ public class Service : IService
 
         if (customerProfile == null)
         {
-            throw new InvalidOperationException("Customer profile not found");
+            throw new Exception("Customer profile not found");
         }
 
         var requestedFilters = hasBranchHint || hasLicensePlateHint || hasStatusHint || bookingDate.HasValue;
@@ -1135,12 +1135,12 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new InvalidOperationException("User not found");
+            throw new Exception("User not found");
         var customerProfile = await _dbContext.CustomerProfiles
             .Include(x => x.Tier)
             .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
         if (customerProfile == null)
-            throw new InvalidOperationException("Customer profile not found");
+            throw new Exception("Customer profile not found");
         var query = await _dbContext.Bookings
             .Include(x => x.Branch)
             .Include(x => x.Vehicle)
@@ -1150,7 +1150,7 @@ public class Service : IService
                 x.Id == bookingId);
         if (query == null)
         {
-            throw new InvalidOperationException("Booking not found");
+            throw new Exception("Booking not found");
         }
 
         var Voucher = query.Voucher == null
@@ -1259,13 +1259,13 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new InvalidOperationException("User not found");
+            throw new Exception("User not found");
 
         var customerProfile = await _dbContext.CustomerProfiles
             .Include(x => x.Tier)
             .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
         if (customerProfile == null)
-            throw new InvalidOperationException("Customer profile not found");
+            throw new Exception("Customer profile not found");
 
         var booking = await _dbContext.Bookings
             .FirstOrDefaultAsync(x =>
@@ -1275,7 +1275,7 @@ public class Service : IService
 
         if (booking == null)
         {
-            throw new InvalidOperationException(
+            throw new Exception(
                 "Booking not found, does not belong to the current customer, or is no longer confirmed.");
         }
 
@@ -1339,12 +1339,12 @@ public class Service : IService
 
         if (now < booking.StartTime)
         {
-            throw new InvalidOperationException("Check-in is not available before the booking start time.");
+            throw new Exception("Check-in is not available before the booking start time.");
         }
 
         if (now > latestCheckInTime)
         {
-            throw new InvalidOperationException("Check-in time has expired.");
+            throw new Exception("Check-in time has expired.");
         }
         var msg = "";
         Guid? upgradedTierId = null;
@@ -1370,7 +1370,7 @@ public class Service : IService
 
         if (wallet == null)
         {
-            throw new InvalidOperationException("Wallet not found");
+            throw new Exception("Wallet not found");
         }
 
         var paymentDepositeConfig = await _dbContext.SystemConfigs
@@ -1604,12 +1604,12 @@ public class Service : IService
 
         if (user == null)
         {
-            throw new InvalidOperationException("User not found");
+            throw new Exception("User not found");
         }
 
         var customerProfile = await _dbContext.CustomerProfiles
                                   .FirstOrDefaultAsync(x => x.UserId == userIdGuid)
-                              ?? throw new InvalidOperationException("Customer profile not found");
+                              ?? throw new Exception("Customer profile not found");
 
         var booking = await _dbContext.Bookings
             .FirstOrDefaultAsync(x =>
@@ -1617,24 +1617,24 @@ public class Service : IService
                 x.CustomerId == customerProfile.Id);
         if (booking == null)
         {
-            throw new InvalidOperationException("Booking not found");
+            throw new Exception("Booking not found");
         }
         
 
         if (booking.Status == BookingStatus.Cancelled)
         {
-            throw new InvalidOperationException("Booking has already been cancelled");
+            throw new Exception("Booking has already been cancelled");
         }
 
         if (booking.Status == BookingStatus.InProgress ||
             booking.Status == BookingStatus.Completed)
         {
-            throw new InvalidOperationException("This booking cannot be cancelled");
+            throw new Exception("This booking cannot be cancelled");
         }
 
         if (booking.Status != BookingStatus.Confirmed)
         {
-            throw new InvalidOperationException("Only confirmed bookings can be cancelled");
+            throw new Exception("Only confirmed bookings can be cancelled");
         }
 
         var cancellationConfig = await _dbContext.SystemConfigs
@@ -1655,15 +1655,6 @@ public class Service : IService
 
         if (now >= cancellationDeadline)
         {
-            throw new InvalidOperationException(
-                $"Booking must be cancelled at least {cancellationDeadlineHours} hours before the start time.");
-        }
-        var totalPaidAmount = await RefundWorkflow.GetTotalPaidAmountAsync(_dbContext, booking.Id);
-        var refundDecision = RefundWorkflow.CalculateCustomerCancellationRefund(
-            now,
-            booking.StartTime,
-            cancellationDeadlineHours,
-            totalPaidAmount);
             throw new Exception(
                 $"Booking must be cancelled at least {cancellationDeadlineHours} hours before the start time.");
         }
