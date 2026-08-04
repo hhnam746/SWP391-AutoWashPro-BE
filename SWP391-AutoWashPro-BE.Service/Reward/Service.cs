@@ -244,7 +244,7 @@ public class Service : IService
 
         if (reward == null)
         {
-            throw new InvalidOperationException("Reward not found");
+            throw new Exception("Reward not found");
         }
 
         reward.IsActive = false;
@@ -263,7 +263,7 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.UserId == userId);
 
         if (customer == null)
-            throw new InvalidOperationException("Customer not found");
+            throw new Exception("Customer not found");
 
         // var reward = await _dbContext.Rewards
         //     .Include(x => x.RewardTiers
@@ -275,16 +275,16 @@ public class Service : IService
             .FirstOrDefaultAsync(r => r.Id == rewardId);
 
         if (reward == null)
-            throw new InvalidOperationException("Reward not found");
+            throw new Exception("Reward not found");
 
         if (!reward.IsActive)
-            throw new InvalidOperationException("Reward is inactive");
+            throw new Exception("Reward is inactive");
 
         if (reward.QuantityAvailable <= 0)
-            throw new InvalidOperationException("Reward out of stock");
+            throw new Exception("Reward out of stock");
 
         if (customer.TotalPoints < reward.PointsRequired)
-            throw new InvalidOperationException("Not enough points");
+            throw new Exception("Not enough points");
 
         var canRedeem = reward.RewardTiers
             .Any(x =>
@@ -293,7 +293,7 @@ public class Service : IService
                 !x.Tier.IsDeleted);
 
         if (!canRedeem)
-            throw new InvalidOperationException("Your tier cannot redeem this reward");
+            throw new Exception("Your tier cannot redeem this reward");
 
         customer.TotalPoints -= reward.PointsRequired;
 
