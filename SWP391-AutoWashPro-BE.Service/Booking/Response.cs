@@ -126,6 +126,10 @@ public class Response
         public required Guid Id { get; set; }
         public required BookingStatus Status { get; set; }
         public required DateTimeOffset CancelledAt { get; set; }
+        public required bool RefundApplied { get; set; }
+        public required decimal RefundAmount { get; set; }
+        public Guid? RefundTransactionId { get; set; }
+        public string? RefundReasonCode { get; set; }
         public required string Message { get; set; }
     }
 
