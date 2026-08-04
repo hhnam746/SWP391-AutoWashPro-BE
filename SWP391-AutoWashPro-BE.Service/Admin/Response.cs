@@ -214,6 +214,22 @@ public class Response
         public int TierUpgradeCount { get; set; }
     }
 
+    public class WalletTopupTransactionItemResponse
+    {
+        public Guid TransactionId { get; set; }
+        public Guid CustomerId { get; set; }
+        public string CustomerName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public TransactionStatus? Status { get; set; }
+        public ProviderType? Provider { get; set; }
+        public string? ReferenceCode { get; set; }
+        public string? ExternalTransactionId { get; set; }
+        public DateTimeOffset? PaidAt { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
+    }
+
     public class TierDistributionItemResponse
     {
         public string TierName { get; set; } = string.Empty;
@@ -234,6 +250,10 @@ public class Response
         public Guid Id { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTimeOffset CancelledAt { get; set; }
+        public bool RefundApplied { get; set; }
+        public decimal RefundAmount { get; set; }
+        public Guid? RefundTransactionId { get; set; }
+        public string? RefundReasonCode { get; set; }
         public string Message { get; set; } = string.Empty;
     }
 }
