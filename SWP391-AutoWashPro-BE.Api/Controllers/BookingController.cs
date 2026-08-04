@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SWP391_AutoWashPro_BE.Api.Extentions;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SWP391_AutoWashPro_BE.Service.Booking;
 
@@ -7,7 +8,7 @@ namespace SWP391_AutoWashPro_BE.Api.Controllers;
 
 [ApiController]
 [Route("/api/v1/bookings/")]
-[Authorize]
+[Authorize(Policy = JwtExtensions.UserPolicy)]
 public class BookingController:ControllerBase
 {
     private readonly IService _service;
