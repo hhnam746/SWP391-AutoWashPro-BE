@@ -26,7 +26,7 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new Exception("User not found");
+            throw new InvalidOperationException("User not found");
 
         var query = _dbContext.Branches.Where(x => !x.IsDeleted);
         if (keyword != null)
@@ -62,7 +62,7 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new Exception("User not found");
+            throw new InvalidOperationException("User not found");
         var query = _dbContext.Tiers.Where(x => x.IsDeleted == false);
         var selectedQuery = query.Select(x => new Response.TierItem
         {
@@ -88,7 +88,7 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new Exception("User not found");
+            throw new InvalidOperationException("User not found");
 
         var nowUtc = DateTimeOffset.UtcNow;
 
@@ -97,7 +97,7 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
 
         if (customerProfile == null)
-            throw new Exception("Customer profile not found");
+            throw new InvalidOperationException("Customer profile not found");
 
         // Lấy promotion theo tier
         var promotionIds = await _dbContext.PromotionTiers
@@ -156,7 +156,7 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.UserId == userIdGuid);
 
         if (customerProfile == null)
-            throw new Exception("Customer profile not found");
+            throw new InvalidOperationException("Customer profile not found");
 
         var rewards = await _dbContext.Rewards
             .Where(x => x.IsActive)
@@ -241,7 +241,7 @@ public class Service : IService
 
         if (existing)
         {
-            throw new Exception("Branch already exists");
+            throw new InvalidOperationException("Branch already exists");
         }
 
         var newBranch = new Repository.Entities.Branch()
@@ -264,7 +264,7 @@ public class Service : IService
 
         if (branch == null)
         {
-            throw new Exception("Branch not found");
+            throw new InvalidOperationException("Branch not found");
         }
 
         branch.Name = request.Name;
@@ -285,7 +285,7 @@ public class Service : IService
 
         if (branch == null)
         {
-            throw new Exception("Branch not found");
+            throw new InvalidOperationException("Branch not found");
         }
 
         branch.IsActive = false;

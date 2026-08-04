@@ -331,7 +331,7 @@ public class Service : IService
         }
 
         if (user.Role != UserRole.Customer)
-            throw new Exception("You are not customer");
+            throw new InvalidOperationException("You are not customer");
 
         if (user.CustomerProfile == null)
             throw new ArgumentException("Customer profile not found.");
