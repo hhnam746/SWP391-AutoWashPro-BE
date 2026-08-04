@@ -69,12 +69,12 @@ public class Service : IService
 
         if (workingStartHourConfig == null)
         {
-            throw new Exception("WorkingStartHour config not found");
+            throw new InvalidOperationException("WorkingStartHour config not found");
         }
 
         if (!int.TryParse(workingStartHourConfig.ConfigValue, out var workingStartHour))
         {
-            throw new Exception("Invalid WorkingStartHour config value");
+            throw new InvalidOperationException("Invalid WorkingStartHour config value");
         }
 
         WorkingStartHour = workingStartHour;
@@ -84,32 +84,32 @@ public class Service : IService
 
         if (workingEndHourConfig == null)
         {
-            throw new Exception("WorkingEndHour config not found");
+            throw new InvalidOperationException("WorkingEndHour config not found");
         }
 
         if (!int.TryParse(workingEndHourConfig.ConfigValue, out var workingEndHour))
         {
-            throw new Exception("Invalid WorkingEndHour config value");
+            throw new InvalidOperationException("Invalid WorkingEndHour config value");
         }
 
         WorkingEndHour = workingEndHour;
 
         var slotDurationConfig = await _dbContext.SystemConfigs
                                      .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
-                                 ?? throw new Exception("SlotDurationMinutes config not found");
+                                 ?? throw new InvalidOperationException("SlotDurationMinutes config not found");
 
         if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
         {
-            throw new Exception("Invalid SlotDurationMinutes config value");
+            throw new InvalidOperationException("Invalid SlotDurationMinutes config value");
         }
 
         var slotBreakConfig = await _dbContext.SystemConfigs
                                   .FirstOrDefaultAsync(x => x.ConfigKey == "SlotBreakMinutes")
-                              ?? throw new Exception("SlotBreakMinutes config not found");
+                              ?? throw new InvalidOperationException("SlotBreakMinutes config not found");
 
         if (!int.TryParse(slotBreakConfig.ConfigValue, out SlotBreakMinutes))
         {
-            throw new Exception("Invalid SlotBreakMinutes config value");
+            throw new InvalidOperationException("Invalid SlotBreakMinutes config value");
         }
 
         var slots = new List<Response.SlotStatus>();
@@ -190,12 +190,12 @@ public class Service : IService
 
         if (workingStartHourConfig == null)
         {
-            throw new Exception("WorkingStartHour config not found");
+            throw new InvalidOperationException("WorkingStartHour config not found");
         }
 
         if (!int.TryParse(workingStartHourConfig.ConfigValue, out var workingStartHour))
         {
-            throw new Exception("Invalid WorkingStartHour config value");
+            throw new InvalidOperationException("Invalid WorkingStartHour config value");
         }
 
         WorkingStartHour = workingStartHour;
@@ -205,32 +205,32 @@ public class Service : IService
 
         if (workingEndHourConfig == null)
         {
-            throw new Exception("WorkingEndHour config not found");
+            throw new InvalidOperationException("WorkingEndHour config not found");
         }
 
         if (!int.TryParse(workingEndHourConfig.ConfigValue, out var workingEndHour))
         {
-            throw new Exception("Invalid WorkingEndHour config value");
+            throw new InvalidOperationException("Invalid WorkingEndHour config value");
         }
 
         WorkingEndHour = workingEndHour;
 
         var slotDurationConfig = await _dbContext.SystemConfigs
                                      .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
-                                 ?? throw new Exception("SlotDurationMinutes config not found");
+                                 ?? throw new InvalidOperationException("SlotDurationMinutes config not found");
 
         if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
         {
-            throw new Exception("Invalid SlotDurationMinutes config value");
+            throw new InvalidOperationException("Invalid SlotDurationMinutes config value");
         }
 
         var slotBreakConfig = await _dbContext.SystemConfigs
                                   .FirstOrDefaultAsync(x => x.ConfigKey == "SlotBreakMinutes")
-                              ?? throw new Exception("SlotBreakMinutes config not found");
+                              ?? throw new InvalidOperationException("SlotBreakMinutes config not found");
 
         if (!int.TryParse(slotBreakConfig.ConfigValue, out SlotBreakMinutes))
         {
-            throw new Exception("Invalid SlotBreakMinutes config value");
+            throw new InvalidOperationException("Invalid SlotBreakMinutes config value");
         }
 
         /////////////// Base Price Config /////////////
@@ -239,12 +239,12 @@ public class Service : IService
 
         if (basePriceConfig == null)
         {
-            throw new Exception("BasePrice config not found");
+            throw new InvalidOperationException("BasePrice config not found");
         }
 
         if (!decimal.TryParse(basePriceConfig.ConfigValue, out var basePrice))
         {
-            throw new Exception("Invalid BasePrice config value");
+            throw new InvalidOperationException("Invalid BasePrice config value");
         }
 
         ///////////////////////////////// Sedan /////////////////////////////////////////////// 
@@ -254,12 +254,12 @@ public class Service : IService
 
         if (SedanBaseConfig == null)
         {
-            throw new Exception("SedanBasePrice config not found");
+            throw new InvalidOperationException("SedanBasePrice config not found");
         }
 
         if (!decimal.TryParse(SedanBaseConfig.ConfigValue, out var SedanBasePrice))
         {
-            throw new Exception("Invalid SedanBasePrice config value");
+            throw new InvalidOperationException("Invalid SedanBasePrice config value");
         }
 
 
@@ -269,12 +269,12 @@ public class Service : IService
 
         if (SuvBaseConfig == null)
         {
-            throw new Exception("SuvBasePrice config not found");
+            throw new InvalidOperationException("SuvBasePrice config not found");
         }
 
         if (!decimal.TryParse(SuvBaseConfig.ConfigValue, out var SuvBasePrice))
         {
-            throw new Exception("Invalid SuvBasePrice config value");
+            throw new InvalidOperationException("Invalid SuvBasePrice config value");
         }
 
         var vehicle = await _dbContext.Vehicles
@@ -377,12 +377,12 @@ public class Service : IService
         var proximityWarningConfig = await _dbContext.SystemConfigs
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.ConfigKey == BookingProximityWarningConfigKey)
-            ?? throw new Exception($"{BookingProximityWarningConfigKey} config not found");
+            ?? throw new InvalidOperationException($"{BookingProximityWarningConfigKey} config not found");
 
         if (!int.TryParse(proximityWarningConfig.ConfigValue, out var proximityWarningMinutes) ||
             proximityWarningMinutes < 0)
         {
-            throw new Exception($"Invalid {BookingProximityWarningConfigKey} config value");
+            throw new InvalidOperationException($"Invalid {BookingProximityWarningConfigKey} config value");
         }
 
         var activeBookingStatuses = new[]
@@ -597,13 +597,13 @@ public class Service : IService
             var redeemPointValueConfig = await _dbContext.SystemConfigs
                                              .FirstOrDefaultAsync(x =>
                                                  x.ConfigKey == RedeemPointValueConfigKey)
-                                         ?? throw new Exception(
+                                        ?? throw new InvalidOperationException(
                                              $"{RedeemPointValueConfigKey} config not found");
 
             if (!int.TryParse(redeemPointValueConfig.ConfigValue, out var redeemPointValue) ||
                 redeemPointValue <= 0)
             {
-                throw new Exception(
+                throw new InvalidOperationException(
                     $"Invalid {RedeemPointValueConfigKey} config value");
             }
 
@@ -639,11 +639,11 @@ public class Service : IService
 
         var paymentDepositeConfig = await _dbContext.SystemConfigs
                                         .FirstOrDefaultAsync(x => x.ConfigKey == "PaymentDeposite")
-                                    ?? throw new Exception("PaymentDeposite config not found");
+                                    ?? throw new InvalidOperationException("PaymentDeposite config not found");
 
         if (!decimal.TryParse(paymentDepositeConfig.ConfigValue, out var paymentDeposite))
         {
-            throw new Exception("Invalid PaymentDeposite config value");
+            throw new InvalidOperationException("Invalid PaymentDeposite config value");
         }
 
         if (wallet.Balance - finalPrice * (paymentDeposite / 100) < 0)
@@ -1319,284 +1319,20 @@ public class Service : IService
             cancellationToken);
     }
 
-    private async Task<Response.CheckInBookingResponse> ProcessCheckInBooking(
-        Repository.Entities.Booking booking,
-        Repository.Entities.CustomerProfile customerProfile,
-        Guid customerUserId,
-        CancellationToken cancellationToken)
-    {
-        var cancelTimeConfig = await _dbContext.SystemConfigs
-                                   .FirstOrDefaultAsync(x => x.ConfigKey == "CancelTimeMinutes")
-                               ?? throw new Exception("CancelTimeMinutes config not found");
-
-        if (!int.TryParse(cancelTimeConfig.ConfigValue, out var cancelTimeMinutes) ||
-            cancelTimeMinutes < 0)
-        {
-            throw new Exception("Invalid CancelTimeMinutes config value");
-        }
-        var now = DateTimeOffset.UtcNow;
-        var latestCheckInTime = booking.StartTime.AddMinutes(cancelTimeMinutes);
-
-        if (now < booking.StartTime)
-        {
-            throw new Exception("Check-in is not available before the booking start time.");
-        }
-
-        if (now > latestCheckInTime)
-        {
-            throw new Exception("Check-in time has expired.");
-        }
-        var msg = "";
-        Guid? upgradedTierId = null;
-        var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
-        var voucher = booking.VoucherId.HasValue
-            ? await _dbContext.Vouchers
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    x => x.Id == booking.VoucherId.Value,
-                    cancellationToken)
-            : null;
-        if (booking.VoucherId.HasValue && voucher == null)
-        {
-            throw new InvalidOperationException("Booking voucher not found.");
-        }
-
-        if (voucher != null &&
-            (voucher.Status != VoucherStatus.Reserved || voucher.UsedAt.HasValue))
-        {
-            throw new InvalidOperationException(
-                "Booking voucher is no longer reserved.");
-        }
-
-        if (wallet == null)
-        {
-            throw new Exception("Wallet not found");
-        }
-
-        var paymentDepositeConfig = await _dbContext.SystemConfigs
-                                        .FirstOrDefaultAsync(x => x.ConfigKey == "PaymentDeposite")
-                                    ?? throw new Exception("PaymentDeposite config not found");
-
-        if (!decimal.TryParse(paymentDepositeConfig.ConfigValue, out var paymentDeposite))
-        {
-            throw new Exception("Invalid PaymentDeposite config value");
-        }
-
-        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
-
-        if (wallet.Balance - (booking.FinalPrice - (booking.FinalPrice * (paymentDeposite / 100))) < 0)
-        {
-            booking.Status = BookingStatus.Cancelled;
-            booking.CancelledAt = now;
-            booking.UpdatedAt = now;
-            if (booking.VoucherId.HasValue)
-            {
-                await VoucherLifecycle.ReleaseReservedAsync(
-                    _dbContext,
-                    booking.VoucherId.Value,
-                    booking.Id,
-                    now,
-                    cancellationToken);
-            }
-            msg = "Check-in Failed";
-        }
-        else
-        {
-            if (booking.VoucherId.HasValue)
-            {
-                var usedCount = await VoucherLifecycle.MarkReservedAsUsedAsync(
-                    _dbContext,
-                    booking.VoucherId.Value,
-                    booking.Id,
-                    now,
-                    cancellationToken);
-                if (usedCount != 1)
-                {
-                    throw new InvalidOperationException(
-                        "Booking voucher is no longer reserved.");
-                }
-            }
-
-            var remainingAmount = booking.FinalPrice - (booking.FinalPrice * (paymentDeposite / 100));
-            wallet.Balance -= remainingAmount;
-            booking.Status = BookingStatus.InProgress;
-            booking.UpdatedAt = now;
-            msg = "Check-in successful";
-
-            var FullPayemntBookingTransaction = new Repository.Entities.Transaction
-            {
-                Amount = remainingAmount,
-                Type = Repository.Enums.TransactionType.FullPayment,
-                Description = "Full Payment for Booking",
-                TransactionDate = DateTime.UtcNow,
-                CustomerId = customerProfile.Id,
-                CustomerProfile = customerProfile,
-                BookingId = booking.Id,
-                Booking = booking,
-                CreatedAt = DateTimeOffset.UtcNow
-            };
-            _dbContext.Transactions.Add(FullPayemntBookingTransaction);
-            //////////////////////////////////////////////////////
-            customerProfile.TotalPoints -= booking.RedemAmount ?? 0;
-            //////////////////////////////////////////////////////
-
-            var bonusPointConfig = await _dbContext.SystemConfigs
-                                       .FirstOrDefaultAsync(x => x.ConfigKey == "BonusPoint")
-                                   ?? throw new Exception("BonusPoint config not found");
-
-            if (!int.TryParse(bonusPointConfig.ConfigValue, out var bonusPoint))
-            {
-                throw new Exception("Invalid BonusPoint config value");
-            }
-
-            customerProfile.TotalWashes += 1;
-            customerProfile.TotalPoints += bonusPoint;
-            var earnPointTransaction = new Repository.Entities.PointTransaction
-            {
-                Id = Guid.NewGuid(),
-                CustomerId = customerProfile.Id,
-                Customer = customerProfile,
-                BookingId = booking.Id,
-                Booking = booking,
-                Points = bonusPoint,
-                TransactionType = PointTransactionType.Earn,
-                Description = $"Earned {bonusPoint} points from booking.",
-                CreatedAt = DateTimeOffset.UtcNow
-            };
-
-            _dbContext.PointTransactions.Add(earnPointTransaction);
-            var currentTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level);
-            var nextTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level + 1);
-
-            if (nextTier != null &&
-                customerProfile.TotalWashes >= nextTier.RequiredWashes)
-            {
-                customerProfile.TierId = nextTier.Id;
-                customerProfile.Tier = nextTier;
-                upgradedTierId = nextTier.Id;
-                var notification = new Repository.Entities.Notification()
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = customerUserId,
-                    Type = NotificationType.TierUpgraded,
-                    Title = "Tier Upgraded",
-                    Content =
-                        $"Congratulations! Your tier has been upgraded from {currentTier.Name} to {nextTier.Name}.",
-                    IsRead = false,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                };
-                // await _notificationService.SendNotification(new Notification.Request.SendNotificationRequest
-                // {
-                //     UserId = customerUserId,
-                //     Type = NotificationType.TierUpgraded,
-                //     Data = $"Congratulations! Your tier has been upgraded from {currentTier.Name} to {nextTier.Name}."
-                // });
-                _dbContext.Notifications.Add(notification);
-            }
-
-            if ((booking.RedemAmount ?? 0) > 0)
-            {
-                var pointTransaction = new Repository.Entities.PointTransaction()
-                {
-                    Id = Guid.NewGuid(),
-                    CustomerId = customerProfile.Id,
-                    Customer = customerProfile,
-                    Booking = booking,
-                    BookingId = booking.Id,
-                    Points = booking.RedemAmount ?? 0,
-                    TransactionType = PointTransactionType.Redeem,
-                    Description = $"Redeemed {booking.RedemAmount} points for booking discount.",
-                    CreatedAt = DateTime.UtcNow,
-                };
-                _dbContext.PointTransactions.Add(pointTransaction);
-            }
-            
-            //Thêm background job => ProcessBookingAutoComplete 
-            //Completed khi mà time(NOW) > Endtime
-            
-            //
-            // _ = Task.Run(async () =>
-            // {
-            //     try
-            //     {
-            //         await Task.Delay(TimeSpan.FromMinutes(SlotDurationMinutes));
-            //         using var scope = _serviceScopeFactory.CreateScope();
-            //         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            //         var delayedBooking = await dbContext.Bookings.FirstOrDefaultAsync(x => x.Id == booking.Id);
-            //         if (delayedBooking != null && delayedBooking.Status == BookingStatus.InProgress)
-            //         {
-            //             delayedBooking.Status = BookingStatus.Completed;
-            //             delayedBooking.CompletedAt = DateTime.UtcNow;
-            //             var branch = dbContext.Branches.FirstOrDefault(x => x.Id == delayedBooking.BranchId);
-            //             var customer =
-            //                 dbContext.CustomerProfiles.FirstOrDefault(x => x.Id == delayedBooking.CustomerId);
-            //             if (customer != null)
-            //             {
-            //                 var notification = new Repository.Entities.Notification()
-            //                 {
-            //                     Id = Guid.NewGuid(),
-            //                     UserId = customer.UserId,
-            //                     Type = NotificationType.BookingCompleted,
-            //                     Title = "Booking Completed",
-            //                     Content =
-            //                         $"Your booking at {branch?.Name ?? "our branch"} has been completed successfully. Thank you for using our service.",
-            //                     IsRead = false,
-            //                     CreatedAt = DateTimeOffset.UtcNow,
-            //                 };
-            //                 dbContext.Notifications.Add(notification);
-            //             }
-            //
-            //             await dbContext.SaveChangesAsync();
-            //         }
-            //     }
-            //     catch (Exception e)
-            //     {
-            //         Console.WriteLine("=======Error Occure " + e.Message + " ==========");
-            //     }
-            // });
-        }
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-
-        if (upgradedTierId.HasValue)
-        {
-            try
-            {
-                await _personalizedVoucherAudienceService.ProcessTierUpgradeAsync(
-                    customerProfile.Id,
-                    upgradedTierId.Value,
-                    booking.Id,
-                    cancellationToken);
-            }
-            catch
-            {
-                _logger.LogWarning(
-                    "Tier upgrade personalization failed after check-in commit. CustomerId={CustomerId}, TriggerType={TriggerType}, CycleKey={CycleKey}, BookingId={BookingId}, ErrorCode={ErrorCode}.",
-                    customerProfile.Id,
-                    PersonalizedVoucherTriggerType.TierUpgrade,
-                    PersonalizedVoucherService.PersonalizationPolicy.CreateTierUpgradeCycleKey(
-                        upgradedTierId.Value),
-                    booking.Id,
-                    "TIER_UPGRADE_PERSONALIZATION_FAILED");
-            }
-        }
-
-        var result = new Response.CheckInBookingResponse
-        {
-            Id = booking.Id,
-            Status = booking.Status,
-            CheckedInAt = booking.StartTime.ToOffset(DefaultUtcOffset),
-            EstimatedCompletedAt = booking.EndTime.ToOffset(DefaultUtcOffset),
-            Message = msg
-        };
-        return result;
-    }
-
     public async Task<Response.CancelBookingResponse> CancelBooking(
         Guid Id,
         Request.CancelBookingRequest bookingRequest)
     {
+        if (bookingRequest == null)
+        {
+            throw new ArgumentException("Request body is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(bookingRequest.Reason))
+        {
+            throw new ArgumentException("Reason is required.");
+        }
+
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
         var user = await _dbContext.Users
@@ -1650,14 +1386,12 @@ public class Service : IService
         }
 
         var now = DateTimeOffset.UtcNow;
-        var cancellationDeadline =
-            booking.StartTime.AddHours(-cancellationDeadlineHours);
-
-        if (now >= cancellationDeadline)
-        {
-            throw new Exception(
-                $"Booking must be cancelled at least {cancellationDeadlineHours} hours before the start time.");
-        }
+        var totalPaidAmount = await RefundWorkflow.GetTotalPaidAmountAsync(_dbContext, booking.Id);
+        var refundDecision = RefundWorkflow.CalculateCustomerCancellationRefund(
+            now,
+            booking.StartTime,
+            cancellationDeadlineHours,
+            totalPaidAmount);
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync();
         booking.Status = BookingStatus.Cancelled;
@@ -1672,8 +1406,43 @@ public class Service : IService
                 now);
         }
 
+        Guid? refundTransactionId = null;
+        if (refundDecision.RefundApplied)
+        {
+            var wallet = await _dbContext.Wallets
+                .FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
+
+            if (wallet == null)
+            {
+                throw new Exception("Wallet not found");
+            }
+
+            var walletBalanceBefore = wallet.Balance;
+            var walletBalanceAfter = walletBalanceBefore + refundDecision.RefundAmount;
+
+            wallet.Balance = walletBalanceAfter;
+            wallet.UpdatedAt = now;
+
+            var refundTransaction = RefundWorkflow.CreateRefundTransaction(
+                booking,
+                customerProfile.Id,
+                refundDecision.RefundAmount,
+                refundDecision.ReasonCode,
+                $"Refund for booking cancellation: {bookingRequest.Reason.Trim()}",
+                walletBalanceBefore,
+                walletBalanceAfter,
+                now);
+
+            refundTransactionId = refundTransaction.Id;
+            _dbContext.Transactions.Add(refundTransaction);
+        }
+
         var branch = await _dbContext.Branches
             .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
+
+        var refundMessage = refundDecision.RefundApplied
+            ? $" Refund amount: {refundDecision.RefundAmount:N0} VND has been returned to your wallet."
+            : " No refund was applied because the cancellation deadline has passed.";
 
         var notification = new Repository.Entities.Notification()
         {
@@ -1684,7 +1453,7 @@ public class Service : IService
             Content =
                 $"Your booking at {branch?.Name ?? "our branch"} " +
                 $"for {booking.StartTime.ToOffset(DefaultUtcOffset):HH:mm dd/MM/yyyy} " +
-                $"has been cancelled successfully.",
+                $"has been cancelled successfully.{refundMessage}",
             IsRead = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
@@ -1707,7 +1476,13 @@ public class Service : IService
             Id = booking.Id,
             Status = booking.Status,
             CancelledAt = (booking.CancelledAt ?? DateTimeOffset.UtcNow).ToOffset(DefaultUtcOffset),
-            Message = "Booking cancelled successfully",
+            RefundApplied = refundDecision.RefundApplied,
+            RefundAmount = refundDecision.RefundAmount,
+            RefundTransactionId = refundTransactionId,
+            RefundReasonCode = refundDecision.ReasonCode,
+            Message = refundDecision.RefundApplied
+                ? "Booking cancelled successfully and refund applied"
+                : "Booking cancelled successfully",
         };
 
         return result;

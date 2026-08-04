@@ -1499,12 +1499,12 @@ public class Service : IService
 
         if (workingStartHourConfig == null)
         {
-            throw new Exception("WorkingStartHour config not found");
+            throw new InvalidOperationException("WorkingStartHour config not found");
         }
 
         if (!int.TryParse(workingStartHourConfig.ConfigValue, out var workingStartHour))
         {
-            throw new Exception("Invalid WorkingStartHour config value");
+            throw new InvalidOperationException("Invalid WorkingStartHour config value");
         }
         ///////////////// ///////////////// ///////////////// /////////////////
         WorkingStartHour = workingStartHour;
@@ -1515,12 +1515,12 @@ public class Service : IService
 
         if (workingEndHourConfig == null)
         {
-            throw new Exception("WorkingEndHour config not found");
+            throw new InvalidOperationException("WorkingEndHour config not found");
         }
 
         if (!int.TryParse(workingEndHourConfig.ConfigValue, out var workingEndHour))
         {
-            throw new Exception("Invalid WorkingEndHour config value");
+            throw new InvalidOperationException("Invalid WorkingEndHour config value");
         }
 
         ///////////////// ///////////////// ///////////////// /////////////////
@@ -1529,20 +1529,20 @@ public class Service : IService
         
         var slotDurationConfig = await _dbContext.SystemConfigs
                                      .FirstOrDefaultAsync(x => x.ConfigKey == "SlotDurationMinutes")
-                                 ?? throw new Exception("SlotDurationMinutes config not found");
+                                 ?? throw new InvalidOperationException("SlotDurationMinutes config not found");
 
         if (!int.TryParse(slotDurationConfig.ConfigValue, out SlotDurationMinutes))
         {
-            throw new Exception("Invalid SlotDurationMinutes config value");
+            throw new InvalidOperationException("Invalid SlotDurationMinutes config value");
         }
 
         var slotBreakConfig = await _dbContext.SystemConfigs
                                   .FirstOrDefaultAsync(x => x.ConfigKey == "SlotBreakMinutes")
-                              ?? throw new Exception("SlotBreakMinutes config not found");
+                              ?? throw new InvalidOperationException("SlotBreakMinutes config not found");
 
         if (!int.TryParse(slotBreakConfig.ConfigValue, out SlotBreakMinutes))
         {
-            throw new Exception("Invalid SlotBreakMinutes config value");
+            throw new InvalidOperationException("Invalid SlotBreakMinutes config value");
         }
 
         var slotData = new List<Response.SlotDataResponse>();
