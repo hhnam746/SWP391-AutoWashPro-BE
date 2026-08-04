@@ -46,6 +46,16 @@ public class Service : IService
             throw new ArgumentOutOfRangeException(nameof(pageSize), pageSize, "Page size must be greater than 0.");
     }
 
+    private static DateTime NormalizeToUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+    }
+
 
     public async Task<Response.GetTransactionResponse> GetTransactions(Request.GetTransactionsRequest request)
     {
@@ -69,13 +79,13 @@ public class Service : IService
 
         if (request.FromDate.HasValue)
         {
-            var fromDate = request.FromDate.Value.Date;
+            var fromDate = NormalizeToUtc(request.FromDate.Value.Date);
             query = query.Where(x => x.TransactionDate >= fromDate);
         }
 
         if (request.ToDate.HasValue)
         {
-            var toDate = request.ToDate.Value.Date.AddDays(1).AddTicks(-1);
+            var toDate = NormalizeToUtc(request.ToDate.Value.Date.AddDays(1).AddTicks(-1));
             query = query.Where(x => x.TransactionDate <= toDate);
         }
 
@@ -166,13 +176,13 @@ public class Service : IService
 
         if (request.FromDate.HasValue)
         {
-            var fromDate = request.FromDate.Value.Date;
+            var fromDate = NormalizeToUtc(request.FromDate.Value.Date);
             query = query.Where(transaction => transaction.TransactionDate >= fromDate);
         }
 
         if (request.ToDate.HasValue)
         {
-            var toDate = request.ToDate.Value.Date.AddDays(1).AddTicks(-1);
+            var toDate = NormalizeToUtc(request.ToDate.Value.Date.AddDays(1).AddTicks(-1));
             query = query.Where(transaction => transaction.TransactionDate <= toDate);
         }
 
