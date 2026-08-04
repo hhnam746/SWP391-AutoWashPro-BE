@@ -142,7 +142,7 @@ public class Service : IService
 
         if (vehicleType is null)
         {
-            throw new Exception("Vehicle type not found");
+            throw new KeyNotFoundException("Vehicle type not found");
         }
 
         List<string> uploadedVehicleImageUrls;
@@ -269,7 +269,7 @@ public class Service : IService
 
         if (vehicleType is null)
         {
-            throw new Exception("Vehicle type not found");
+            throw new KeyNotFoundException("Vehicle type not found");
         }
         vehicle.VehicleType = vehicleType;
 
