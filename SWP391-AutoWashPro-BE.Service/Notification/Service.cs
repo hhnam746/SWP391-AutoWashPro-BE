@@ -32,10 +32,10 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new InvalidOperationException("User not found");
+            throw new Exception("User not found");
         var customerProfile = await _dbContext.CustomerProfiles.FirstOrDefaultAsync(x => x.UserId == userIdGuid);
         if (customerProfile == null)
-            throw new InvalidOperationException("Customer profile not found");
+            throw new Exception("Customer profile not found");
         var query = _dbContext.Notifications.Where(x => x.UserId == user.Id);
         if (isRead.HasValue)
         {
@@ -89,7 +89,7 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new InvalidOperationException("User not found");
+            throw new Exception("User not found");
 
         // Duyet qua tung ID trong mang ID duoc truyen
         var updateCount = 0;
@@ -124,7 +124,7 @@ public class Service : IService
 
         if (currentUser == null)
         {
-            throw new InvalidOperationException("User not found");
+            throw new Exception("User not found");
         }
 
         var receiverUserId = currentUserId;
@@ -162,7 +162,7 @@ public class Service : IService
             .AnyAsync(x => x.Id == userId, cancellationToken);
         if (!receiverExists)
         {
-            throw new InvalidOperationException("Receiver user not found");
+            throw new Exception("Receiver user not found");
         }
 
         var notification = await _dbContext.Notifications

@@ -174,6 +174,7 @@ public class Service : IService
             query = query.Where(transaction => transaction.Type == request.Type.Value);
         }
 
+        
         if (request.FromDate.HasValue)
         {
             var fromDate = NormalizeToUtc(request.FromDate.Value.Date);
