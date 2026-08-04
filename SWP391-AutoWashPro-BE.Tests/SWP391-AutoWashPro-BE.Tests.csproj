@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SWP391-AutoWashPro-BE.Api\SWP391-AutoWashPro-BE.Api.csproj" />
     <ProjectReference Include="..\SWP391-AutoWashPro-BE.Repository\SWP391-AutoWashPro-BE.Repository.csproj" />
     <ProjectReference Include="..\SWP391-AutoWashPro-BE.Service\SWP391-AutoWashPro-BE.Service.csproj" />
   </ItemGroup>
