@@ -250,6 +250,10 @@ public class Response
         public Guid Id { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTimeOffset CancelledAt { get; set; }
+        public bool RefundApplied { get; set; }
+        public decimal RefundAmount { get; set; }
+        public Guid? RefundTransactionId { get; set; }
+        public string? RefundReasonCode { get; set; }
         public string Message { get; set; } = string.Empty;
     }
 }
