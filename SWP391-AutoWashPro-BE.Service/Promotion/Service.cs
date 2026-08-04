@@ -66,13 +66,13 @@ public class Service: IService
         
         if (exists)
         {
-            throw new Exception("Promotion already exists");
+            throw new InvalidOperationException("Promotion already exists");
         }
         
         if (request.IsGlobal == false &&
             (request.TierIds == null || !request.TierIds.Any()))
         {
-            throw new Exception("Please select at least one tier");
+            throw new InvalidOperationException("Please select at least one tier");
         }
         List<Guid> tierIds = new();
         if (request.IsGlobal == false)
@@ -83,14 +83,14 @@ public class Service: IService
 
             if (validTierCount != tierIds.Count)
             {
-                throw new Exception("One or more selected tiers are invalid or have been deleted.");
+                throw new InvalidOperationException("One or more selected tiers are invalid or have been deleted.");
             }
         }
         if (request.DiscountValue <= 0)
-            throw new Exception("Discount value must be greater than 0");
+            throw new InvalidOperationException("Discount value must be greater than 0");
 
         if (request.DiscountType == DiscountType.Percentage && request.DiscountValue >= 100)
-            throw new Exception("Percentage discount must be less than 100");
+            throw new InvalidOperationException("Percentage discount must be less than 100");
 
         var newPromotion = new Repository.Entities.Promotion()
         {
@@ -164,7 +164,7 @@ public class Service: IService
 
         if (promotion == null)
         {
-            throw new Exception("Promotion not found");
+            throw new InvalidOperationException("Promotion not found");
         }
         
         var exists = await _dbContext.Promotions.AnyAsync(x =>
@@ -173,7 +173,7 @@ public class Service: IService
 
         if (exists)
         {
-            throw new Exception("Promotion already exists");
+            throw new InvalidOperationException("Promotion already exists");
         }
         
         if (request.Name != null)
@@ -203,10 +203,10 @@ public class Service: IService
         promotion.UpdatedAt = DateTimeOffset.UtcNow;
         
         if (promotion.DiscountValue <= 0)
-            throw new Exception("Discount value must be greater than 0");
+            throw new InvalidOperationException("Discount value must be greater than 0");
 
         if (promotion.DiscountType == DiscountType.Percentage && promotion.DiscountValue >= 100)
-            throw new Exception("Percentage discount must be less than 100");
+            throw new InvalidOperationException("Percentage discount must be less than 100");
         if (request.IsGlobal == false && request.TierIds == null)
             throw new ArgumentException("Please select at least one tier when changing to a tier-specific promotion");
         if (promotion.IsGlobal == false && request.TierIds != null && !request.TierIds.Any())
@@ -275,7 +275,7 @@ public class Service: IService
 
         if (promotion == null)
         {
-            throw new Exception("Promotion not found");
+            throw new InvalidOperationException("Promotion not found");
         }
 
         promotion.IsActive = request.IsActive;
@@ -293,12 +293,12 @@ public class Service: IService
 
         if (promotion == null)
         {
-            throw new Exception("Promotion not found");
+            throw new InvalidOperationException("Promotion not found");
         }
 
         if (promotion.IsActive)
         {
-            throw new Exception("Cannot delete active promotion");
+            throw new InvalidOperationException("Cannot delete active promotion");
         }
 
         promotion.IsDeleted = true;

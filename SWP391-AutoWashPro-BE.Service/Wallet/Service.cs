@@ -32,16 +32,16 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new Exception("User not found");
+            throw new InvalidOperationException("User not found");
         var customerProfile = await _dbContext.CustomerProfiles.FirstOrDefaultAsync(x => x.UserId == userIdGuid);
         if (customerProfile == null)
-            throw new Exception("Customer profile not found");
+            throw new InvalidOperationException("Customer profile not found");
 
         var query = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
         
         if (query == null)
         {
-            throw new Exception("Wallet not found");
+            throw new InvalidOperationException("Wallet not found");
         }
         
         var result = new Response.GetWalleResponse
@@ -60,15 +60,15 @@ public class Service : IService
         var user = await _dbContext.Users
            .FirstOrDefaultAsync(x => x.Id == userIdGuid);
         if (user == null)
-            throw new Exception("User not found");
+            throw new InvalidOperationException("User not found");
         var customerProfile = await _dbContext.CustomerProfiles.FirstOrDefaultAsync(x => x.UserId == userIdGuid);
         if (customerProfile == null)
-            throw new Exception("Customer profile not found");
+            throw new InvalidOperationException("Customer profile not found");
 
         var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
         if (wallet == null)
         {
-            throw new Exception("Wallet not found");
+            throw new InvalidOperationException("Wallet not found");
         }
         wallet.Balance += request.Balance;
 

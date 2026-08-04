@@ -22,7 +22,7 @@ public class Service: IService
             .FirstOrDefaultAsync(x => x.UserId == userId);
 
         if (customer == null)
-            throw new Exception("Customer not found");
+            throw new InvalidOperationException("Customer not found");
 
         var query = _dbContext.Vouchers
             .Where(x => x.CustomerId == customer.Id);
@@ -160,7 +160,7 @@ public class Service: IService
             .FirstOrDefaultAsync(x => x.UserId == userId);
 
         if (customer == null)
-            throw new Exception("Customer not found");
+            throw new InvalidOperationException("Customer not found");
 
         var voucher = await _dbContext.Vouchers
             .Include(x => x.Reward)
@@ -169,7 +169,7 @@ public class Service: IService
                 x.CustomerId == customer.Id);
 
         if (voucher == null)
-            throw new Exception("Voucher not found");
+            throw new InvalidOperationException("Voucher not found");
 
         if (voucher.Status == VoucherStatus.Reserved)
             throw new InvalidOperationException("Voucher is reserved by another booking.");
