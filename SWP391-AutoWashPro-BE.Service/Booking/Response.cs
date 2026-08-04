@@ -128,6 +128,7 @@ public class Response
         public required DateTimeOffset CancelledAt { get; set; }
         public required string Message { get; set; }
     }
+    
 
     public class BookingBranch
     {
