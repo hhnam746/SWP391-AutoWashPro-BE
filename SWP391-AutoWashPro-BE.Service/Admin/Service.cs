@@ -1193,7 +1193,7 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new Exception("User not found");
+            throw new InvalidOperationException("User not found");
         if (request == null)
         {
             throw new ArgumentException("Request is required.");
@@ -1327,7 +1327,7 @@ public class Service : IService
             .FirstOrDefaultAsync(x => x.Id == userIdGuid);
 
         if (user == null)
-            throw new Exception("User not found");
+            throw new InvalidOperationException("User not found");
         
         if (request.BranchId == Guid.Empty)
         {
