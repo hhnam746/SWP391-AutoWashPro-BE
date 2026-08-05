@@ -134,38 +134,65 @@ public class Service : IService
             };
         }
 
-        var paymentCode = ExtractPaymentCode(
-            normalizedContent,
-            request.Description);
+        var paymentCode = ExtractPaymentCode(request);
 
         if (paymentCode == null)
         {
             _logger.LogWarning(
-                "Ignored SePay webhook because no payment code could be extracted. WebhookId={WebhookId}, Content={Content}.",
+                "SePay webhook did not contain a payment code. Falling back to amount-based lookup. WebhookId={WebhookId}, Content={Content}.",
                 request.Id,
                 normalizedContent);
-
-            return new Response.SePayWebhookResponse
-            {
-                Success = true,
-                Code = "ignored",
-                Message = "No payment reference code was found in the webhook content.",
-                AlreadyProcessed = false
-            };
         }
 
-        var pendingTransactionQuery = _dbContext.Transactions
-            .Where(transaction =>
-                transaction.Type == TransactionType.WalletTopup &&
-                transaction.ReferenceCode == paymentCode);
+        Repository.Entities.Transaction? pendingTransaction;
 
-        var pendingTransaction = await pendingTransactionQuery
-            .FirstOrDefaultAsync();
+        if (paymentCode != null)
+        {
+            var pendingTransactionQuery = _dbContext.Transactions
+                .Where(transaction =>
+                    transaction.Type == TransactionType.WalletTopup &&
+                    transaction.ReferenceCode == paymentCode);
+
+            pendingTransaction = await pendingTransactionQuery
+                .FirstOrDefaultAsync();
+        }
+        else
+        {
+            var pendingTransactionQuery = _dbContext.Transactions
+                .Where(transaction =>
+                    transaction.Type == TransactionType.WalletTopup &&
+                    transaction.Status == TransactionStatus.Pending &&
+                    transaction.Amount == request.TransferAmount &&
+                    (!transaction.ExpiredAt.HasValue || transaction.ExpiredAt.Value > utcNow))
+                .OrderByDescending(transaction => transaction.CreatedAt);
+
+            var pendingTransactions = await pendingTransactionQuery
+                .Take(2)
+                .ToListAsync();
+
+            if (pendingTransactions.Count > 1)
+            {
+                _logger.LogWarning(
+                    "Ignored SePay webhook because multiple pending wallet top-ups matched the fallback amount-based lookup. WebhookId={WebhookId}, Amount={Amount}.",
+                    request.Id,
+                    request.TransferAmount);
+
+                return new Response.SePayWebhookResponse
+                {
+                    Success = true,
+                    Code = "ignored",
+                    Message = "Multiple pending wallet top-up transactions matched the webhook without a payment reference code.",
+                    AlreadyProcessed = false
+                };
+            }
+
+            pendingTransaction = pendingTransactions.FirstOrDefault();
+        }
 
         if (pendingTransaction == null)
         {
             _logger.LogWarning(
-                "Ignored SePay webhook because no wallet top-up was found for ReferenceCode={ReferenceCode}. WebhookId={WebhookId}. Description={Description}.",
+                "Ignored SePay webhook because no wallet top-up was found. ReferenceCode={ReferenceCode}, WebhookId={WebhookId}. Description={Description}.",
                 paymentCode,
                 request.Id,
                 request.Description);
@@ -174,7 +201,9 @@ public class Service : IService
             {
                 Success = true,
                 Code = "ignored",
-                Message = "No pending wallet top-up transaction matched the webhook reference.",
+                Message = paymentCode == null
+                    ? "No pending wallet top-up transaction matched the webhook data."
+                    : "No pending wallet top-up transaction matched the webhook reference.",
                 AlreadyProcessed = false
             };
         }
@@ -395,21 +424,31 @@ public class Service : IService
         return authorizationHeader["Bearer ".Length..].Trim();
     }
 
-    private string? ExtractPaymentCode(string content, string? description)
+    private string? ExtractPaymentCode(Request.SePayWebhookRequest request)
     {
-        var paymentCode = ExtractPaymentCode(content);
-
-        if (paymentCode != null)
+        var paymentCodeSources = new[]
         {
-            return paymentCode;
+            request.Content,
+            request.Description,
+            request.ReferenceCode,
+            request.Code,
+            request.SubAccount
+        };
+
+        foreach (var paymentCodeSource in paymentCodeSources)
+        {
+            var paymentCode = ExtractPaymentCode(paymentCodeSource);
+
+            if (paymentCode != null)
+            {
+                return paymentCode;
+            }
         }
 
-        return string.IsNullOrWhiteSpace(description)
-            ? null
-            : ExtractPaymentCode(description);
+        return null;
     }
 
-    private string? ExtractPaymentCode(string source)
+    private string? ExtractPaymentCode(string? source)
     {
         if (string.IsNullOrWhiteSpace(source))
         {
