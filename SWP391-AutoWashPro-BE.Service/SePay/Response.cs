@@ -8,5 +8,7 @@ public class Response
         public string Code { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public Guid? TransactionId { get; set; }
+        public bool AlreadyProcessed { get; set; }
+        public string? TransactionStatus { get; set; }
     }
 }

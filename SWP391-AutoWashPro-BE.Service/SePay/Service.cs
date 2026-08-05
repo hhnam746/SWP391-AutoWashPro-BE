@@ -60,7 +60,8 @@ public class Service : IService
             {
                 Success = true,
                 Code = "ignored",
-                Message = "Only transferType 'in' is supported."
+                Message = "Only transferType 'in' is supported.",
+                AlreadyProcessed = false
             };
         }
 
@@ -87,7 +88,9 @@ public class Service : IService
                 Success = true,
                 Code = "duplicate",
                 Message = "Webhook was already processed.",
-                TransactionId = duplicateTransaction.Id
+                TransactionId = duplicateTransaction.Id,
+                AlreadyProcessed = true,
+                TransactionStatus = TransactionStatus.Succeeded.ToString()
             };
         }
 
@@ -119,7 +122,8 @@ public class Service : IService
             {
                 Success = true,
                 Code = "ignored",
-                Message = "No pending wallet top-up transaction matched the webhook reference."
+                Message = "No pending wallet top-up transaction matched the webhook reference.",
+                AlreadyProcessed = false
             };
         }
 
@@ -136,7 +140,9 @@ public class Service : IService
                 Success = true,
                 Code = "amount_mismatch",
                 Message = "Webhook amount did not match the pending transaction.",
-                TransactionId = pendingTransaction.Id
+                TransactionId = pendingTransaction.Id,
+                AlreadyProcessed = false,
+                TransactionStatus = pendingTransaction.Status?.ToString()
             };
         }
 
@@ -200,7 +206,9 @@ public class Service : IService
             Success = true,
             Code = "processed",
             Message = "Webhook processed successfully.",
-            TransactionId = pendingTransaction.Id
+            TransactionId = pendingTransaction.Id,
+            AlreadyProcessed = false,
+            TransactionStatus = pendingTransaction.Status.ToString()
         };
     }
 
