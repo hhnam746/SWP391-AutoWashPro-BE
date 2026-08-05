@@ -35,6 +35,13 @@ public class WalletController : ControllerBase
         var result = await _service.TopupUserWalletV2(request);
         return Ok(result);
     }
+
+    [HttpGet("v2/wallet/top-up/{transactionId}")]
+    public async Task<IActionResult> GetWalletTopupStatus(Guid transactionId)
+    {
+        var result = await _service.GetWalletTopupStatus(transactionId);
+        return Ok(result);
+    }
     
     [HttpGet("v2/wallet")]
     public async Task<IActionResult> GetUserWalletV2()

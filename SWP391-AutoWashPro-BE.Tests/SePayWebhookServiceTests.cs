@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using SWP391_AutoWashPro_BE.Repository;
 using SWP391_AutoWashPro_BE.Repository.Entities;
 using SWP391_AutoWashPro_BE.Repository.Enums;
 using SePayRequest = SWP391_AutoWashPro_BE.Service.SePay.Request;
+using SePayOptions = SWP391_AutoWashPro_BE.Service.SePay.Options;
 using SePayService = SWP391_AutoWashPro_BE.Service.SePay.Service;
 using Xunit;
 
@@ -25,7 +28,7 @@ public class SePayWebhookServiceTests
         dbContext.AddRange(user, tier, customerProfile, wallet, transaction);
         await dbContext.SaveChangesAsync();
 
-        var service = new SePayService(dbContext, NullLogger<SePayService>.Instance);
+        var service = CreateService(dbContext);
         var request = new SePayRequest.SePayWebhookRequest
         {
             Id = 71479992,
@@ -72,7 +75,7 @@ public class SePayWebhookServiceTests
         dbContext.AddRange(user, tier, customerProfile, wallet, transaction);
         await dbContext.SaveChangesAsync();
 
-        var service = new SePayService(dbContext, NullLogger<SePayService>.Instance);
+        var service = CreateService(dbContext);
         var request = new SePayRequest.SePayWebhookRequest
         {
             Id = 71774458,
@@ -105,6 +108,133 @@ public class SePayWebhookServiceTests
         Assert.Equal("71774458", savedTransaction.ExternalTransactionId);
     }
 
+    [Fact]
+    public async Task SePayWebhook_ShouldReturnIgnored_WhenAccountNumberDoesNotMatch()
+    {
+        await using var dbContext = CreateDbContext();
+        var user = CreateUser();
+        var tier = CreateTier();
+        var customerProfile = CreateCustomerProfile(user, tier);
+        var wallet = CreateWallet(customerProfile, 10_000m);
+        var transaction = CreatePendingTopupTransaction(customerProfile, wallet.Balance, 5_000m, "TOPUP-cbcf7e37311d4fb7a771fccfef3376c2");
+
+        dbContext.AddRange(user, tier, customerProfile, wallet, transaction);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+        var request = new SePayRequest.SePayWebhookRequest
+        {
+            Id = 71479993,
+            Gateway = "TPBank",
+            TransactionDate = "2026-08-04 08:51:05",
+            AccountNumber = "99999999999",
+            Content = "TOPUPcbcf7e37311d4fb7a771fccfef3376c2-040826-08:51:04 6216ASCB02TCMQCX",
+            TransferType = "in",
+            Description = "BankAPINotify TOPUPcbcf7e37311d4fb7a771fccfef3376c2-040826-08:51:04 6216ASCB02TCMQCX",
+            TransferAmount = 5_000,
+            ReferenceCode = "267V602262160311",
+            Accumulated = 184515
+        };
+
+        var result = await service.SePayWebhook(request);
+
+        Assert.True(result.Success);
+        Assert.Equal("ignored", result.Code);
+        Assert.False(result.AlreadyProcessed);
+
+        var savedWallet = await dbContext.Wallets
+            .FirstAsync(walletItem => walletItem.Id == wallet.Id);
+        var savedTransaction = await dbContext.Transactions
+            .FirstAsync(transactionItem => transactionItem.Id == transaction.Id);
+
+        Assert.Equal(10_000m, savedWallet.Balance);
+        Assert.Equal(TransactionStatus.Pending, savedTransaction.Status);
+        Assert.Null(savedTransaction.ExternalTransactionId);
+    }
+
+    [Fact]
+    public async Task SePayWebhook_ShouldReturnExpired_WhenTransactionExpired()
+    {
+        await using var dbContext = CreateDbContext();
+        var user = CreateUser();
+        var tier = CreateTier();
+        var customerProfile = CreateCustomerProfile(user, tier);
+        var wallet = CreateWallet(customerProfile, 10_000m);
+        var transaction = CreatePendingTopupTransaction(
+            customerProfile,
+            wallet.Balance,
+            5_000m,
+            "TOPUP-cbcf7e37311d4fb7a771fccfef3376c2");
+        transaction.ExpiredAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+
+        dbContext.AddRange(user, tier, customerProfile, wallet, transaction);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+        var request = new SePayRequest.SePayWebhookRequest
+        {
+            Id = 71479994,
+            Gateway = "TPBank",
+            TransactionDate = "2026-08-04 08:51:05",
+            AccountNumber = "00005668350",
+            Content = "TOPUPcbcf7e37311d4fb7a771fccfef3376c2-040826-08:51:04 6216ASCB02TCMQCX",
+            TransferType = "in",
+            Description = "BankAPINotify TOPUPcbcf7e37311d4fb7a771fccfef3376c2-040826-08:51:04 6216ASCB02TCMQCX",
+            TransferAmount = 5_000,
+            ReferenceCode = "267V602262160312",
+            Accumulated = 184515
+        };
+
+        var result = await service.SePayWebhook(request);
+
+        Assert.True(result.Success);
+        Assert.Equal("expired", result.Code);
+        Assert.False(result.AlreadyProcessed);
+        Assert.Equal(TransactionStatus.Expired.ToString(), result.TransactionStatus);
+
+        var savedWallet = await dbContext.Wallets
+            .FirstAsync(walletItem => walletItem.Id == wallet.Id);
+        var savedTransaction = await dbContext.Transactions
+            .FirstAsync(transactionItem => transactionItem.Id == transaction.Id);
+
+        Assert.Equal(10_000m, savedWallet.Balance);
+        Assert.Equal(TransactionStatus.Expired, savedTransaction.Status);
+        Assert.Null(savedTransaction.ExternalTransactionId);
+    }
+
+    [Fact]
+    public async Task SePayWebhook_ShouldThrowUnauthorized_WhenSecretHeaderIsInvalid()
+    {
+        await using var dbContext = CreateDbContext();
+        var service = CreateService(
+            dbContext,
+            configureContext: httpContext =>
+            {
+                httpContext.Request.Headers["X-SePay-Secret"] = "invalid-secret";
+            },
+            options: new SePayOptions
+            {
+                BankAccount = "00005668350",
+                SecretKey = "expected-secret"
+            });
+
+        var request = new SePayRequest.SePayWebhookRequest
+        {
+            Id = 71479995,
+            Gateway = "TPBank",
+            TransactionDate = "2026-08-04 08:51:05",
+            AccountNumber = "00005668350",
+            Content = "TOPUPcbcf7e37311d4fb7a771fccfef3376c2-040826-08:51:04 6216ASCB02TCMQCX",
+            TransferType = "in",
+            Description = "BankAPINotify TOPUPcbcf7e37311d4fb7a771fccfef3376c2-040826-08:51:04 6216ASCB02TCMQCX",
+            TransferAmount = 5_000,
+            ReferenceCode = "267V602262160313",
+            Accumulated = 184515
+        };
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.SePayWebhook(request));
+    }
+
     private static AppDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -113,6 +243,31 @@ public class SePayWebhookServiceTests
             .Options;
 
         return new AppDbContext(options);
+    }
+
+    private static SePayService CreateService(
+        AppDbContext dbContext,
+        Action<DefaultHttpContext>? configureContext = null,
+        SePayOptions? options = null)
+    {
+        var httpContext = new DefaultHttpContext();
+        configureContext?.Invoke(httpContext);
+
+        var httpContextAccessor = new HttpContextAccessor
+        {
+            HttpContext = httpContext
+        };
+
+        var sePayOptions = options ?? new SePayOptions
+        {
+            BankAccount = "00005668350"
+        };
+
+        return new SePayService(
+            dbContext,
+            NullLogger<SePayService>.Instance,
+            httpContextAccessor,
+            Options.Create(sePayOptions));
     }
 
     private static User CreateUser() => new()
@@ -183,6 +338,7 @@ public class SePayWebhookServiceTests
         RawContent = referenceCode,
         ProviderDescription = referenceCode,
         WalletBalanceBefore = walletBalanceBefore,
+        ExpiredAt = DateTimeOffset.UtcNow.AddMinutes(15),
         CreatedAt = DateTimeOffset.UtcNow,
         UpdatedAt = DateTimeOffset.UtcNow
     };
