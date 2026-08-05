@@ -109,6 +109,147 @@ public class SePayWebhookServiceTests
     }
 
     [Fact]
+    public async Task SePayWebhook_ShouldProcess_WhenReferenceCodeContainsTopupReference()
+    {
+        await using var dbContext = CreateDbContext();
+        var user = CreateUser();
+        var tier = CreateTier();
+        var customerProfile = CreateCustomerProfile(user, tier);
+        var wallet = CreateWallet(customerProfile, 10_000m);
+        var transaction = CreatePendingTopupTransaction(customerProfile, wallet.Balance, 5_000m, "TOPUP-cbcf7e37311d4fb7a771fccfef3376c2");
+
+        dbContext.AddRange(user, tier, customerProfile, wallet, transaction);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+        var request = new SePayRequest.SePayWebhookRequest
+        {
+            Id = 71812457,
+            Gateway = "TPBank",
+            TransactionDate = "2026-08-05 22:31:12",
+            AccountNumber = "00005668350",
+            Content = "CT QUA EBANK",
+            TransferType = "in",
+            Description = "BankAPINotify CT QUA EBANK",
+            TransferAmount = 5_000,
+            ReferenceCode = "TOPUPcbcf7e37311d4fb7a771fccfef3376c2",
+            Accumulated = 69083
+        };
+
+        var result = await service.SePayWebhook(request);
+
+        Assert.True(result.Success);
+        Assert.Equal("processed", result.Code);
+        Assert.Equal(transaction.Id, result.TransactionId);
+        Assert.False(result.AlreadyProcessed);
+        Assert.Equal(TransactionStatus.Succeeded.ToString(), result.TransactionStatus);
+
+        var savedWallet = await dbContext.Wallets
+            .FirstAsync(walletItem => walletItem.Id == wallet.Id);
+        var savedTransaction = await dbContext.Transactions
+            .FirstAsync(transactionItem => transactionItem.Id == transaction.Id);
+
+        Assert.Equal(15_000m, savedWallet.Balance);
+        Assert.Equal(TransactionStatus.Succeeded, savedTransaction.Status);
+        Assert.Equal("71812457", savedTransaction.ExternalTransactionId);
+        Assert.Equal("TOPUPcbcf7e37311d4fb7a771fccfef3376c2", savedTransaction.BankReferenceCode);
+    }
+
+    [Fact]
+    public async Task SePayWebhook_ShouldProcess_WhenPaymentCodeIsMissingAndSinglePendingAmountMatches()
+    {
+        await using var dbContext = CreateDbContext();
+        var user = CreateUser();
+        var tier = CreateTier();
+        var customerProfile = CreateCustomerProfile(user, tier);
+        var wallet = CreateWallet(customerProfile, 10_000m);
+        var transaction = CreatePendingTopupTransaction(customerProfile, wallet.Balance, 5_000m, "TOPUP-cbcf7e37311d4fb7a771fccfef3376c2");
+
+        dbContext.AddRange(user, tier, customerProfile, wallet, transaction);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+        var request = new SePayRequest.SePayWebhookRequest
+        {
+            Id = 71812458,
+            Gateway = "TPBank",
+            TransactionDate = "2026-08-05 22:31:12",
+            AccountNumber = "00005668350",
+            Content = "CT QUA EBANK",
+            TransferType = "in",
+            Description = "BankAPINotify CT QUA EBANK",
+            TransferAmount = 5_000,
+            ReferenceCode = "267ITC1262172230",
+            Accumulated = 69083
+        };
+
+        var result = await service.SePayWebhook(request);
+
+        Assert.True(result.Success);
+        Assert.Equal("processed", result.Code);
+        Assert.Equal(transaction.Id, result.TransactionId);
+        Assert.False(result.AlreadyProcessed);
+        Assert.Equal(TransactionStatus.Succeeded.ToString(), result.TransactionStatus);
+
+        var savedWallet = await dbContext.Wallets
+            .FirstAsync(walletItem => walletItem.Id == wallet.Id);
+        var savedTransaction = await dbContext.Transactions
+            .FirstAsync(transactionItem => transactionItem.Id == transaction.Id);
+
+        Assert.Equal(15_000m, savedWallet.Balance);
+        Assert.Equal(TransactionStatus.Succeeded, savedTransaction.Status);
+        Assert.Equal("71812458", savedTransaction.ExternalTransactionId);
+        Assert.Equal("267ITC1262172230", savedTransaction.BankReferenceCode);
+    }
+
+    [Fact]
+    public async Task SePayWebhook_ShouldReturnIgnored_WhenPaymentCodeIsMissingAndMultiplePendingAmountsMatch()
+    {
+        await using var dbContext = CreateDbContext();
+        var user = CreateUser();
+        var tier = CreateTier();
+        var customerProfile = CreateCustomerProfile(user, tier);
+        var secondCustomerProfile = CreateCustomerProfile(CreateUser(), tier);
+        var wallet = CreateWallet(customerProfile, 10_000m);
+        var secondWallet = CreateWallet(secondCustomerProfile, 20_000m);
+        var firstTransaction = CreatePendingTopupTransaction(customerProfile, wallet.Balance, 5_000m, "TOPUP-cbcf7e37311d4fb7a771fccfef3376c2");
+        var secondTransaction = CreatePendingTopupTransaction(secondCustomerProfile, secondWallet.Balance, 5_000m, "TOPUP-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+
+        dbContext.AddRange(user, tier, customerProfile, secondCustomerProfile.User!, secondCustomerProfile.Tier!, wallet, secondWallet, firstTransaction, secondTransaction);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext);
+        var request = new SePayRequest.SePayWebhookRequest
+        {
+            Id = 71812459,
+            Gateway = "TPBank",
+            TransactionDate = "2026-08-05 22:31:12",
+            AccountNumber = "00005668350",
+            Content = "CT QUA EBANK",
+            TransferType = "in",
+            Description = "BankAPINotify CT QUA EBANK",
+            TransferAmount = 5_000,
+            ReferenceCode = "267ITC1262172231",
+            Accumulated = 74083
+        };
+
+        var result = await service.SePayWebhook(request);
+
+        Assert.True(result.Success);
+        Assert.Equal("ignored", result.Code);
+        Assert.False(result.AlreadyProcessed);
+        Assert.Equal("Multiple pending wallet top-up transactions matched the webhook without a payment reference code.", result.Message);
+
+        var savedFirstTransaction = await dbContext.Transactions
+            .FirstAsync(transactionItem => transactionItem.Id == firstTransaction.Id);
+        var savedSecondTransaction = await dbContext.Transactions
+            .FirstAsync(transactionItem => transactionItem.Id == secondTransaction.Id);
+
+        Assert.Equal(TransactionStatus.Pending, savedFirstTransaction.Status);
+        Assert.Equal(TransactionStatus.Pending, savedSecondTransaction.Status);
+    }
+
+    [Fact]
     public async Task SePayWebhook_ShouldReturnIgnored_WhenAccountNumberDoesNotMatch()
     {
         await using var dbContext = CreateDbContext();
