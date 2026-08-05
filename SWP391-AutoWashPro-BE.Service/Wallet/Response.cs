@@ -25,6 +25,7 @@ public class Response
         public required string Currency { get; set; }
         public required string BankName { get; set; }
         public required string BankAccount { get; set; }
+        public required string ReferenceCode { get; set; }
         public required string Description { get; set; }
         public required string QRCode { get; set; }
         public required string Status { get; set; }

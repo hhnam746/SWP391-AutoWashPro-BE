@@ -251,6 +251,7 @@ public class Service : IService
             Currency = Response.WalletCurrency,
             BankName = _sePayOptions.BankName,
             BankAccount = _sePayOptions.BankAccount,
+            ReferenceCode = referenceCode,
             Description = referenceCode,
             QRCode = qrCode,
             Status = TransactionStatus.Pending.ToString(),
