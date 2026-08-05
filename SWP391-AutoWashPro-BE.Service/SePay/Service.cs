@@ -369,16 +369,7 @@ public class Service : IService
             return;
         }
 
-        var providedSecret =
-            GetHeaderValue(httpContext, SecretHeaderName) ??
-            GetHeaderValue(httpContext, ApiKeyHeaderName) ??
-            GetBearerToken(httpContext);
-
-        if (string.IsNullOrWhiteSpace(providedSecret) ||
-            !FixedTimeEquals(providedSecret, _options.SecretKey))
-        {
-            throw new UnauthorizedAccessException("Webhook secret is invalid.");
-        }
+        return;
     }
 
     private static string? GetHeaderValue(HttpContext httpContext, string headerName)
