@@ -205,6 +205,7 @@ public class Service : IService
             : _sePayOptions.QrTemplate.Trim();
         var referenceCode = $"{transferContentPrefix}-{Guid.NewGuid():N}";
 
+        var now = DateTimeOffset.UtcNow;
         var topUpTransaction = new Repository.Entities.Transaction
         {
             Id = Guid.NewGuid(),
@@ -223,8 +224,9 @@ public class Service : IService
             RawContent = referenceCode,
             ProviderDescription = referenceCode,
             WalletBalanceBefore = wallet.Balance,
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow
+            ExpiredAt = now.AddMinutes(15),
+            CreatedAt = now,
+            UpdatedAt = now
         };
 
         await _dbContext.Transactions.AddAsync(topUpTransaction);
@@ -255,8 +257,70 @@ public class Service : IService
             Description = referenceCode,
             QRCode = qrCode,
             Status = TransactionStatus.Pending.ToString(),
+            ExpiredAt = topUpTransaction.ExpiredAt ?? now.AddMinutes(15),
             Message = "Create wallet top-up request successfully"
         };
+
+        return result;
+    }
+
+    public async Task<Response.WalletTopupStatusResponse> GetWalletTopupStatus(Guid transactionId)
+    {
+        var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
+
+        var userQuery = _dbContext.Users
+            .Where(user => user.Id == userIdGuid);
+
+        var user = await userQuery
+            .FirstOrDefaultAsync();
+
+        if (user == null)
+        {
+            throw new InvalidOperationException("User not found");
+        }
+
+        var customerProfileQuery = _dbContext.CustomerProfiles
+            .Where(customerProfile => customerProfile.UserId == userIdGuid);
+
+        var customerProfile = await customerProfileQuery
+            .FirstOrDefaultAsync();
+
+        if (customerProfile == null)
+        {
+            throw new InvalidOperationException("Customer profile not found");
+        }
+
+        var query = _dbContext.Transactions
+            .AsNoTracking()
+            .Where(transaction =>
+                transaction.Id == transactionId &&
+                transaction.CustomerId == customerProfile.Id &&
+                transaction.Type == TransactionType.WalletTopup);
+
+        var selectedQuery = query
+            .Select(transaction => new Response.WalletTopupStatusResponse
+            {
+                TransactionId = transaction.Id,
+                Amount = transaction.Amount,
+                Currency = Response.WalletCurrency,
+                ReferenceCode = transaction.ReferenceCode ?? string.Empty,
+                Status = transaction.Status != null
+                    ? transaction.Status.ToString()!
+                    : string.Empty,
+                CreatedAt = transaction.CreatedAt,
+                ExpiredAt = transaction.ExpiredAt,
+                PaidAt = transaction.PaidAt,
+                ExternalTransactionId = transaction.ExternalTransactionId,
+                BankReferenceCode = transaction.BankReferenceCode
+            });
+
+        var result = await selectedQuery
+            .FirstOrDefaultAsync();
+
+        if (result == null)
+        {
+            throw new KeyNotFoundException("Wallet top-up transaction not found");
+        }
 
         return result;
     }
