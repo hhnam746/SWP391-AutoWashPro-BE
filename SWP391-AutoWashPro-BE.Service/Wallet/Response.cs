@@ -29,6 +29,21 @@ public class Response
         public required string Description { get; set; }
         public required string QRCode { get; set; }
         public required string Status { get; set; }
+        public required DateTimeOffset ExpiredAt { get; set; }
         public required string Message { get; set; }
+    }
+
+    public class WalletTopupStatusResponse
+    {
+        public required Guid TransactionId { get; set; }
+        public required decimal Amount { get; set; }
+        public required string Currency { get; set; }
+        public required string ReferenceCode { get; set; }
+        public required string Status { get; set; }
+        public DateTimeOffset? CreatedAt { get; set; }
+        public DateTimeOffset? ExpiredAt { get; set; }
+        public DateTimeOffset? PaidAt { get; set; }
+        public string? ExternalTransactionId { get; set; }
+        public string? BankReferenceCode { get; set; }
     }
 }
