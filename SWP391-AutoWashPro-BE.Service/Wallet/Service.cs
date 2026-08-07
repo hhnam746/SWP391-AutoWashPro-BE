@@ -264,7 +264,9 @@ public class Service : IService
         return result;
     }
 
-    public async Task<Response.WalletTopupStatusResponse> GetWalletTopupStatus(Guid transactionId)
+    public async Task<Response.WalletTopupStatusResponse> GetWalletTopupStatus(
+        Guid transactionId,
+        CancellationToken cancellationToken = default)
     {
         var userIdGuid = ServiceClaimHelper.GetRequiredUserId(_httpContext);
 
@@ -272,7 +274,7 @@ public class Service : IService
             .Where(user => user.Id == userIdGuid);
 
         var user = await userQuery
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (user == null)
         {
@@ -283,7 +285,7 @@ public class Service : IService
             .Where(customerProfile => customerProfile.UserId == userIdGuid);
 
         var customerProfile = await customerProfileQuery
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (customerProfile == null)
         {
@@ -315,11 +317,59 @@ public class Service : IService
             });
 
         var result = await selectedQuery
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (result == null)
         {
             throw new KeyNotFoundException("Wallet top-up transaction not found");
+        }
+
+        var utcNow = DateTimeOffset.UtcNow;
+        var isExpiredPendingTransaction =
+            string.Equals(result.Status, TransactionStatus.Pending.ToString(), StringComparison.Ordinal) &&
+            result.ExpiredAt.HasValue &&
+            result.ExpiredAt.Value <= utcNow;
+
+        if (isExpiredPendingTransaction)
+        {
+            var expirationQuery = _dbContext.Transactions
+                .Where(transaction =>
+                    transaction.Id == transactionId &&
+                    transaction.CustomerId == customerProfile.Id &&
+                    transaction.Type == TransactionType.WalletTopup &&
+                    transaction.Status == TransactionStatus.Pending &&
+                    transaction.ExpiredAt.HasValue &&
+                    transaction.ExpiredAt.Value <= utcNow);
+
+            if (_dbContext.Database.IsRelational())
+            {
+                await expirationQuery.ExecuteUpdateAsync(
+                    setters => setters
+                        .SetProperty(transaction => transaction.Status, TransactionStatus.Expired)
+                        .SetProperty(transaction => transaction.UpdatedAt, utcNow),
+                    cancellationToken);
+            }
+            else
+            {
+                var transaction = await expirationQuery
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (transaction != null)
+                {
+                    transaction.Status = TransactionStatus.Expired;
+                    transaction.UpdatedAt = utcNow;
+
+                    await _dbContext.SaveChangesAsync(cancellationToken);
+                }
+            }
+
+            result = await selectedQuery
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (result == null)
+            {
+                throw new KeyNotFoundException("Wallet top-up transaction not found");
+            }
         }
 
         return result;

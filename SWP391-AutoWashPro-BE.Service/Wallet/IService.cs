@@ -6,5 +6,7 @@ public interface IService
     public Task<Response.WalletTopupResponse> TopupUserWallet(Request.WalletTopupRequest request);
     public Task<Response.GetWalleResponse> GetUserWalletV2();
     public Task<Response.WalletTopupV2Response> TopupUserWalletV2(Request.WalletTopupRequest request);
-    public Task<Response.WalletTopupStatusResponse> GetWalletTopupStatus(Guid transactionId);
+    public Task<Response.WalletTopupStatusResponse> GetWalletTopupStatus(
+        Guid transactionId,
+        CancellationToken cancellationToken = default);
 }

@@ -103,6 +103,56 @@ public class WalletTopupFlowTests
         Assert.Equal(transaction.PaidAt, result.PaidAt);
     }
 
+    [Fact]
+    public async Task GetWalletTopupStatus_ShouldExpirePendingTransaction_WhenExpiredAtHasPassed()
+    {
+        await using var dbContext = CreateDbContext();
+        var user = CreateUser();
+        var tier = CreateTier();
+        var customerProfile = CreateCustomerProfile(user, tier);
+        var wallet = CreateWallet(customerProfile, 15_000m);
+        var transaction = new Transaction
+        {
+            Id = Guid.NewGuid(),
+            Amount = 5_000m,
+            Type = TransactionType.WalletTopup,
+            Description = "Wallet top-up",
+            TransactionDate = DateTime.UtcNow,
+            CustomerId = customerProfile.Id,
+            CustomerProfile = customerProfile,
+            Status = TransactionStatus.Pending,
+            ReferenceCode = "TOPUP-87ab7c599cdf4dc097902250e118c49c",
+            Provider = ProviderType.SePay,
+            TransferType = TransferType.In,
+            Gateway = "TPBank",
+            AccountNumber = "00005668350",
+            ExpiredAt = DateTimeOffset.UtcNow.AddMinutes(-1),
+            CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-2),
+            UpdatedAt = DateTimeOffset.UtcNow.AddMinutes(-2)
+        };
+
+        dbContext.AddRange(user, tier, customerProfile, wallet, transaction);
+        await dbContext.SaveChangesAsync();
+
+        var service = CreateService(dbContext, user.Id);
+
+        var result = await service.GetWalletTopupStatus(transaction.Id);
+
+        Assert.Equal(transaction.Id, result.TransactionId);
+        Assert.Equal("Expired", result.Status);
+        Assert.Equal(transaction.ExpiredAt, result.ExpiredAt);
+
+        var refreshedTransactionQuery = dbContext.Transactions
+            .AsNoTracking()
+            .Where(item => item.Id == transaction.Id);
+
+        var refreshedTransaction = await refreshedTransactionQuery
+            .FirstOrDefaultAsync();
+
+        Assert.NotNull(refreshedTransaction);
+        Assert.Equal(TransactionStatus.Expired, refreshedTransaction!.Status);
+    }
+
     private static AppDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
