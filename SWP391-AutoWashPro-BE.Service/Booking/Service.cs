@@ -1466,7 +1466,8 @@ public class Service : IService
 
             _dbContext.PointTransactions.Add(earnPointTransaction);
             var currentTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level);
-            var nextTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level + 1);
+            var nextTier = _dbContext.Tiers.FirstOrDefault(x => x.Level == customerProfile.Tier.Level + 1 &&
+                                                                !x.IsDeleted);
 
             if (nextTier != null &&
                 customerProfile.TotalWashes >= nextTier.RequiredWashes)
