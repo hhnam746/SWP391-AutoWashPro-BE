@@ -37,9 +37,9 @@ public class WalletController : ControllerBase
     }
 
     [HttpGet("v2/wallet/top-up/{transactionId}")]
-    public async Task<IActionResult> GetWalletTopupStatus(Guid transactionId)
+    public async Task<IActionResult> GetWalletTopupStatus(Guid transactionId, CancellationToken cancellationToken)
     {
-        var result = await _service.GetWalletTopupStatus(transactionId);
+        var result = await _service.GetWalletTopupStatus(transactionId, cancellationToken);
         return Ok(result);
     }
     
