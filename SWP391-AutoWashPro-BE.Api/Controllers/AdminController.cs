@@ -189,4 +189,16 @@ public class AdminController : ControllerBase
         var result = await _adminService.GetWalletTopupTransactions(request);
         return Ok(ApiResponseFactory.SuccessResponse(result, "Get wallet top-up transactions",HttpContext.TraceIdentifier));
     }
+
+    [HttpPost("cancel-booking-From-To")]
+    public async Task<IActionResult> CancelBookingFromTo(
+        [FromBody] Request.CancelBookingFromTo request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _adminService.CancelBookingFromTo(request, cancellationToken);
+        return Ok(ApiResponseFactory.SuccessResponse(
+            result,
+            result.Message,
+            HttpContext.TraceIdentifier));
+    }
 }
