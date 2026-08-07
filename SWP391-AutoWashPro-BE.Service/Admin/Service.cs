@@ -775,66 +775,17 @@ public class Service : IService
         }
 
         var now = DateTimeOffset.UtcNow;
-        var totalPaidAmount = await RefundWorkflow.GetTotalPaidAmountAsync(_dbContext, booking.Id);
-        var refundDecision = RefundWorkflow.CalculateAdminCancellationRefund(totalPaidAmount);
+        var wallets = await _dbContext.Wallets
+            .Where(wallet => wallet.CustomerId == booking.CustomerId)
+            .ToDictionaryAsync(wallet => wallet.CustomerId, CancellationToken.None);
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync();
-        booking.Status = BookingStatus.Cancelled;
-        booking.CancelledAt = now;
-        booking.UpdatedAt = now;
-        if (booking.VoucherId.HasValue)
-        {
-            await VoucherLifecycle.ReleaseReservedAsync(
-                _dbContext,
-                booking.VoucherId.Value,
-                booking.Id,
-                now);
-        }
-
-        Guid? refundTransactionId = null;
-        if (refundDecision.RefundApplied)
-        {
-            var wallet = await _dbContext.Wallets
-                .FirstOrDefaultAsync(x => x.CustomerId == booking.CustomerId);
-
-            if (wallet == null)
-            {
-                throw new KeyNotFoundException("Wallet not found.");
-            }
-
-            var walletBalanceBefore = wallet.Balance;
-            var walletBalanceAfter = walletBalanceBefore + refundDecision.RefundAmount;
-
-            wallet.Balance = walletBalanceAfter;
-            wallet.UpdatedAt = now;
-
-            var refundTransaction = RefundWorkflow.CreateRefundTransaction(
-                booking,
-                booking.CustomerId,
-                refundDecision.RefundAmount,
-                refundDecision.ReasonCode,
-                $"Refund for admin booking cancellation: {request.Reason.Trim()}",
-                walletBalanceBefore,
-                walletBalanceAfter,
-                now);
-
-            refundTransactionId = refundTransaction.Id;
-            _dbContext.Transactions.Add(refundTransaction);
-        }
-
-        _dbContext.Notifications.Add(new Repository.Entities.Notification
-        {
-            Id = Guid.NewGuid(),
-            UserId = booking.Customer.UserId,
-            Type = NotificationType.BookingCancelled,
-            Title = "Booking Cancelled",
-            Content = refundDecision.RefundApplied
-                ? $"Your booking at {booking.Branch.Name} has been cancelled. Reason: {request.Reason.Trim()}. Refund amount: {refundDecision.RefundAmount:N0} VND has been returned to your wallet."
-                : $"Your booking at {booking.Branch.Name} has been cancelled. Reason: {request.Reason.Trim()}",
-            IsRead = false,
-            CreatedAt = now
-        });
-
+        var refundResult = await ApplyAdminCancellationAsync(
+            booking,
+            request.Reason.Trim(),
+            now,
+            wallets,
+            CancellationToken.None);
         await _dbContext.SaveChangesAsync();
         await transaction.CommitAsync();
 
@@ -842,16 +793,263 @@ public class Service : IService
         {
             Id = booking.Id,
             Status = booking.Status.ToString(),
-            CancelledAt = booking.CancelledAt.Value,
-            RefundApplied = refundDecision.RefundApplied,
-            RefundAmount = refundDecision.RefundAmount,
-            RefundTransactionId = refundTransactionId,
-            RefundReasonCode = refundDecision.ReasonCode,
-            Message = refundDecision.RefundApplied
+            CancelledAt = booking.CancelledAt ?? now,
+            RefundApplied = refundResult.RefundApplied,
+            RefundAmount = refundResult.RefundAmount,
+            RefundTransactionId = refundResult.RefundTransactionId,
+            RefundReasonCode = refundResult.RefundReasonCode,
+            Message = refundResult.RefundApplied
                 ? "Booking cancelled and refund applied"
                 : "Booking cancelled"
         };
     }
+
+    public async Task<Response.CancelBookingFromToResponse> CancelBookingFromTo(
+        Request.CancelBookingFromTo request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null)
+        {
+            throw new ArgumentException("Request body is required.");
+        }
+
+        if (request.BranchId == Guid.Empty)
+        {
+            throw new ArgumentException("BranchId is required.");
+        }
+
+        if (request.FromDate == default)
+        {
+            throw new ArgumentException("FromDate is required.");
+        }
+
+        if (request.ToDate == default)
+        {
+            throw new ArgumentException("ToDate is required.");
+        }
+
+        if (request.FromDate > request.ToDate)
+        {
+            throw new ArgumentException("FromDate must be less than or equal to ToDate.");
+        }
+
+        var branchQuery = _dbContext.Branches
+            .AsNoTracking()
+            .Where(branch => branch.Id == request.BranchId && !branch.IsDeleted);
+
+        var selectedBranchQuery = branchQuery
+            .Select(branch => new
+            {
+                branch.Id,
+                branch.Name
+            });
+
+        var branch = await selectedBranchQuery
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (branch == null)
+        {
+            throw new KeyNotFoundException("Branch not found.");
+        }
+
+        var totalBookingsQuery = _dbContext.Bookings
+            .AsNoTracking()
+            .Where(booking =>
+                booking.BranchId == request.BranchId &&
+                booking.BookingDate >= request.FromDate &&
+                booking.BookingDate <= request.ToDate);
+
+        var totalBookingCount = await totalBookingsQuery
+            .CountAsync(cancellationToken);
+
+        var query = _dbContext.Bookings
+            .Where(booking =>
+                booking.BranchId == request.BranchId &&
+                booking.BookingDate >= request.FromDate &&
+                booking.BookingDate <= request.ToDate &&
+                booking.Status == BookingStatus.Confirmed)
+            .Include(booking => booking.Customer)
+            .Include(booking => booking.Branch)
+            .OrderBy(booking => booking.StartTime);
+
+        var confirmedBookings = await query
+            .ToListAsync(cancellationToken);
+
+        if (confirmedBookings.Count == 0)
+        {
+            return new Response.CancelBookingFromToResponse
+            {
+                BranchId = branch.Id,
+                FromDate = request.FromDate,
+                ToDate = request.ToDate,
+                TotalBookingCount = totalBookingCount,
+                CancelledBookingCount = 0,
+                RefundedBookingCount = 0,
+                SkippedBookingCount = totalBookingCount,
+                TotalRefundAmount = 0m,
+                Message = "No confirmed bookings were found in the selected range."
+            };
+        }
+
+        var customerIds = confirmedBookings
+            .Select(booking => booking.CustomerId)
+            .Distinct()
+            .ToList();
+
+        var wallets = await _dbContext.Wallets
+            .Where(wallet => customerIds.Contains(wallet.CustomerId))
+            .ToDictionaryAsync(wallet => wallet.CustomerId, cancellationToken);
+
+        var now = DateTimeOffset.UtcNow;
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var cancelledBookingCount = 0;
+        var refundedBookingCount = 0;
+        decimal totalRefundAmount = 0m;
+        var reasonText = $"branch incident bulk cancellation for {branch.Name}";
+
+        foreach (var booking in confirmedBookings)
+        {
+            var result = await ApplyAdminCancellationAsync(
+                booking,
+                reasonText,
+                now,
+                wallets,
+                cancellationToken);
+
+            cancelledBookingCount++;
+            if (result.RefundApplied)
+            {
+                refundedBookingCount++;
+                totalRefundAmount += result.RefundAmount;
+            }
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return new Response.CancelBookingFromToResponse
+        {
+            BranchId = branch.Id,
+            FromDate = request.FromDate,
+            ToDate = request.ToDate,
+            TotalBookingCount = totalBookingCount,
+            CancelledBookingCount = cancelledBookingCount,
+            RefundedBookingCount = refundedBookingCount,
+            SkippedBookingCount = totalBookingCount - cancelledBookingCount,
+            TotalRefundAmount = totalRefundAmount,
+            Message = $"Cancelled {cancelledBookingCount} confirmed booking(s) for {branch.Name} and refunded {totalRefundAmount:N0} VND."
+        };
+    }
+
+    private async Task<AdminCancellationResult> ApplyAdminCancellationAsync(
+        Repository.Entities.Booking booking,
+        string reasonText,
+        DateTimeOffset now,
+        IDictionary<Guid, Repository.Entities.Wallet> wallets,
+        CancellationToken cancellationToken)
+    {
+        var totalPaidAmount = await RefundWorkflow.GetTotalPaidAmountAsync(
+            _dbContext,
+            booking.Id,
+            cancellationToken);
+
+        var refundDecision = RefundWorkflow.CalculateAdminCancellationRefund(totalPaidAmount);
+
+        booking.Status = BookingStatus.Cancelled;
+        booking.CancelledAt = now;
+        booking.UpdatedAt = now;
+
+        if (booking.VoucherId.HasValue)
+        {
+            await VoucherLifecycle.ReleaseReservedAsync(
+                _dbContext,
+                booking.VoucherId.Value,
+                booking.Id,
+                now,
+                cancellationToken);
+        }
+
+        if (!refundDecision.RefundApplied)
+        {
+            _dbContext.Notifications.Add(CreateCancellationNotification(
+                booking.Customer.UserId,
+                booking.Branch.Name,
+                reasonText,
+                null,
+                now));
+
+            return new AdminCancellationResult(
+                false,
+                0m,
+                null,
+                refundDecision.ReasonCode);
+        }
+
+        if (!wallets.TryGetValue(booking.CustomerId, out var wallet))
+        {
+            throw new KeyNotFoundException("Wallet not found.");
+        }
+
+        var walletBalanceBefore = wallet.Balance;
+        var walletBalanceAfter = walletBalanceBefore + refundDecision.RefundAmount;
+
+        wallet.Balance = walletBalanceAfter;
+        wallet.UpdatedAt = now;
+
+        var refundTransaction = RefundWorkflow.CreateRefundTransaction(
+            booking,
+            booking.CustomerId,
+            refundDecision.RefundAmount,
+            refundDecision.ReasonCode,
+            $"Refund for admin booking cancellation: {reasonText}",
+            walletBalanceBefore,
+            walletBalanceAfter,
+            now);
+
+        _dbContext.Transactions.Add(refundTransaction);
+        _dbContext.Notifications.Add(CreateCancellationNotification(
+            booking.Customer.UserId,
+            booking.Branch.Name,
+            reasonText,
+            refundDecision.RefundAmount,
+            now));
+
+        return new AdminCancellationResult(
+            true,
+            refundDecision.RefundAmount,
+            refundTransaction.Id,
+            refundDecision.ReasonCode);
+    }
+
+    private static Repository.Entities.Notification CreateCancellationNotification(
+        Guid userId,
+        string branchName,
+        string reasonText,
+        decimal? refundAmount,
+        DateTimeOffset now)
+    {
+        var content = refundAmount.HasValue
+            ? $"Your booking at {branchName} has been cancelled. Reason: {reasonText}. Refund amount: {refundAmount.Value:N0} VND has been returned to your wallet."
+            : $"Your booking at {branchName} has been cancelled. Reason: {reasonText}. No refund was applied.";
+
+        return new Repository.Entities.Notification
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Type = NotificationType.BookingCancelled,
+            Title = "Booking Cancelled",
+            Content = content,
+            IsRead = false,
+            CreatedAt = now
+        };
+    }
+
+    private sealed record AdminCancellationResult(
+        bool RefundApplied,
+        decimal RefundAmount,
+        Guid? RefundTransactionId,
+        string RefundReasonCode);
 
     //Verify Account
 

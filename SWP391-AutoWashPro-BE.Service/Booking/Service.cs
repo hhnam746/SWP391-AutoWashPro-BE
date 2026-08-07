@@ -1660,12 +1660,10 @@ public class Service : IService
         }
 
         var now = DateTimeOffset.UtcNow;
-        var totalPaidAmount = await RefundWorkflow.GetTotalPaidAmountAsync(_dbContext, booking.Id);
-        var refundDecision = RefundWorkflow.CalculateCustomerCancellationRefund(
-            now,
-            booking.StartTime,
-            cancellationDeadlineHours,
-            totalPaidAmount);
+        var cancellationDeadline = booking.StartTime.AddHours(-cancellationDeadlineHours);
+        var refundReasonCode = now < cancellationDeadline
+            ? RefundWorkflow.CustomerCancelBeforeDeadlineReasonCode
+            : RefundWorkflow.CustomerCancelAfterDeadlineReasonCode;
 
         await using var transaction = await _dbContext.Database.BeginTransactionAsync();
         booking.Status = BookingStatus.Cancelled;
@@ -1680,43 +1678,12 @@ public class Service : IService
                 now);
         }
 
-        Guid? refundTransactionId = null;
-        if (refundDecision.RefundApplied)
-        {
-            var wallet = await _dbContext.Wallets
-                .FirstOrDefaultAsync(x => x.CustomerId == customerProfile.Id);
-
-            if (wallet == null)
-            {
-                throw new KeyNotFoundException("Wallet not found");
-            }
-
-            var walletBalanceBefore = wallet.Balance;
-            var walletBalanceAfter = walletBalanceBefore + refundDecision.RefundAmount;
-
-            wallet.Balance = walletBalanceAfter;
-            wallet.UpdatedAt = now;
-
-            var refundTransaction = RefundWorkflow.CreateRefundTransaction(
-                booking,
-                customerProfile.Id,
-                refundDecision.RefundAmount,
-                refundDecision.ReasonCode,
-                $"Refund for booking cancellation: {bookingRequest.Reason.Trim()}",
-                walletBalanceBefore,
-                walletBalanceAfter,
-                now);
-
-            refundTransactionId = refundTransaction.Id;
-            _dbContext.Transactions.Add(refundTransaction);
-        }
-
         var branch = await _dbContext.Branches
             .FirstOrDefaultAsync(x => x.Id == booking.BranchId);
 
-        var refundMessage = refundDecision.RefundApplied
-            ? $" Refund amount: {refundDecision.RefundAmount:N0} VND has been returned to your wallet."
-            : " No refund was applied because the cancellation deadline has passed.";
+        var cancellationMessage = refundReasonCode == RefundWorkflow.CustomerCancelBeforeDeadlineReasonCode
+            ? " The deposit has been retained according to the cancellation policy."
+            : " The deposit has been retained because the cancellation deadline has passed.";
 
         var notification = new Repository.Entities.Notification()
         {
@@ -1727,7 +1694,7 @@ public class Service : IService
             Content =
                 $"Your booking at {branch?.Name ?? "our branch"} " +
                 $"for {booking.StartTime.ToOffset(DefaultUtcOffset):HH:mm dd/MM/yyyy} " +
-                $"has been cancelled successfully.{refundMessage}",
+                $"has been cancelled successfully.{cancellationMessage}",
             IsRead = false,
             CreatedAt = DateTimeOffset.UtcNow,
         };
@@ -1750,13 +1717,11 @@ public class Service : IService
             Id = booking.Id,
             Status = booking.Status,
             CancelledAt = (booking.CancelledAt ?? DateTimeOffset.UtcNow).ToOffset(DefaultUtcOffset),
-            RefundApplied = refundDecision.RefundApplied,
-            RefundAmount = refundDecision.RefundAmount,
-            RefundTransactionId = refundTransactionId,
-            RefundReasonCode = refundDecision.ReasonCode,
-            Message = refundDecision.RefundApplied
-                ? "Booking cancelled successfully and refund applied"
-                : "Booking cancelled successfully",
+            RefundApplied = false,
+            RefundAmount = 0m,
+            RefundTransactionId = null,
+            RefundReasonCode = refundReasonCode,
+            Message = "Booking cancelled successfully. The deposit has been retained.",
         };
 
         return result;

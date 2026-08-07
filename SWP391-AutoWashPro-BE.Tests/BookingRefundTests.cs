@@ -17,7 +17,7 @@ namespace SWP391_AutoWashPro_BE.Tests;
 public class BookingRefundTests
 {
     [Fact]
-    public async Task CancelBooking_ShouldRefundDeposit_WhenCustomerCancelsBeforeDeadline()
+    public async Task CancelBooking_ShouldNotCreateRefundTransaction_WhenCustomerCancelsBeforeDeadline()
     {
         await using var dbContext = CreateDbContext();
         var seed = SeedCustomerBookingData(dbContext, DateTimeOffset.UtcNow.AddHours(2), 30m);
@@ -36,18 +36,18 @@ public class BookingRefundTests
             Reason = "Khong the den dung gio"
         });
 
-        Assert.True(result.RefundApplied);
-        Assert.Equal(30m, result.RefundAmount);
-        Assert.NotNull(result.RefundTransactionId);
+        Assert.False(result.RefundApplied);
+        Assert.Equal(0m, result.RefundAmount);
+        Assert.Null(result.RefundTransactionId);
         Assert.Equal("customer_cancel_before_deadline", result.RefundReasonCode);
 
         var wallet = await dbContext.Wallets.FirstAsync(x => x.Id == seed.Wallet.Id);
-        var refundTransaction = await dbContext.Transactions.FirstAsync(x =>
-            x.Id == result.RefundTransactionId &&
+        var refundCount = await dbContext.Transactions.CountAsync(x =>
+            x.BookingId == seed.Booking.Id &&
             x.Type == TransactionType.Refund);
 
-        Assert.Equal(130m, wallet.Balance);
-        Assert.Equal(TransactionStatus.Succeeded, refundTransaction.Status);
+        Assert.Equal(70m, wallet.Balance);
+        Assert.Equal(0, refundCount);
     }
 
     [Fact]
@@ -80,15 +80,19 @@ public class BookingRefundTests
             x.BookingId == seed.Booking.Id &&
             x.Type == TransactionType.Refund);
 
-        Assert.Equal(100m, wallet.Balance);
+        Assert.Equal(70m, wallet.Balance);
         Assert.Equal(0, refundCount);
     }
 
     [Fact]
-    public async Task CancelBookingByAdmin_ShouldRefundDepositToWallet()
+    public async Task CancelBookingByAdmin_ShouldRefundDepositToWallet_WhenBookingIsPending()
     {
         await using var dbContext = CreateDbContext();
-        var seed = SeedCustomerBookingData(dbContext, DateTimeOffset.UtcNow.AddMinutes(30), 30m);
+        var seed = SeedCustomerBookingData(
+            dbContext,
+            DateTimeOffset.UtcNow.AddMinutes(30),
+            30m,
+            BookingStatus.Pending);
         await dbContext.SaveChangesAsync();
 
         var service = new AdminService(
@@ -113,7 +117,7 @@ public class BookingRefundTests
             x.Id == result.RefundTransactionId &&
             x.Type == TransactionType.Refund);
 
-        Assert.Equal(130m, wallet.Balance);
+        Assert.Equal(100m, wallet.Balance);
         Assert.Equal(TransactionStatus.Succeeded, refundTransaction.Status);
     }
 
@@ -145,8 +149,11 @@ public class BookingRefundTests
     private static SeedData SeedCustomerBookingData(
         AppDbContext dbContext,
         DateTimeOffset bookingStartTime,
-        decimal depositAmount)
+        decimal depositAmount,
+        BookingStatus bookingStatus = BookingStatus.Confirmed)
     {
+        const decimal startingBalance = 100m;
+
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -189,7 +196,7 @@ public class BookingRefundTests
             Id = Guid.NewGuid(),
             CustomerId = customerProfile.Id,
             Customer = customerProfile,
-            Balance = 100m,
+            Balance = startingBalance - depositAmount,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -214,7 +221,7 @@ public class BookingRefundTests
             BookingDate = DateOnly.FromDateTime(bookingStartTime.UtcDateTime),
             StartTime = bookingStartTime,
             EndTime = bookingStartTime.AddMinutes(60),
-            Status = BookingStatus.Confirmed,
+            Status = bookingStatus,
             BasePrice = 100m,
             DiscountAmount = 0m,
             FinalPrice = 100m,
