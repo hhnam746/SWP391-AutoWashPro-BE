@@ -256,4 +256,17 @@ public class Response
         public string? RefundReasonCode { get; set; }
         public string Message { get; set; } = string.Empty;
     }
+
+    public class CancelBookingFromToResponse
+    {
+        public Guid BranchId { get; set; }
+        public DateOnly FromDate { get; set; }
+        public DateOnly ToDate { get; set; }
+        public int TotalBookingCount { get; set; }
+        public int CancelledBookingCount { get; set; }
+        public int RefundedBookingCount { get; set; }
+        public int SkippedBookingCount { get; set; }
+        public decimal TotalRefundAmount { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
 }

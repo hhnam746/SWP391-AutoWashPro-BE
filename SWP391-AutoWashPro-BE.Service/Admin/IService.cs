@@ -43,4 +43,7 @@ public interface IService
     public Task<Response.CancelBookingByAdminResponse> CancelBookingByAdmin(
         Guid bookingId,
         Request.CancelBookingByAdminRequest request);
+    public Task<Response.CancelBookingFromToResponse> CancelBookingFromTo(
+        Request.CancelBookingFromTo request,
+        CancellationToken cancellationToken = default);
 }

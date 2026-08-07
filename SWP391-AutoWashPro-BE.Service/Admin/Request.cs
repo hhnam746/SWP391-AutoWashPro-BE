@@ -111,4 +111,12 @@ public class Request
         public DateOnly DateOfBirth { get; set; }
         public required string Reason { get; set; }
     }
+
+
+    public class CancelBookingFromTo
+    {
+        public Guid BranchId { get; set; }
+        public DateOnly FromDate { get; set; }
+        public DateOnly ToDate { get; set; }
+    }
 }
